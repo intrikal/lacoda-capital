@@ -1,0 +1,161 @@
+/**
+ * Schema Index - Central Export Point
+ *
+ * Kevin, this file re-exports all schema definitions.
+ * Import from here for clean, consistent imports throughout the app.
+ *
+ * Usage:
+ *   import { orgs, users, clients, orgsRelations } from "@/app/db/schema";
+ *   import type { Org, NewOrg, Client } from "@/app/db/schema";
+ */
+
+// ============================================================================
+// Enums
+// ============================================================================
+export {
+  orgMemberRoleEnum,
+  entityTypeEnum,
+  assetClassEnum,
+  assetStatusEnum,
+  documentStatusEnum,
+  documentRequestStatusEnum,
+  taskStatusEnum,
+  taskPriorityEnum,
+  ledgerActionEnum,
+  ledgerTargetTypeEnum,
+  reportTypeEnum,
+  reportStatusEnum,
+  integrationStatusEnum,
+  integrationProviderEnum,
+  notificationTypeEnum,
+} from "./00_enums";
+
+// ============================================================================
+// Organizations
+// ============================================================================
+export { orgs, orgsRelations } from "./orgs";
+export type { Org, NewOrg, OrgSettings } from "./orgs";
+
+// ============================================================================
+// Users
+// ============================================================================
+export { users, usersRelations } from "./users";
+export type { User, NewUser, UserPreferences } from "./users";
+
+// ============================================================================
+// Organization Members
+// ============================================================================
+export { orgMembers, orgMembersRelations } from "./org_members";
+export type { OrgMember, NewOrgMember } from "./org_members";
+
+// ============================================================================
+// Clients
+// ============================================================================
+export { clients, clientsRelations } from "./clients";
+export type { Client, NewClient, ClientProfile } from "./clients";
+
+// ============================================================================
+// Assignments (Assistant ↔ Client)
+// ============================================================================
+export { assignments, assignmentsRelations } from "./assignments";
+export type { Assignment, NewAssignment } from "./assignments";
+
+// ============================================================================
+// Entities
+// ============================================================================
+export { entities, entitiesRelations } from "./entities";
+export type { Entity, NewEntity, EntityMetadata } from "./entities";
+
+// ============================================================================
+// Assets
+// ============================================================================
+export { assets, assetsRelations } from "./assets";
+export type { Asset, NewAsset, AssetMetadata } from "./assets";
+
+// ============================================================================
+// Valuations
+// ============================================================================
+export { valuations, valuationsRelations } from "./valuations";
+export type { Valuation, NewValuation } from "./valuations";
+
+// ============================================================================
+// Documents
+// ============================================================================
+export { documents, documentsRelations } from "./documents";
+export type { Document, NewDocument, DocumentMetadata } from "./documents";
+
+// ============================================================================
+// Document Requests
+// ============================================================================
+export { documentRequests, documentRequestsRelations } from "./document_requests";
+export type {
+  DocumentRequest,
+  NewDocumentRequest,
+  DocumentRequestMetadata,
+} from "./document_requests";
+
+// ============================================================================
+// Tasks
+// ============================================================================
+export { tasks, tasksRelations } from "./tasks";
+export type { Task, NewTask, TaskMetadata } from "./tasks";
+
+// ============================================================================
+// Ledger Events (Audit Log)
+// ============================================================================
+export { ledgerEvents, ledgerEventsRelations } from "./ledger_events";
+export type { LedgerEvent, NewLedgerEvent, LedgerPayload } from "./ledger_events";
+
+// ============================================================================
+// Reports
+// ============================================================================
+export {
+  reports,
+  reportVersions,
+  reportsRelations,
+  reportVersionsRelations,
+} from "./reports";
+export type {
+  Report,
+  NewReport,
+  ReportVersion,
+  NewReportVersion,
+  ReportParameters,
+} from "./reports";
+
+// ============================================================================
+// Compliance
+// ============================================================================
+export {
+  complianceControls,
+  complianceEvidence,
+  complianceControlsRelations,
+  complianceEvidenceRelations,
+} from "./compliance";
+export type {
+  ComplianceControl,
+  NewComplianceControl,
+  ComplianceEvidence,
+  NewComplianceEvidence,
+  ComplianceControlMetadata,
+} from "./compliance";
+
+// ============================================================================
+// Integrations
+// ============================================================================
+export { integrations, integrationsRelations } from "./integrations";
+export type {
+  Integration,
+  NewIntegration,
+  IntegrationSettings,
+} from "./integrations";
+
+// ============================================================================
+// Notifications
+// ============================================================================
+export { notifications, notificationsRelations } from "./notifications";
+export type {
+  Notification,
+  NewNotification,
+  NotificationPayload,
+} from "./notifications";
