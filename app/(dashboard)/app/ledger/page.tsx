@@ -257,12 +257,14 @@ export default function LedgerPage() {
         <CardHeader className="pb-0">
           <CardTitle className="text-base flex items-center justify-between">
             <span>{filteredEntries.length} entries</span>
-            <Badge variant="outline" className="font-normal">
-              Last updated{" "}
-              {formatDistanceToNow(new Date(filteredEntries[0]?.timestamp), {
-                addSuffix: true,
-              })}
-            </Badge>
+            {filteredEntries[0]?.timestamp && (
+              <Badge variant="outline" className="font-normal">
+                Last updated{" "}
+                {formatDistanceToNow(new Date(filteredEntries[0].timestamp), {
+                  addSuffix: true,
+                })}
+              </Badge>
+            )}
           </CardTitle>
         </CardHeader>
         <CardContent>
