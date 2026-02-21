@@ -44,9 +44,11 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 import { formatCurrency } from "@/lib/utils"
-import { mockClients, mockAssets, mockDocuments } from "@/lib/mock/data"
+import { mockAssets, mockDocuments } from "@/lib/mock/data"
 import type { Client } from "@/lib/mock/types"
 import { ContentCard, StatCard, PageHeader, Tabs } from "@/components/dashboard/content-card"
+import { useClients } from "@/lib/hooks/crud/use-clients"
+import { ClientFormDialog } from "@/components/forms/client-form-dialog"
 
 const typeIcons = {
   individual: User,
@@ -65,10 +67,12 @@ function ClientDetailDrawer({
   client,
   open,
   onClose,
+  onEdit,
 }: {
   client: Client | null
   open: boolean
   onClose: () => void
+  onEdit: (client: Client) => void
 }) {
   if (!client) return null
 
@@ -168,7 +172,9 @@ function ClientDetailDrawer({
           )}
 
           <div className="flex gap-2">
-            <Button className="flex-1">Edit Client</Button>
+            <Button className="flex-1" onClick={() => { onClose(); onEdit(client) }}>
+              Edit Client
+            </Button>
             <Button variant="outline" className="flex-1">
               <FileText className="h-4 w-4 mr-2" />
               Documents ({assignedDocs.length})
@@ -183,12 +189,16 @@ function ClientDetailDrawer({
 type TabId = "all" | "active" | "prospect" | "inactive"
 
 export default function ClientsPage() {
+  const { clients, addClient, updateClient, deleteClient, stats } = useClients()
   const [searchQuery, setSearchQuery] = React.useState("")
   const [activeTab, setActiveTab] = React.useState<TabId>("all")
   const [typeFilter, setTypeFilter] = React.useState<string>("all")
   const [selectedClient, setSelectedClient] = React.useState<Client | null>(null)
+  const [formOpen, setFormOpen] = React.useState(false)
+  const [formMode, setFormMode] = React.useState<"create" | "edit">("create")
+  const [editingClient, setEditingClient] = React.useState<Client | undefined>()
 
-  const filteredClients = mockClients.filter((client) => {
+  const filteredClients = clients.filter((client) => {
     const matchesSearch =
       client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       client.email.toLowerCase().includes(searchQuery.toLowerCase())
@@ -200,11 +210,23 @@ export default function ClientsPage() {
   const totalAUM = filteredClients.reduce((sum, c) => sum + c.aum, 0)
 
   const tabs = [
-    { id: "all", label: "All Clients", count: mockClients.length },
-    { id: "active", label: "Active", count: mockClients.filter(c => c.status === "active").length },
-    { id: "prospect", label: "Prospects", count: mockClients.filter(c => c.status === "prospect").length },
-    { id: "inactive", label: "Inactive", count: mockClients.filter(c => c.status === "inactive").length },
+    { id: "all", label: "All Clients", count: stats.total },
+    { id: "active", label: "Active", count: stats.active },
+    { id: "prospect", label: "Prospects", count: stats.prospects },
+    { id: "inactive", label: "Inactive", count: stats.inactive },
   ]
+
+  function handleAddClient() {
+    setFormMode("create")
+    setEditingClient(undefined)
+    setFormOpen(true)
+  }
+
+  function handleEditClient(client: Client) {
+    setFormMode("edit")
+    setEditingClient(client)
+    setFormOpen(true)
+  }
 
   return (
     <div className="space-y-6">
@@ -217,7 +239,7 @@ export default function ClientsPage() {
               <Download className="h-4 w-4 mr-2" />
               Export
             </Button>
-            <Button size="sm">
+            <Button size="sm" onClick={handleAddClient}>
               <Plus className="h-4 w-4 mr-2" />
               Add Client
             </Button>
@@ -228,25 +250,25 @@ export default function ClientsPage() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           label="Total Clients"
-          value={mockClients.length}
+          value={stats.total}
           icon={<Users className="h-4 w-4 text-tiffany-500" />}
           trend={{ value: "+4 this quarter", positive: true }}
         />
         <StatCard
           label="Active Clients"
-          value={mockClients.filter(c => c.status === "active").length}
-          subtext={`${Math.round((mockClients.filter(c => c.status === "active").length / mockClients.length) * 100)}% of total`}
+          value={stats.active}
+          subtext={`${stats.total > 0 ? Math.round((stats.active / stats.total) * 100) : 0}% of total`}
           icon={<User className="h-4 w-4 text-emerald-400" />}
         />
         <StatCard
           label="Avg AUM per Client"
-          value={formatCurrency(totalAUM / mockClients.length)}
+          value={formatCurrency(stats.avgAUM)}
           icon={<TrendingUp className="h-4 w-4 text-tiffany-500" />}
           trend={{ value: "+12% YoY", positive: true }}
         />
         <StatCard
           label="Prospects"
-          value={mockClients.filter(c => c.status === "prospect").length}
+          value={stats.prospects}
           subtext="Pending conversion"
           icon={<Briefcase className="h-4 w-4 text-blue-400" />}
         />
@@ -332,11 +354,18 @@ export default function ClientsPage() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="bg-zinc-900 border-zinc-800">
-                      <DropdownMenuItem>Edit</DropdownMenuItem>
+                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleEditClient(client) }}>
+                        Edit
+                      </DropdownMenuItem>
                       <DropdownMenuItem>Send Message</DropdownMenuItem>
                       <DropdownMenuItem>View Documents</DropdownMenuItem>
                       <DropdownMenuSeparator className="bg-zinc-800" />
-                      <DropdownMenuItem className="text-rose-400">Archive</DropdownMenuItem>
+                      <DropdownMenuItem
+                        className="text-rose-400"
+                        onClick={(e) => { e.stopPropagation(); deleteClient(client.id) }}
+                      >
+                        Archive
+                      </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
@@ -350,6 +379,21 @@ export default function ClientsPage() {
         client={selectedClient}
         open={!!selectedClient}
         onClose={() => setSelectedClient(null)}
+        onEdit={handleEditClient}
+      />
+
+      <ClientFormDialog
+        mode={formMode}
+        initialData={editingClient}
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        onSubmit={(data) => {
+          if (formMode === "create") {
+            addClient(data)
+          } else if (editingClient) {
+            updateClient(editingClient.id, data)
+          }
+        }}
       />
     </div>
   )

@@ -1,3 +1,24 @@
+/**
+ * @file app/(client)/client/portfolio/page.tsx
+ *
+ * Client-facing portfolio overview page.
+ *
+ * Data source: `useClientPortfolio` hook (lib/hooks/crud/use-client-portfolio.ts)
+ * which calls portfolioService.getPortfolioHoldings() and getPortfolioSummary()
+ * under the hood. All summary stats (totalValue, totalCostBasis, totalGain,
+ * gainPercent) come from `stats` returned by the hook; the raw `holdings` array
+ * is used for tab filtering and the per-row list.
+ *
+ * Chart data (allocationData, performanceData, assetPerformance) remains inline
+ * because it is display-only and not yet wired to a data service.
+ *
+ * tRPC swap path:
+ *   Replace `useClientPortfolio` internals with:
+ *   `const { data: holdings } = trpc.client.portfolio.holdings.useQuery()`
+ *   `const { data: summary }  = trpc.client.portfolio.summary.useQuery()`
+ *   The consuming component (this file) needs zero changes — the hook's return
+ *   shape is identical to what tRPC will return.
+ */
 "use client"
 
 import * as React from "react"
@@ -26,38 +47,39 @@ import {
   PerformanceChart,
   ROIChart,
 } from "@/components/dashboard/charts"
+import { useClientPortfolio } from "@/lib/hooks/crud/use-client-portfolio"
 
-// Client's holdings
-const holdings = [
-  { id: "1", name: "Vanguard Total Stock Market ETF", ticker: "VTI", type: "equity", value: 425000, shares: 1680, costBasis: 380000, return: 11.8 },
-  { id: "2", name: "Manhattan Investment Property", ticker: null, type: "realestate", value: 485000, costBasis: 420000, return: 15.5 },
-  { id: "3", name: "Vanguard Total Bond Market ETF", ticker: "BND", type: "fixed", value: 245000, shares: 3200, costBasis: 252000, return: -2.8 },
-  { id: "4", name: "Apple Inc.", ticker: "AAPL", type: "equity", value: 185000, shares: 980, costBasis: 145000, return: 27.6 },
-  { id: "5", name: "Miami Condo Rental", ticker: null, type: "realestate", value: 250000, costBasis: 225000, return: 11.1 },
-  { id: "6", name: "Private Equity Fund III", ticker: null, type: "private", value: 245000, costBasis: 200000, return: 22.5 },
-  { id: "7", name: "Tech Growth Fund", ticker: "TGFX", type: "equity", value: 180000, shares: 450, costBasis: 160000, return: 12.5 },
-  { id: "8", name: "High-Yield Bond Fund", ticker: "HYG", type: "fixed", value: 122500, shares: 1580, costBasis: 125000, return: -2.0 },
-  { id: "9", name: "Treasury Bills", ticker: "T-BILL", type: "cash", value: 122500, costBasis: 120000, return: 2.1 },
-  { id: "10", name: "SPDR Gold Trust", ticker: "GLD", type: "commodity", value: 75000, shares: 380, costBasis: 68000, return: 10.3 },
-]
+// ─────────────────────────────────────────────────────────────────────────────
+// Mapping helpers — translate hook AssetClass strings to UI labels/icons
+// ─────────────────────────────────────────────────────────────────────────────
 
-const typeIcons = {
-  equity: Briefcase,
-  realestate: Building2,
-  fixed: Landmark,
-  private: PiggyBank,
+const typeIcons: Record<string, React.ComponentType<{ className?: string }>> = {
+  equities: Briefcase,
+  real_estate: Building2,
+  fixed_income: Landmark,
+  private_equity: PiggyBank,
   cash: Landmark,
   commodity: Bitcoin,
+  crypto: Bitcoin,
+  alternatives: PiggyBank,
+  intellectual_property: Briefcase,
 }
 
-const typeLabels = {
-  equity: "Equities",
-  realestate: "Real Estate",
-  fixed: "Fixed Income",
-  private: "Private Equity",
+const typeLabels: Record<string, string> = {
+  equities: "Equities",
+  real_estate: "Real Estate",
+  fixed_income: "Fixed Income",
+  private_equity: "Private Equity",
   cash: "Cash & Equiv.",
   commodity: "Commodities",
+  crypto: "Crypto",
+  alternatives: "Alternatives",
+  intellectual_property: "Intellectual Property",
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Display-only chart data (not yet driven by a service)
+// ─────────────────────────────────────────────────────────────────────────────
 
 const allocationData = [
   { name: "Equities", value: 790000, color: "#14b8a6" },
@@ -92,18 +114,20 @@ const assetPerformance = [
   { name: "Miami Condo", roi: 11.1, invested: 225000, currentValue: 250000 },
 ]
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Tab values map to AssetClass strings from the hook
+// ─────────────────────────────────────────────────────────────────────────────
+
 export default function ClientPortfolioPage() {
   const [activeTab, setActiveTab] = React.useState("all")
   const reducedMotion = useReducedMotion()
 
-  const totalValue = holdings.reduce((sum, h) => sum + h.value, 0)
-  const totalCost = holdings.reduce((sum, h) => sum + h.costBasis, 0)
-  const totalGain = totalValue - totalCost
-  const totalReturn = ((totalValue - totalCost) / totalCost) * 100
+  // Replace inline holdings array + computed totals with hook data
+  const { holdings, stats, isLoading } = useClientPortfolio()
 
   const filteredHoldings = activeTab === "all"
     ? holdings
-    : holdings.filter(h => h.type === activeTab)
+    : holdings.filter(h => h.assetClass === activeTab)
 
   const spring = useSpring({
     from: { opacity: 0, transform: "translateY(20px)" },
@@ -127,20 +151,20 @@ export default function ClientPortfolioPage() {
         <Card>
           <CardContent className="p-4">
             <p className="text-sm text-zinc-400">Total Value</p>
-            <p className="text-2xl font-bold text-zinc-100 mt-1">{formatCurrency(totalValue)}</p>
+            <p className="text-2xl font-bold text-zinc-100 mt-1">{formatCurrency(stats.totalValue)}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <p className="text-sm text-zinc-400">Cost Basis</p>
-            <p className="text-2xl font-bold text-zinc-100 mt-1">{formatCurrency(totalCost)}</p>
+            <p className="text-2xl font-bold text-zinc-100 mt-1">{formatCurrency(stats.totalCostBasis)}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <p className="text-sm text-zinc-400">Total Gain/Loss</p>
-            <p className={cn("text-2xl font-bold mt-1", totalGain >= 0 ? "text-emerald-400" : "text-red-400")}>
-              {totalGain >= 0 ? "+" : ""}{formatCurrency(totalGain)}
+            <p className={cn("text-2xl font-bold mt-1", stats.totalGain >= 0 ? "text-emerald-400" : "text-red-400")}>
+              {stats.totalGain >= 0 ? "+" : ""}{formatCurrency(stats.totalGain)}
             </p>
           </CardContent>
         </Card>
@@ -148,10 +172,10 @@ export default function ClientPortfolioPage() {
           <CardContent className="p-4">
             <p className="text-sm text-zinc-400">Total Return</p>
             <div className="flex items-center gap-2 mt-1">
-              <p className={cn("text-2xl font-bold", totalReturn >= 0 ? "text-emerald-400" : "text-red-400")}>
-                {totalReturn >= 0 ? "+" : ""}{totalReturn.toFixed(1)}%
+              <p className={cn("text-2xl font-bold", stats.gainPercent >= 0 ? "text-emerald-400" : "text-red-400")}>
+                {stats.gainPercent >= 0 ? "+" : ""}{stats.gainPercent.toFixed(1)}%
               </p>
-              {totalReturn >= 0 ? (
+              {stats.gainPercent >= 0 ? (
                 <TrendingUp className="h-5 w-5 text-emerald-400" />
               ) : (
                 <TrendingDown className="h-5 w-5 text-red-400" />
@@ -184,17 +208,16 @@ export default function ClientPortfolioPage() {
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="mb-4">
               <TabsTrigger value="all">All</TabsTrigger>
-              <TabsTrigger value="equity">Equities</TabsTrigger>
-              <TabsTrigger value="realestate">Real Estate</TabsTrigger>
-              <TabsTrigger value="fixed">Fixed Income</TabsTrigger>
-              <TabsTrigger value="private">Private Equity</TabsTrigger>
+              <TabsTrigger value="equities">Equities</TabsTrigger>
+              <TabsTrigger value="real_estate">Real Estate</TabsTrigger>
+              <TabsTrigger value="fixed_income">Fixed Income</TabsTrigger>
+              <TabsTrigger value="private_equity">Private Equity</TabsTrigger>
             </TabsList>
 
             <div className="space-y-3">
               {filteredHoldings.map((holding) => {
-                const Icon = typeIcons[holding.type as keyof typeof typeIcons] || Briefcase
-                const gain = holding.value - holding.costBasis
-                const isPositive = gain >= 0
+                const Icon = typeIcons[holding.assetClass] ?? Briefcase
+                const isPositive = holding.gain >= 0
 
                 return (
                   <div
@@ -208,13 +231,13 @@ export default function ClientPortfolioPage() {
                       <div>
                         <p className="font-medium text-zinc-100">{holding.name}</p>
                         <div className="flex items-center gap-2 mt-1">
-                          {holding.ticker && (
-                            <Badge variant="outline" className="text-xs">{holding.ticker}</Badge>
+                          {holding.symbol && (
+                            <Badge variant="outline" className="text-xs">{holding.symbol}</Badge>
                           )}
                           <span className="text-xs text-zinc-500">
-                            {typeLabels[holding.type as keyof typeof typeLabels]}
+                            {typeLabels[holding.assetClass] ?? holding.assetClass}
                           </span>
-                          {holding.shares && (
+                          {holding.shares != null && (
                             <span className="text-xs text-zinc-500">• {holding.shares.toLocaleString()} shares</span>
                           )}
                         </div>
@@ -230,10 +253,10 @@ export default function ClientPortfolioPage() {
                           <ArrowDownRight className="h-3 w-3 text-red-400" />
                         )}
                         <span className={cn("text-sm", isPositive ? "text-emerald-400" : "text-red-400")}>
-                          {isPositive ? "+" : ""}{holding.return}%
+                          {isPositive ? "+" : ""}{holding.gainPercent.toFixed(1)}%
                         </span>
                         <span className={cn("text-xs", isPositive ? "text-emerald-400/70" : "text-red-400/70")}>
-                          ({isPositive ? "+" : ""}{formatCurrency(gain)})
+                          ({isPositive ? "+" : ""}{formatCurrency(holding.gain)})
                         </span>
                       </div>
                     </div>

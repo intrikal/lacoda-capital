@@ -26,27 +26,12 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogFooter,
-} from "@/components/ui/dialog"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
 import { formatCurrency } from "@/lib/utils"
 import { useReducedMotion } from "@/lib/hooks/use-reduced-motion"
+import { useGoals } from "@/lib/hooks/crud/use-goals"
+import { GoalFormDialog } from "@/components/forms/goal-form-dialog"
+import type { FinancialGoal } from "@/lib/mock/types"
 import {
   PerformanceChart,
   GoalProgress,
@@ -112,118 +97,7 @@ const goalCategoryConfig = {
   },
 }
 
-type GoalCategory = keyof typeof goalCategoryConfig
-
-interface FinancialGoal {
-  id: string
-  name: string
-  category: GoalCategory
-  targetAmount: number
-  currentAmount: number
-  targetDate: string
-  monthlyContribution: number
-  priority: "high" | "medium" | "low"
-  status: "on_track" | "ahead" | "behind" | "completed"
-  notes?: string
-  milestones?: { name: string; amount: number; reached: boolean }[]
-}
-
-// Mock goals data
-const mockGoals: FinancialGoal[] = [
-  {
-    id: "1",
-    name: "Retirement Fund",
-    category: "retirement",
-    targetAmount: 5000000,
-    currentAmount: 2850000,
-    targetDate: "2040-01-01",
-    monthlyContribution: 15000,
-    priority: "high",
-    status: "on_track",
-    notes: "Target: 4% safe withdrawal rate = $200K/year",
-    milestones: [
-      { name: "First Million", amount: 1000000, reached: true },
-      { name: "Two Million", amount: 2000000, reached: true },
-      { name: "Halfway", amount: 2500000, reached: true },
-      { name: "Three Million", amount: 3000000, reached: false },
-      { name: "Four Million", amount: 4000000, reached: false },
-    ],
-  },
-  {
-    id: "2",
-    name: "Children's Education Fund",
-    category: "education",
-    targetAmount: 500000,
-    currentAmount: 145000,
-    targetDate: "2035-09-01",
-    monthlyContribution: 2500,
-    priority: "high",
-    status: "on_track",
-    notes: "529 Plan for 2 children - college expenses",
-    milestones: [
-      { name: "First $50K", amount: 50000, reached: true },
-      { name: "$100K", amount: 100000, reached: true },
-      { name: "Quarter Way", amount: 125000, reached: true },
-      { name: "$200K", amount: 200000, reached: false },
-    ],
-  },
-  {
-    id: "3",
-    name: "Real Estate Portfolio Expansion",
-    category: "realestate",
-    targetAmount: 3000000,
-    currentAmount: 1850000,
-    targetDate: "2028-12-31",
-    monthlyContribution: 20000,
-    priority: "medium",
-    status: "ahead",
-    notes: "Target: 3 additional investment properties",
-    milestones: [
-      { name: "First Property", amount: 500000, reached: true },
-      { name: "Second Property", amount: 1000000, reached: true },
-      { name: "Third Property", amount: 1500000, reached: true },
-      { name: "Fourth Property", amount: 2000000, reached: false },
-    ],
-  },
-  {
-    id: "4",
-    name: "Emergency Fund",
-    category: "emergency",
-    targetAmount: 150000,
-    currentAmount: 125000,
-    targetDate: "2024-12-31",
-    monthlyContribution: 5000,
-    priority: "high",
-    status: "ahead",
-    notes: "12 months of expenses in liquid assets",
-  },
-  {
-    id: "5",
-    name: "European Vacation Home",
-    category: "travel",
-    targetAmount: 800000,
-    currentAmount: 180000,
-    targetDate: "2030-06-01",
-    monthlyContribution: 8000,
-    priority: "low",
-    status: "on_track",
-    notes: "Villa in Tuscany or South of France",
-  },
-  {
-    id: "6",
-    name: "Private Equity Fund",
-    category: "investment",
-    targetAmount: 1000000,
-    currentAmount: 650000,
-    targetDate: "2026-03-01",
-    monthlyContribution: 12000,
-    priority: "medium",
-    status: "on_track",
-    notes: "Diversified PE allocation across 5-7 funds",
-  },
-]
-
-// Wealth projection data
+// Wealth projection data (display-only)
 const wealthProjectionData = [
   { month: "2024", portfolio: 3850000, benchmark: 3500000 },
   { month: "2026", portfolio: 4850000, benchmark: 4200000 },
@@ -331,16 +205,12 @@ function GoalCard({ goal }: { goal: FinancialGoal }) {
 }
 
 export default function GoalsPage() {
+  const { goals, addGoal, stats } = useGoals()
   const [addGoalOpen, setAddGoalOpen] = React.useState(false)
   const reducedMotion = useReducedMotion()
 
-  const totalTargetAmount = mockGoals.reduce((sum, g) => sum + g.targetAmount, 0)
-  const totalCurrentAmount = mockGoals.reduce((sum, g) => sum + g.currentAmount, 0)
-  const totalMonthlyContribution = mockGoals.reduce((sum, g) => sum + g.monthlyContribution, 0)
-  const overallProgress = (totalCurrentAmount / totalTargetAmount) * 100
-
-  const goalsOnTrack = mockGoals.filter(g => g.status === "on_track" || g.status === "ahead").length
-  const goalsBehind = mockGoals.filter(g => g.status === "behind").length
+  const goalsOnTrack = goals.filter(g => g.status === "on_track" || g.status === "ahead").length
+  const goalsBehind = goals.filter(g => g.status === "behind").length
 
   const spring = useSpring({
     from: { opacity: 0, transform: "translateY(20px)" },
@@ -359,82 +229,10 @@ export default function GoalsPage() {
             Track progress toward your wealth targets and milestones
           </p>
         </div>
-        <Dialog open={addGoalOpen} onOpenChange={setAddGoalOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Goal
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Create New Goal</DialogTitle>
-              <DialogDescription>
-                Set a new financial target to work towards.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label>Goal Name</Label>
-                <Input placeholder="e.g., Dream Home Down Payment" />
-              </div>
-              <div className="space-y-2">
-                <Label>Category</Label>
-                <Select defaultValue="custom">
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(goalCategoryConfig).map(([key, config]) => (
-                      <SelectItem key={key} value={key}>{config.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Target Amount</Label>
-                  <Input type="number" placeholder="$0" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Current Amount</Label>
-                  <Input type="number" placeholder="$0" />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Target Date</Label>
-                  <Input type="date" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Monthly Contribution</Label>
-                  <Input type="number" placeholder="$0" />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Priority</Label>
-                <Select defaultValue="medium">
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select priority" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="high">High</SelectItem>
-                    <SelectItem value="medium">Medium</SelectItem>
-                    <SelectItem value="low">Low</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setAddGoalOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={() => setAddGoalOpen(false)}>
-                Create Goal
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <Button onClick={() => setAddGoalOpen(true)}>
+          <Plus className="h-4 w-4 mr-2" />
+          Add Goal
+        </Button>
       </div>
 
       {/* Summary Hero */}
@@ -445,20 +243,20 @@ export default function GoalsPage() {
               <p className="text-sm font-medium text-zinc-400 mb-1">Total Goal Progress</p>
               <div className="flex items-baseline gap-3 mb-3">
                 <span className="text-4xl font-bold text-zinc-100">
-                  {formatCurrency(totalCurrentAmount)}
+                  {formatCurrency(stats.totalCurrentAmount)}
                 </span>
                 <span className="text-lg text-zinc-500">
-                  of {formatCurrency(totalTargetAmount)}
+                  of {formatCurrency(stats.totalTargetAmount)}
                 </span>
               </div>
               <div className="h-3 bg-zinc-800 rounded-full overflow-hidden mb-2">
                 <div
                   className="h-full rounded-full bg-gradient-to-r from-tiffany-500 to-cyan-500 transition-all"
-                  style={{ width: `${overallProgress}%` }}
+                  style={{ width: `${stats.overallProgress}%` }}
                 />
               </div>
               <p className="text-sm text-zinc-400">
-                {overallProgress.toFixed(1)}% complete across {mockGoals.length} goals
+                {stats.overallProgress.toFixed(1)}% complete across {stats.total} goals
               </p>
             </div>
 
@@ -467,10 +265,10 @@ export default function GoalsPage() {
                 Monthly Contributions
               </p>
               <p className="text-2xl font-bold text-emerald-400">
-                {formatCurrency(totalMonthlyContribution)}
+                {formatCurrency(stats.totalMonthlyContribution)}
               </p>
               <p className="text-xs text-zinc-500 mt-1">
-                {formatCurrency(totalMonthlyContribution * 12)}/year
+                {formatCurrency(stats.totalMonthlyContribution * 12)}/year
               </p>
             </div>
 
@@ -510,15 +308,15 @@ export default function GoalsPage() {
       {/* Goals Tabs */}
       <Tabs defaultValue="all" className="w-full">
         <TabsList>
-          <TabsTrigger value="all">All Goals ({mockGoals.length})</TabsTrigger>
-          <TabsTrigger value="high">High Priority ({mockGoals.filter(g => g.priority === "high").length})</TabsTrigger>
+          <TabsTrigger value="all">All Goals ({goals.length})</TabsTrigger>
+          <TabsTrigger value="high">High Priority ({goals.filter(g => g.priority === "high").length})</TabsTrigger>
           <TabsTrigger value="retirement">Retirement</TabsTrigger>
           <TabsTrigger value="investment">Investment</TabsTrigger>
         </TabsList>
 
         <TabsContent value="all" className="mt-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {mockGoals.map((goal) => (
+            {goals.map((goal) => (
               <GoalCard key={goal.id} goal={goal} />
             ))}
           </div>
@@ -526,7 +324,7 @@ export default function GoalsPage() {
 
         <TabsContent value="high" className="mt-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {mockGoals
+            {goals
               .filter((g) => g.priority === "high")
               .map((goal) => (
                 <GoalCard key={goal.id} goal={goal} />
@@ -536,7 +334,7 @@ export default function GoalsPage() {
 
         <TabsContent value="retirement" className="mt-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {mockGoals
+            {goals
               .filter((g) => g.category === "retirement")
               .map((goal) => (
                 <GoalCard key={goal.id} goal={goal} />
@@ -546,7 +344,7 @@ export default function GoalsPage() {
 
         <TabsContent value="investment" className="mt-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {mockGoals
+            {goals
               .filter((g) => g.category === "investment" || g.category === "realestate")
               .map((goal) => (
                 <GoalCard key={goal.id} goal={goal} />
@@ -565,7 +363,7 @@ export default function GoalsPage() {
             <div>
               <p className="font-medium text-zinc-100">Progress Summary</p>
               <p className="text-sm text-zinc-400 mt-1">
-                At your current contribution rate of {formatCurrency(totalMonthlyContribution)}/month,
+                At your current contribution rate of {formatCurrency(stats.totalMonthlyContribution)}/month,
                 you're projected to reach your retirement goal by 2038 - 2 years ahead of schedule.
                 Consider increasing your education fund contributions by $500/month to stay on track
                 for your children's college timeline.
@@ -574,6 +372,13 @@ export default function GoalsPage() {
           </div>
         </CardContent>
       </Card>
+
+      <GoalFormDialog
+        mode="create"
+        open={addGoalOpen}
+        onOpenChange={setAddGoalOpen}
+        onSubmit={(data) => addGoal(data)}
+      />
     </animated.div>
   )
 }

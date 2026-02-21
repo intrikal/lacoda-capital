@@ -22,27 +22,12 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogFooter,
-} from "@/components/ui/dialog"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
 import { formatCurrency } from "@/lib/utils"
 import { useReducedMotion } from "@/lib/hooks/use-reduced-motion"
+import { useCalendarEvents } from "@/lib/hooks/crud/use-calendar-events"
+import { EventFormDialog } from "@/components/forms/event-form-dialog"
+import type { CalendarEventType } from "@/lib/mock/types"
 
 // Event types and their configurations
 const eventTypeConfig = {
@@ -90,12 +75,10 @@ const eventTypeConfig = {
   },
 }
 
-type EventType = keyof typeof eventTypeConfig
-
-interface CalendarEvent {
+interface CalendarEventWithDate {
   id: string
   title: string
-  type: EventType
+  type: CalendarEventType
   date: Date
   time?: string
   endTime?: string
@@ -106,110 +89,19 @@ interface CalendarEvent {
   reminder?: boolean
 }
 
-// Mock calendar events
-const mockEvents: CalendarEvent[] = [
-  {
-    id: "1",
-    title: "Q1 Portfolio Review",
-    type: "meeting",
-    date: new Date(),
-    time: "10:00 AM",
-    endTime: "11:30 AM",
-    location: "Conference Room A",
-    attendees: ["Sarah Chen", "Michael Ross", "Investment Team"],
-    reminder: true,
-  },
-  {
-    id: "2",
-    title: "Property Tax Payment - Manhattan",
-    type: "payment",
-    date: addDays(new Date(), 2),
-    amount: 24500,
-    description: "Annual property tax for 432 Park Ave unit",
-    reminder: true,
-  },
-  {
-    id: "3",
-    title: "AAPL Dividend",
-    type: "dividend",
-    date: addDays(new Date(), 5),
-    amount: 2840,
-    description: "Quarterly dividend payment - 1,200 shares",
-  },
-  {
-    id: "4",
-    title: "Tax Filing Deadline",
-    type: "deadline",
-    date: addDays(new Date(), 12),
-    description: "Q4 estimated tax payment due",
-    reminder: true,
-  },
-  {
-    id: "5",
-    title: "Insurance Renewal Review",
-    type: "document",
-    date: addDays(new Date(), 8),
-    time: "2:00 PM",
-    description: "Review umbrella policy renewal terms",
-  },
-  {
-    id: "6",
-    title: "Call with Estate Attorney",
-    type: "call",
-    date: addDays(new Date(), 3),
-    time: "3:30 PM",
-    endTime: "4:00 PM",
-    attendees: ["James Mitchell, Esq."],
-  },
-  {
-    id: "7",
-    title: "Board Meeting - Tech Startup",
-    type: "meeting",
-    date: addDays(new Date(), 7),
-    time: "9:00 AM",
-    endTime: "12:00 PM",
-    location: "Virtual - Zoom",
-    attendees: ["Board Members", "CEO", "CFO"],
-  },
-  {
-    id: "8",
-    title: "Mortgage Payment",
-    type: "payment",
-    date: addDays(new Date(), 1),
-    amount: 8450,
-    description: "Monthly mortgage - Miami Beach property",
-  },
-  {
-    id: "9",
-    title: "MSFT Dividend",
-    type: "dividend",
-    date: addDays(new Date(), 15),
-    amount: 1560,
-    description: "Quarterly dividend payment - 600 shares",
-  },
-  {
-    id: "10",
-    title: "Annual Compliance Review",
-    type: "deadline",
-    date: addDays(new Date(), 20),
-    description: "SOC 2 compliance documentation due",
-    reminder: true,
-  },
-]
-
-function EventCard({ event }: { event: CalendarEvent }) {
-  const config = eventTypeConfig[event.type]
-  const EventIcon = config.icon
+function EventCard({ event }: { event: CalendarEventWithDate }) {
+  const cfg = eventTypeConfig[event.type]
+  const EventIcon = cfg.icon
 
   return (
     <div className={cn(
       "p-3 rounded-lg border transition-colors hover:border-zinc-600",
-      config.bg,
-      config.border
+      cfg.bg,
+      cfg.border
     )}>
       <div className="flex items-start gap-3">
-        <div className={cn("p-2 rounded-lg", config.bg)}>
-          <EventIcon className={cn("h-4 w-4", config.color)} />
+        <div className={cn("p-2 rounded-lg", cfg.bg)}>
+          <EventIcon className={cn("h-4 w-4", cfg.color)} />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
@@ -233,7 +125,7 @@ function EventCard({ event }: { event: CalendarEvent }) {
             )}
           </div>
           {event.amount && (
-            <p className={cn("text-sm font-medium mt-1", config.color)}>
+            <p className={cn("text-sm font-medium mt-1", cfg.color)}>
               {event.type === "payment" ? "-" : "+"}{formatCurrency(event.amount)}
             </p>
           )}
@@ -250,10 +142,17 @@ function EventCard({ event }: { event: CalendarEvent }) {
 }
 
 export default function CalendarPage() {
+  const { events, addEvent } = useCalendarEvents()
   const [currentDate, setCurrentDate] = React.useState(new Date())
   const [selectedDate, setSelectedDate] = React.useState<Date | null>(new Date())
   const [addEventOpen, setAddEventOpen] = React.useState(false)
   const reducedMotion = useReducedMotion()
+
+  // Convert ISO date strings from service layer to Date objects for calendar rendering
+  const eventsWithDates: CalendarEventWithDate[] = React.useMemo(
+    () => events.map((e) => ({ ...e, date: new Date(e.date) })),
+    [events]
+  )
 
   const monthStart = startOfMonth(currentDate)
   const monthEnd = endOfMonth(currentDate)
@@ -264,16 +163,29 @@ export default function CalendarPage() {
 
   // Get events for selected date
   const selectedDateEvents = selectedDate
-    ? mockEvents.filter(event => isSameDay(event.date, selectedDate))
+    ? eventsWithDates.filter(event => isSameDay(event.date, selectedDate))
     : []
 
   // Get upcoming events (next 7 days)
-  const upcomingEvents = mockEvents
+  const upcomingEvents = eventsWithDates
     .filter(event => event.date >= new Date() && event.date <= addDays(new Date(), 7))
     .sort((a, b) => a.date.getTime() - b.date.getTime())
 
   // Check if a day has events
-  const getEventsForDay = (day: Date) => mockEvents.filter(event => isSameDay(event.date, day))
+  const getEventsForDay = (day: Date) => eventsWithDates.filter(event => isSameDay(event.date, day))
+
+  // Summary stats derived from hook data
+  const summaryStats = React.useMemo(() => {
+    const upcoming7 = eventsWithDates.filter(
+      (e) => e.date >= new Date() && e.date <= addDays(new Date(), 7)
+    )
+    return {
+      meetings: upcoming7.filter((e) => e.type === "meeting").length,
+      paymentsDue: upcoming7.filter((e) => e.type === "payment").reduce((sum, e) => sum + (e.amount ?? 0), 0),
+      dividends: upcoming7.filter((e) => e.type === "dividend").reduce((sum, e) => sum + (e.amount ?? 0), 0),
+      deadlines: upcoming7.filter((e) => e.type === "deadline").length,
+    }
+  }, [eventsWithDates])
 
   const spring = useSpring({
     from: { opacity: 0, transform: "translateY(20px)" },
@@ -292,63 +204,10 @@ export default function CalendarPage() {
             Manage meetings, deadlines, and important dates
           </p>
         </div>
-        <Dialog open={addEventOpen} onOpenChange={setAddEventOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Event
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add New Event</DialogTitle>
-              <DialogDescription>
-                Schedule a meeting, payment, or deadline.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label>Event Title</Label>
-                <Input placeholder="Enter event title" />
-              </div>
-              <div className="space-y-2">
-                <Label>Event Type</Label>
-                <Select defaultValue="meeting">
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(eventTypeConfig).map(([key, config]) => (
-                      <SelectItem key={key} value={key}>{config.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Date</Label>
-                  <Input type="date" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Time</Label>
-                  <Input type="time" />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Description</Label>
-                <Input placeholder="Add details..." />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setAddEventOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={() => setAddEventOpen(false)}>
-                Add Event
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <Button onClick={() => setAddEventOpen(true)}>
+          <Plus className="h-4 w-4 mr-2" />
+          Add Event
+        </Button>
       </div>
 
       {/* Summary Stats */}
@@ -361,7 +220,7 @@ export default function CalendarPage() {
               </div>
               <div>
                 <p className="text-sm text-zinc-400">Meetings This Week</p>
-                <p className="text-2xl font-bold text-zinc-100">4</p>
+                <p className="text-2xl font-bold text-zinc-100">{summaryStats.meetings}</p>
               </div>
             </div>
           </CardContent>
@@ -374,7 +233,7 @@ export default function CalendarPage() {
               </div>
               <div>
                 <p className="text-sm text-zinc-400">Payments Due</p>
-                <p className="text-2xl font-bold text-amber-400">{formatCurrency(32950)}</p>
+                <p className="text-2xl font-bold text-amber-400">{formatCurrency(summaryStats.paymentsDue)}</p>
               </div>
             </div>
           </CardContent>
@@ -387,7 +246,7 @@ export default function CalendarPage() {
               </div>
               <div>
                 <p className="text-sm text-zinc-400">Expected Dividends</p>
-                <p className="text-2xl font-bold text-emerald-400">{formatCurrency(4400)}</p>
+                <p className="text-2xl font-bold text-emerald-400">{formatCurrency(summaryStats.dividends)}</p>
               </div>
             </div>
           </CardContent>
@@ -400,7 +259,7 @@ export default function CalendarPage() {
               </div>
               <div>
                 <p className="text-sm text-zinc-400">Deadlines</p>
-                <p className="text-2xl font-bold text-zinc-100">2</p>
+                <p className="text-2xl font-bold text-zinc-100">{summaryStats.deadlines}</p>
               </div>
             </div>
           </CardContent>
@@ -484,7 +343,7 @@ export default function CalendarPage() {
                     </span>
                     {dayEvents.length > 0 && (
                       <div className="absolute bottom-1 left-1/2 -translate-x-1/2 flex gap-0.5">
-                        {dayEvents.slice(0, 3).map((event, i) => (
+                        {dayEvents.slice(0, 3).map((event) => (
                           <div
                             key={event.id}
                             className={cn(
@@ -565,6 +424,14 @@ export default function CalendarPage() {
           </Card>
         </div>
       </div>
+
+      <EventFormDialog
+        mode="create"
+        initialData={selectedDate ? { date: format(selectedDate, "yyyy-MM-dd") } : undefined}
+        open={addEventOpen}
+        onOpenChange={setAddEventOpen}
+        onSubmit={(data) => addEvent(data)}
+      />
     </animated.div>
   )
 }

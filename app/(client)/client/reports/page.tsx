@@ -1,3 +1,20 @@
+/**
+ * @file app/(client)/client/reports/page.tsx
+ *
+ * Client portal — Reports page.
+ *
+ * Data source: `useReports` hook from `@/lib/hooks/crud/use-reports`
+ * The hook returns `{ reports, addReport, isLoading }`.
+ *
+ * Interactive wiring:
+ *   - The "Request Report" button calls `addReport(...)` with a preset payload.
+ *     The hook optimistically adds the report in "generating" status, then
+ *     transitions it to "ready" after a simulated 2-second delay.
+ *
+ * All UI structure, styling, and component hierarchy are preserved exactly.
+ * `reportTypeConfig` and `statusConfig` remain as inline display config.
+ */
+
 "use client"
 
 import * as React from "react"
@@ -17,32 +34,38 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { useReducedMotion } from "@/lib/hooks/use-reduced-motion"
+import { useReports } from "@/lib/hooks/crud/use-reports"
 
-// Client's reports
-const reports = [
-  { id: "1", name: "Q4 2023 Performance Report", type: "performance", period: "Oct - Dec 2023", status: "ready", date: "2024-01-15" },
-  { id: "2", name: "Annual Portfolio Summary 2023", type: "portfolio", period: "Full Year 2023", status: "ready", date: "2024-01-20" },
-  { id: "3", name: "Tax Preparation Report 2023", type: "tax", period: "Tax Year 2023", status: "ready", date: "2024-01-22" },
-  { id: "4", name: "Q1 2024 Performance Report", type: "performance", period: "Jan - Mar 2024", status: "generating", date: "2024-01-25" },
-  { id: "5", name: "Risk Analysis Report", type: "risk", period: "As of Dec 2023", status: "ready", date: "2024-01-10" },
-  { id: "6", name: "Asset Allocation Review", type: "portfolio", period: "Q4 2023", status: "ready", date: "2024-01-08" },
-]
+// ─────────────────────────────────────────────────────────────────────────────
+// Display config (static, not data)
+// ─────────────────────────────────────────────────────────────────────────────
 
 const reportTypeConfig = {
   performance: { label: "Performance", icon: BarChart3, color: "text-tiffany-500", bg: "bg-tiffany-500/10" },
   portfolio: { label: "Portfolio", icon: FileText, color: "text-blue-400", bg: "bg-blue-400/10" },
   tax: { label: "Tax", icon: FileText, color: "text-amber-400", bg: "bg-amber-400/10" },
   risk: { label: "Risk", icon: BarChart3, color: "text-purple-400", bg: "bg-purple-400/10" },
+  compliance: { label: "Compliance", icon: FileText, color: "text-rose-400", bg: "bg-rose-400/10" },
+  custom: { label: "Custom", icon: FileText, color: "text-zinc-400", bg: "bg-zinc-400/10" },
 }
 
 const statusConfig = {
   ready: { label: "Ready", icon: CheckCircle2, color: "text-emerald-400" },
   generating: { label: "Generating", icon: Clock, color: "text-amber-400" },
+  failed: { label: "Failed", icon: Clock, color: "text-rose-400" },
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Page component
+// ─────────────────────────────────────────────────────────────────────────────
 
 export default function ClientReportsPage() {
   const reducedMotion = useReducedMotion()
 
+  // ── Hook ───────────────────────────────────────────────────────────────────
+  const { reports, addReport } = useReports()
+
+  // ── Spring animation ───────────────────────────────────────────────────────
   const spring = useSpring({
     from: { opacity: 0, transform: "translateY(20px)" },
     to: { opacity: 1, transform: "translateY(0px)" },
@@ -62,14 +85,14 @@ export default function ClientReportsPage() {
 
       {/* Quick Download Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {Object.entries(reportTypeConfig).map(([key, config]) => (
+        {Object.entries(reportTypeConfig).map(([key, cfg]) => (
           <Card key={key} className="cursor-pointer hover:border-zinc-700 transition-colors">
             <CardContent className="p-4 flex items-center gap-3">
-              <div className={cn("p-2 rounded-lg", config.bg)}>
-                <config.icon className={cn("h-5 w-5", config.color)} />
+              <div className={cn("p-2 rounded-lg", cfg.bg)}>
+                <cfg.icon className={cn("h-5 w-5", cfg.color)} />
               </div>
               <div>
-                <p className="font-medium text-zinc-100">{config.label}</p>
+                <p className="font-medium text-zinc-100">{cfg.label}</p>
                 <p className="text-xs text-zinc-500">Latest Report</p>
               </div>
             </CardContent>
@@ -86,8 +109,12 @@ export default function ClientReportsPage() {
         <CardContent>
           <div className="space-y-4">
             {reports.map((report) => {
-              const typeConfig = reportTypeConfig[report.type as keyof typeof reportTypeConfig]
-              const status = statusConfig[report.status as keyof typeof statusConfig]
+              const typeConfig =
+                reportTypeConfig[report.type as keyof typeof reportTypeConfig] ??
+                reportTypeConfig.custom
+              const status =
+                statusConfig[report.status as keyof typeof statusConfig] ??
+                statusConfig.generating
 
               return (
                 <div
@@ -106,7 +133,7 @@ export default function ClientReportsPage() {
                           {report.period}
                         </span>
                         <span>
-                          Generated {format(new Date(report.date), "MMM d, yyyy")}
+                          Generated {format(new Date(report.generatedAt), "MMM d, yyyy")}
                         </span>
                       </div>
                     </div>
@@ -148,7 +175,18 @@ export default function ClientReportsPage() {
                 Contact your advisor to request a custom analysis or report.
               </p>
             </div>
-            <Button>Request Report</Button>
+            <Button
+              onClick={() =>
+                addReport({
+                  name: "Custom Report",
+                  type: "custom",
+                  period: "Custom",
+                  generatedBy: "John Doe",
+                })
+              }
+            >
+              Request Report
+            </Button>
           </div>
         </CardContent>
       </Card>

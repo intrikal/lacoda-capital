@@ -62,8 +62,9 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 import { formatCurrency } from "@/lib/utils"
-import { mockReports } from "@/lib/mock/data"
 import { useReducedMotion } from "@/lib/hooks/use-reduced-motion"
+import { useReports } from "@/lib/hooks/crud/use-reports"
+import type { Report } from "@/lib/mock/types"
 import {
   AllocationChart,
   PerformanceChart,
@@ -200,7 +201,10 @@ const benchmarkMetrics = [
 ]
 
 export default function ReportsPage() {
+  const { reports, addReport, deleteReport } = useReports()
   const [generateOpen, setGenerateOpen] = React.useState(false)
+  const [reportType, setReportType] = React.useState<Report["type"]>("portfolio")
+  const [reportName, setReportName] = React.useState("")
   const [activeTab, setActiveTab] = React.useState("reports")
   const [selectedBenchmark, setSelectedBenchmark] = React.useState("sp500")
   const reducedMotion = useReducedMotion()
@@ -239,7 +243,7 @@ export default function ReportsPage() {
             <div className="space-y-4 py-4">
               <div className="space-y-2">
                 <Label>Report Type</Label>
-                <Select defaultValue="portfolio">
+                <Select value={reportType} onValueChange={(v) => setReportType(v as Report["type"])}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select type" />
                   </SelectTrigger>
@@ -254,7 +258,11 @@ export default function ReportsPage() {
               </div>
               <div className="space-y-2">
                 <Label>Report Name</Label>
-                <Input placeholder="e.g., Q1 2024 Portfolio Summary" />
+                <Input
+                  placeholder="e.g., Q1 2024 Portfolio Summary"
+                  value={reportName}
+                  onChange={(e) => setReportName(e.target.value)}
+                />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -294,7 +302,19 @@ export default function ReportsPage() {
               <Button variant="outline" onClick={() => setGenerateOpen(false)}>
                 Cancel
               </Button>
-              <Button onClick={() => setGenerateOpen(false)}>
+              <Button onClick={() => {
+                if (reportName.trim()) {
+                  addReport({
+                    name: reportName.trim(),
+                    type: reportType,
+                    period: "Custom",
+                    generatedBy: "Current User",
+                  })
+                }
+                setGenerateOpen(false)
+                setReportName("")
+                setReportType("portfolio")
+              }}>
                 Generate Report
               </Button>
             </DialogFooter>
@@ -389,7 +409,7 @@ export default function ReportsPage() {
           Recent Reports
         </h2>
         <div className="space-y-4">
-          {mockReports.map((report) => {
+          {reports.map((report) => {
             const typeConfig =
               reportTypeConfig[report.type as keyof typeof reportTypeConfig]
             const status = statusConfig[report.status]
@@ -452,7 +472,10 @@ export default function ReportsPage() {
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem>Regenerate</DropdownMenuItem>
                           <DropdownMenuItem>Share</DropdownMenuItem>
-                          <DropdownMenuItem className="text-red-400">
+                          <DropdownMenuItem
+                            className="text-red-400"
+                            onClick={() => deleteReport(report.id)}
+                          >
                             Delete
                           </DropdownMenuItem>
                         </DropdownMenuContent>

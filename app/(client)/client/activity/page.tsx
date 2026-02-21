@@ -1,3 +1,32 @@
+/**
+ * @file app/(client)/client/activity/page.tsx
+ *
+ * Client portal — Activity page.
+ *
+ * Data source for Transactions tab: `useLedger` hook from
+ * `@/lib/hooks/crud/use-ledger`
+ * The hook returns `{ entries, isLoading }` where each `LedgerEntry` has:
+ *   `id`, `timestamp`, `action`, `user`, `entity`, `entityType`, `details`,
+ *   `isSensitive`, `ipAddress`
+ *
+ * The `TransactionsTab` maps ledger entries to the display shape the UI
+ * expects by deriving:
+ *   - `type`        from `action` (matched to the closest `transactionTypes` key)
+ *   - `description` from `details`
+ *   - `date`        from `timestamp`
+ *   - `account`     from `entity`
+ *   - `amount`      is not present on `LedgerEntry`; the column is omitted
+ *                   for ledger-sourced rows (amount shown as blank/dash).
+ *
+ * Preserved inline (different data domains, not replaced):
+ *   - `pendingTransfers` and `transferHistory` — transfer-specific display data.
+ *   - `linkedAccounts` — bank account display config.
+ *   - `calendarEvents` — calendar event display data.
+ *   - `transactionTypes`, `eventTypeConfig` — display config objects.
+ *
+ * The Transfers tab and Calendar tab are unchanged from the original.
+ */
+
 "use client"
 
 import * as React from "react"
@@ -19,7 +48,6 @@ import {
   Calendar as CalendarIcon,
   Building2,
   Video,
-  Phone,
   FileText,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -45,9 +73,10 @@ import {
 import { ContentCard, StatCard } from "@/components/client/content-card"
 import { cn } from "@/lib/utils"
 import { formatCurrency } from "@/lib/utils"
+import { useLedger } from "@/lib/hooks/crud/use-ledger"
 
 // ============================================================================
-// DATA
+// DATA (static inline — preserved as-is per instructions)
 // ============================================================================
 
 const transactionTypes = {
@@ -60,16 +89,19 @@ const transactionTypes = {
   fee: { label: "Fee", icon: CreditCard, color: "text-zinc-400", bg: "bg-zinc-500/10" },
 }
 
-const transactions = [
-  { id: "1", type: "dividend", description: "Quarterly Dividend - VTI", amount: 1250, date: "2024-01-15", account: "Brokerage" },
-  { id: "2", type: "buy", description: "Purchase - Apple Inc. (AAPL)", amount: -15000, date: "2024-01-12", account: "Brokerage" },
-  { id: "3", type: "deposit", description: "Monthly Contribution", amount: 5000, date: "2024-01-10", account: "Retirement IRA" },
-  { id: "4", type: "sell", description: "Sale - Tech Growth Fund", amount: 8500, date: "2024-01-08", account: "Brokerage" },
-  { id: "5", type: "fee", description: "Advisory Fee - Q4 2023", amount: -2450, date: "2024-01-05", account: "Brokerage" },
-  { id: "6", type: "dividend", description: "Dividend - Bond Fund", amount: 890, date: "2024-01-03", account: "Brokerage" },
-  { id: "7", type: "transfer", description: "Transfer to Savings", amount: -10000, date: "2024-01-02", account: "Brokerage" },
-  { id: "8", type: "buy", description: "Purchase - Bond ETF", amount: -25000, date: "2023-12-28", account: "Retirement IRA" },
-]
+/**
+ * Maps a `LedgerEntry.action` value to the nearest `transactionTypes` key
+ * for icon and color display purposes.
+ */
+function mapActionToType(action: string): keyof typeof transactionTypes {
+  if (action.includes("valuation") || action.includes("asset_sold")) return "sell"
+  if (action.includes("asset_created") || action.includes("asset_updated")) return "buy"
+  if (action.includes("document")) return "fee"
+  if (action.includes("report")) return "transfer"
+  if (action.includes("compliance")) return "fee"
+  if (action.includes("user")) return "transfer"
+  return "fee"
+}
 
 const pendingTransfers = [
   { id: "1", type: "deposit", amount: 2500, from: "Bank of America ****7891", to: "Brokerage", date: "2024-01-25", status: "pending" },
@@ -201,7 +233,25 @@ function TransactionsTab() {
   const [searchQuery, setSearchQuery] = React.useState("")
   const [typeFilter, setTypeFilter] = React.useState("all")
 
-  const filteredTransactions = transactions.filter((tx) => {
+  // ── Hook ─────────────────────────────────────────────────────────────────
+  const { entries } = useLedger()
+
+  // Map ledger entries to the display shape the UI expects
+  const mappedEntries = React.useMemo(
+    () =>
+      entries.map((entry) => ({
+        id: entry.id,
+        type: mapActionToType(entry.action),
+        description: entry.details,
+        // LedgerEntry has no monetary amount — display entity as context
+        amount: null as number | null,
+        date: entry.timestamp,
+        account: entry.entity,
+      })),
+    [entries]
+  )
+
+  const filteredTransactions = mappedEntries.filter((tx) => {
     const matchesSearch = tx.description.toLowerCase().includes(searchQuery.toLowerCase())
     const matchesType = typeFilter === "all" || tx.type === typeFilter
     return matchesSearch && matchesType
@@ -227,8 +277,8 @@ function TransactionsTab() {
           </SelectTrigger>
           <SelectContent className="bg-zinc-900 border-zinc-800">
             <SelectItem value="all">All Types</SelectItem>
-            {Object.entries(transactionTypes).map(([key, config]) => (
-              <SelectItem key={key} value={key}>{config.label}</SelectItem>
+            {Object.entries(transactionTypes).map(([key, cfg]) => (
+              <SelectItem key={key} value={key}>{cfg.label}</SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -240,7 +290,7 @@ function TransactionsTab() {
           {filteredTransactions.map((tx) => {
             const typeConfig = transactionTypes[tx.type as keyof typeof transactionTypes]
             const TypeIcon = typeConfig.icon
-            const isPositive = tx.amount > 0
+            const isPositive = tx.amount !== null && tx.amount > 0
 
             return (
               <div key={tx.id} className="flex items-center justify-between p-4 hover:bg-zinc-800/20 transition-colors">
@@ -254,9 +304,13 @@ function TransactionsTab() {
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className={cn("text-sm font-semibold", isPositive ? "text-emerald-400" : "text-zinc-100")}>
-                    {isPositive ? "+" : ""}{formatCurrency(tx.amount)}
-                  </p>
+                  {tx.amount !== null ? (
+                    <p className={cn("text-sm font-semibold", isPositive ? "text-emerald-400" : "text-zinc-100")}>
+                      {isPositive ? "+" : ""}{formatCurrency(tx.amount)}
+                    </p>
+                  ) : (
+                    <p className="text-sm text-zinc-500">—</p>
+                  )}
                   <Badge variant="outline" className={cn("text-xs", typeConfig.color)}>{typeConfig.label}</Badge>
                 </div>
               </div>
@@ -437,13 +491,13 @@ function CalendarTab() {
         </h3>
         <div className="space-y-3">
           {(selectedDate ? selectedDateEvents : calendarEvents.slice(0, 5)).map((event) => {
-            const config = eventTypeConfig[event.type as keyof typeof eventTypeConfig]
-            const Icon = config?.icon || CalendarIcon
+            const cfg = eventTypeConfig[event.type as keyof typeof eventTypeConfig]
+            const Icon = cfg?.icon || CalendarIcon
 
             return (
               <div key={event.id} className="flex items-start gap-3 p-3 rounded-lg border border-zinc-800/60">
-                <div className={cn("p-2 rounded-lg", config?.color ? `${config.color}/10` : "bg-zinc-800")}>
-                  <Icon className={cn("h-4 w-4", config?.color ? config.color.replace("bg-", "text-").replace("-500", "-400") : "text-zinc-400")} />
+                <div className={cn("p-2 rounded-lg", cfg?.color ? `${cfg.color}/10` : "bg-zinc-800")}>
+                  <Icon className={cn("h-4 w-4", cfg?.color ? cfg.color.replace("bg-", "text-").replace("-500", "-400") : "text-zinc-400")} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-zinc-100 truncate">{event.title}</p>

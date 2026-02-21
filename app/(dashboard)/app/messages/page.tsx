@@ -32,98 +32,8 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 import { PageHeader, StatCard } from "@/components/dashboard/content-card"
-
-// ============================================================================
-// DATA
-// ============================================================================
-
-const conversations = [
-  {
-    id: "1",
-    name: "John & Emily Thompson",
-    type: "client",
-    avatar: "JT",
-    avatarColor: "bg-tiffany-500/20 text-tiffany-500",
-    lastMessage: "Thank you for the portfolio update. When can we schedule our quarterly review?",
-    timestamp: "2024-01-20T14:30:00",
-    unread: 2,
-    online: false,
-    aum: "$2.4M",
-  },
-  {
-    id: "2",
-    name: "Westbrook Family Trust",
-    type: "client",
-    avatar: "WF",
-    avatarColor: "bg-purple-500/20 text-purple-400",
-    lastMessage: "The trust documents have been reviewed. Please proceed with the transfer.",
-    timestamp: "2024-01-20T11:15:00",
-    unread: 0,
-    online: true,
-    aum: "$8.2M",
-  },
-  {
-    id: "3",
-    name: "Sarah Chen",
-    type: "team",
-    avatar: "SC",
-    avatarColor: "bg-blue-500/20 text-blue-400",
-    lastMessage: "I've finished the due diligence on the Miami property. Report attached.",
-    timestamp: "2024-01-20T09:45:00",
-    unread: 1,
-    online: true,
-  },
-  {
-    id: "4",
-    name: "Apex Ventures Fund",
-    type: "client",
-    avatar: "AV",
-    avatarColor: "bg-amber-500/20 text-amber-400",
-    lastMessage: "Q4 distributions will be processed next week.",
-    timestamp: "2024-01-19T16:20:00",
-    unread: 0,
-    online: false,
-    aum: "$5.1M",
-  },
-  {
-    id: "5",
-    name: "Michael Ross",
-    type: "team",
-    avatar: "MR",
-    avatarColor: "bg-emerald-500/20 text-emerald-400",
-    lastMessage: "Client meeting notes from this morning attached.",
-    timestamp: "2024-01-19T10:00:00",
-    unread: 0,
-    online: false,
-  },
-]
-
-const messagesByConversation: Record<string, Array<{
-  id: string
-  senderId: "them" | "me"
-  content: string
-  timestamp: string
-  status: "sent" | "delivered" | "read"
-  attachment?: { name: string; size: string }
-}>> = {
-  "1": [
-    { id: "1", senderId: "them", content: "Hi, I just received the Q4 statement. The portfolio looks great!", timestamp: "2024-01-20T10:00:00", status: "read" },
-    { id: "2", senderId: "me", content: "Thank you! Yes, we had a strong quarter. The real estate allocation performed particularly well.", timestamp: "2024-01-20T10:15:00", status: "read" },
-    { id: "3", senderId: "them", content: "Emily and I were discussing increasing our allocation to private equity. Is that something we can explore?", timestamp: "2024-01-20T11:00:00", status: "read" },
-    { id: "4", senderId: "me", content: "Absolutely. I'll prepare an analysis of some opportunities that might fit your risk profile. I can have it ready for our next meeting.", timestamp: "2024-01-20T11:30:00", status: "read" },
-    { id: "5", senderId: "me", content: "I've attached the preliminary portfolio rebalancing proposal for your review.", timestamp: "2024-01-20T13:00:00", status: "read", attachment: { name: "Thompson_Rebalancing_Proposal.pdf", size: "2.1 MB" } },
-    { id: "6", senderId: "them", content: "Thank you for the portfolio update. When can we schedule our quarterly review?", timestamp: "2024-01-20T14:30:00", status: "delivered" },
-  ],
-  "2": [
-    { id: "1", senderId: "them", content: "The trust documents have been reviewed by our attorney.", timestamp: "2024-01-20T10:00:00", status: "read" },
-    { id: "2", senderId: "them", content: "The trust documents have been reviewed. Please proceed with the transfer.", timestamp: "2024-01-20T11:15:00", status: "read" },
-  ],
-  "3": [
-    { id: "1", senderId: "them", content: "Just finished the site visit for the Miami Beach property.", timestamp: "2024-01-20T08:30:00", status: "read" },
-    { id: "2", senderId: "me", content: "Great! How does it look?", timestamp: "2024-01-20T09:00:00", status: "read" },
-    { id: "3", senderId: "them", content: "I've finished the due diligence on the Miami property. Report attached.", timestamp: "2024-01-20T09:45:00", status: "delivered", attachment: { name: "Miami_Due_Diligence_Report.pdf", size: "4.5 MB" } },
-  ],
-}
+import { useMessages } from "@/lib/hooks/crud/use-messages"
+import type { Conversation, Message } from "@/lib/mock/types"
 
 // ============================================================================
 // HELPERS
@@ -148,7 +58,7 @@ function formatConversationTime(dateString: string) {
 // ============================================================================
 
 interface ConversationItemProps {
-  conversation: typeof conversations[0]
+  conversation: Conversation
   isSelected: boolean
   onClick: () => void
 }
@@ -201,7 +111,7 @@ function ConversationItem({ conversation, isSelected, onClick }: ConversationIte
 }
 
 interface MessageBubbleProps {
-  message: typeof messagesByConversation["1"][0]
+  message: Message
   isMe: boolean
 }
 
@@ -216,7 +126,7 @@ function MessageBubble({ message, isMe }: MessageBubbleProps) {
       >
         <p className="text-sm leading-relaxed">{message.content}</p>
 
-        {message.attachment && (
+        {message.attachments && message.attachments.length > 0 && (
           <div className={cn(
             "mt-3 p-3 rounded-xl flex items-center gap-3",
             isMe ? "bg-tiffany-600/50" : "bg-zinc-700/50"
@@ -225,9 +135,9 @@ function MessageBubble({ message, isMe }: MessageBubbleProps) {
               <File className="h-4 w-4" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">{message.attachment.name}</p>
+              <p className="text-sm font-medium truncate">{message.attachments[0].name}</p>
               <p className={cn("text-xs", isMe ? "text-tiffany-200" : "text-zinc-400")}>
-                {message.attachment.size}
+                {message.attachments[0].size}
               </p>
             </div>
             <Button
@@ -246,7 +156,7 @@ function MessageBubble({ message, isMe }: MessageBubbleProps) {
         )}>
           <span className="text-xs">{format(new Date(message.timestamp), "h:mm a")}</span>
           {isMe && (
-            message.status === "read" ? (
+            message.read ? (
               <CheckCheck className="h-3.5 w-3.5" />
             ) : (
               <Check className="h-3.5 w-3.5" />
@@ -265,14 +175,22 @@ function MessageBubble({ message, isMe }: MessageBubbleProps) {
 type TabId = "all" | "clients" | "team"
 
 export default function MessagesPage() {
+  const { conversations, messages, loadMessages, sendMessage } = useMessages()
   const [activeTab, setActiveTab] = React.useState<TabId>("all")
-  const [selectedConversation, setSelectedConversation] = React.useState(conversations[0])
+  const [selectedConversation, setSelectedConversation] = React.useState<Conversation | null>(null)
   const [searchQuery, setSearchQuery] = React.useState("")
   const [newMessage, setNewMessage] = React.useState("")
   const [showMobileChat, setShowMobileChat] = React.useState(false)
   const messagesEndRef = React.useRef<HTMLDivElement>(null)
 
-  const messages = messagesByConversation[selectedConversation.id] || []
+  // Auto-select first conversation when loaded
+  React.useEffect(() => {
+    if (conversations.length > 0 && !selectedConversation) {
+      const first = conversations[0]
+      setSelectedConversation(first)
+      loadMessages(first.id)
+    }
+  }, [conversations, selectedConversation, loadMessages])
 
   React.useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -285,13 +203,15 @@ export default function MessagesPage() {
   })
 
   const handleSend = () => {
-    if (newMessage.trim()) {
+    if (newMessage.trim() && selectedConversation) {
+      sendMessage(selectedConversation.id, newMessage.trim())
       setNewMessage("")
     }
   }
 
-  const handleSelectConversation = (conv: typeof conversations[0]) => {
+  const handleSelectConversation = (conv: Conversation) => {
     setSelectedConversation(conv)
+    loadMessages(conv.id)
     setShowMobileChat(true)
   }
 
@@ -300,7 +220,7 @@ export default function MessagesPage() {
     if (!groups[date]) groups[date] = []
     groups[date].push(message)
     return groups
-  }, {} as Record<string, typeof messages>)
+  }, {} as Record<string, Message[]>)
 
   const unreadCount = conversations.reduce((sum, c) => sum + c.unread, 0)
   const clientCount = conversations.filter(c => c.type === "client").length
@@ -394,7 +314,7 @@ export default function MessagesPage() {
                   <ConversationItem
                     key={conversation.id}
                     conversation={conversation}
-                    isSelected={selectedConversation.id === conversation.id}
+                    isSelected={selectedConversation?.id === conversation.id}
                     onClick={() => handleSelectConversation(conversation)}
                   />
                 ))
@@ -407,125 +327,133 @@ export default function MessagesPage() {
             "flex-1 flex flex-col",
             !showMobileChat && "hidden md:flex"
           )}>
-            {/* Chat Header */}
-            <div className="p-4 border-b border-zinc-800/60 flex items-center justify-between bg-zinc-900/30">
-              <div className="flex items-center gap-3">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="md:hidden h-8 w-8"
-                  onClick={() => setShowMobileChat(false)}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <div className="relative">
-                  <div className={cn("h-10 w-10 rounded-full flex items-center justify-center", selectedConversation.avatarColor)}>
-                    <span className="text-sm font-semibold">{selectedConversation.avatar}</span>
+            {selectedConversation ? (
+              <>
+                {/* Chat Header */}
+                <div className="p-4 border-b border-zinc-800/60 flex items-center justify-between bg-zinc-900/30">
+                  <div className="flex items-center gap-3">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="md:hidden h-8 w-8"
+                      onClick={() => setShowMobileChat(false)}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <div className="relative">
+                      <div className={cn("h-10 w-10 rounded-full flex items-center justify-center", selectedConversation.avatarColor)}>
+                        <span className="text-sm font-semibold">{selectedConversation.avatar}</span>
+                      </div>
+                      {selectedConversation.online && (
+                        <div className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-emerald-400 border-2 border-zinc-900" />
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-zinc-100">{selectedConversation.name}</p>
+                      <p className="text-xs text-zinc-500 flex items-center gap-1">
+                        {selectedConversation.online ? (
+                          <>
+                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                            Online
+                          </>
+                        ) : (
+                          <>
+                            <Clock className="h-3 w-3" />
+                            Last seen recently
+                          </>
+                        )}
+                        {selectedConversation.aum && (
+                          <>
+                            <span className="mx-1">·</span>
+                            <span className="text-tiffany-500">{selectedConversation.aum}</span>
+                          </>
+                        )}
+                      </p>
+                    </div>
                   </div>
-                  {selectedConversation.online && (
-                    <div className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-emerald-400 border-2 border-zinc-900" />
-                  )}
+                  <div className="flex items-center gap-1">
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-400 hover:text-zinc-100">
+                      <Star className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-400 hover:text-zinc-100">
+                      <Phone className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-400 hover:text-zinc-100">
+                      <Video className="h-4 w-4" />
+                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-400 hover:text-zinc-100">
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="bg-zinc-900 border-zinc-800">
+                        <DropdownMenuItem>View client profile</DropdownMenuItem>
+                        <DropdownMenuItem>View documents</DropdownMenuItem>
+                        <DropdownMenuItem>Search in conversation</DropdownMenuItem>
+                        <DropdownMenuSeparator className="bg-zinc-800" />
+                        <DropdownMenuItem>Mute notifications</DropdownMenuItem>
+                        <DropdownMenuItem className="text-rose-400">Archive</DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm font-medium text-zinc-100">{selectedConversation.name}</p>
-                  <p className="text-xs text-zinc-500 flex items-center gap-1">
-                    {selectedConversation.online ? (
-                      <>
-                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                        Online
-                      </>
-                    ) : (
-                      <>
-                        <Clock className="h-3 w-3" />
-                        Last seen recently
-                      </>
-                    )}
-                    {selectedConversation.aum && (
-                      <>
-                        <span className="mx-1">·</span>
-                        <span className="text-tiffany-500">{selectedConversation.aum}</span>
-                      </>
-                    )}
+
+                {/* Messages */}
+                <div className="flex-1 overflow-y-auto p-4 space-y-6">
+                  {Object.entries(groupedMessages).map(([date, dateMessages]) => (
+                    <div key={date}>
+                      <div className="flex items-center justify-center mb-4">
+                        <span className="px-3 py-1 rounded-full bg-zinc-800/50 text-xs text-zinc-500">
+                          {date}
+                        </span>
+                      </div>
+                      <div className="space-y-3">
+                        {dateMessages.map((message) => (
+                          <MessageBubble
+                            key={message.id}
+                            message={message}
+                            isMe={message.senderType === "advisor"}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                  <div ref={messagesEndRef} />
+                </div>
+
+                {/* Message Input */}
+                <div className="p-4 border-t border-zinc-800/60 bg-zinc-900/30">
+                  <div className="flex items-center gap-2">
+                    <Button variant="ghost" size="icon" className="h-9 w-9 text-zinc-400 hover:text-zinc-100 shrink-0">
+                      <Paperclip className="h-4 w-4" />
+                    </Button>
+                    <Input
+                      placeholder="Type a message..."
+                      value={newMessage}
+                      onChange={(e) => setNewMessage(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
+                      className="flex-1 bg-zinc-800/50 border-zinc-700/50"
+                    />
+                    <Button
+                      onClick={handleSend}
+                      disabled={!newMessage.trim()}
+                      size="icon"
+                      className="h-9 w-9 shrink-0"
+                    >
+                      <Send className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <p className="text-xs text-zinc-500 mt-2 text-center">
+                    Messages are encrypted and stored securely
                   </p>
                 </div>
+              </>
+            ) : (
+              <div className="flex-1 flex items-center justify-center text-zinc-500">
+                <p>Select a conversation</p>
               </div>
-              <div className="flex items-center gap-1">
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-400 hover:text-zinc-100">
-                  <Star className="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-400 hover:text-zinc-100">
-                  <Phone className="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-400 hover:text-zinc-100">
-                  <Video className="h-4 w-4" />
-                </Button>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-400 hover:text-zinc-100">
-                      <MoreVertical className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="bg-zinc-900 border-zinc-800">
-                    <DropdownMenuItem>View client profile</DropdownMenuItem>
-                    <DropdownMenuItem>View documents</DropdownMenuItem>
-                    <DropdownMenuItem>Search in conversation</DropdownMenuItem>
-                    <DropdownMenuSeparator className="bg-zinc-800" />
-                    <DropdownMenuItem>Mute notifications</DropdownMenuItem>
-                    <DropdownMenuItem className="text-rose-400">Archive</DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </div>
-
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-6">
-              {Object.entries(groupedMessages).map(([date, dateMessages]) => (
-                <div key={date}>
-                  <div className="flex items-center justify-center mb-4">
-                    <span className="px-3 py-1 rounded-full bg-zinc-800/50 text-xs text-zinc-500">
-                      {date}
-                    </span>
-                  </div>
-                  <div className="space-y-3">
-                    {dateMessages.map((message) => (
-                      <MessageBubble
-                        key={message.id}
-                        message={message}
-                        isMe={message.senderId === "me"}
-                      />
-                    ))}
-                  </div>
-                </div>
-              ))}
-              <div ref={messagesEndRef} />
-            </div>
-
-            {/* Message Input */}
-            <div className="p-4 border-t border-zinc-800/60 bg-zinc-900/30">
-              <div className="flex items-center gap-2">
-                <Button variant="ghost" size="icon" className="h-9 w-9 text-zinc-400 hover:text-zinc-100 shrink-0">
-                  <Paperclip className="h-4 w-4" />
-                </Button>
-                <Input
-                  placeholder="Type a message..."
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
-                  className="flex-1 bg-zinc-800/50 border-zinc-700/50"
-                />
-                <Button
-                  onClick={handleSend}
-                  disabled={!newMessage.trim()}
-                  size="icon"
-                  className="h-9 w-9 shrink-0"
-                >
-                  <Send className="h-4 w-4" />
-                </Button>
-              </div>
-              <p className="text-xs text-zinc-500 mt-2 text-center">
-                Messages are encrypted and stored securely
-              </p>
-            </div>
+            )}
           </div>
         </div>
       </div>

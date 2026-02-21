@@ -1,3 +1,32 @@
+/**
+ * @file app/(client)/client/billing/page.tsx
+ *
+ * Client portal — Billing & Fees page.
+ *
+ * Data source: `useClientBilling` hook from `@/lib/hooks/crud/use-client-billing`
+ * The hook returns `{ billingHistory, stats, isLoading }`.
+ *
+ * stats shape: `{ ytdFeesPaid, nextPaymentAmount, nextPaymentDue, effectiveRate, annualRate }`
+ *
+ * Interactive wiring:
+ *   - Summary cards (Annual Fee Rate, YTD Fees Paid, Next Payment) now read
+ *     from `stats.*` instead of inline calculated values.
+ *   - `billingHistory.map(...)` now iterates hook data instead of the inline
+ *     mock array.
+ *
+ * Preserved as static display config (not dynamic per-user data):
+ *   - `feeStructure` — describes the firm's fee schedule (same for all clients).
+ *   - `currentPeriod` — illustrative current-period breakdown display.
+ *   - `annualSummary` — illustrative annual savings display.
+ *   - `feeBreakdown` — itemised fee calculation display.
+ *   - `statusConfig` — icon/color mapping for billing status badges.
+ *
+ * Type mapping:
+ *   `BillingRecord` uses `dueDate` and `paidDate` (not `date`).
+ *   The history list renders `bill.dueDate` as the "Processed" date, falling
+ *   back to `bill.paidDate` when available.
+ */
+
 "use client"
 
 import * as React from "react"
@@ -13,13 +42,10 @@ import {
   CheckCircle2,
   Clock,
   Info,
-  ChevronRight,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Progress } from "@/components/ui/progress"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Tooltip,
   TooltipContent,
@@ -28,8 +54,12 @@ import {
 import { cn } from "@/lib/utils"
 import { formatCurrency } from "@/lib/utils"
 import { useReducedMotion } from "@/lib/hooks/use-reduced-motion"
+import { useClientBilling } from "@/lib/hooks/crud/use-client-billing"
 
-// Fee structure
+// ─────────────────────────────────────────────────────────────────────────────
+// Static display config (describes firm fee schedule — same for all clients)
+// ─────────────────────────────────────────────────────────────────────────────
+
 const feeStructure = {
   advisoryFee: {
     rate: 0.85,
@@ -48,7 +78,7 @@ const feeStructure = {
   },
 }
 
-// Current period details
+/** Illustrative current-period breakdown (static display) */
 const currentPeriod = {
   period: "Q1 2024",
   startDate: "2024-01-01",
@@ -59,25 +89,7 @@ const currentPeriod = {
   status: "upcoming",
 }
 
-// Billing history
-const billingHistory = [
-  { id: "1", period: "Q4 2023", amount: 5102.50, aum: 2420000, date: "2024-01-10", status: "paid", invoiceUrl: "#" },
-  { id: "2", period: "Q3 2023", amount: 4975.00, aum: 2350000, date: "2023-10-12", status: "paid", invoiceUrl: "#" },
-  { id: "3", period: "Q2 2023", amount: 4850.00, aum: 2280000, date: "2023-07-11", status: "paid", invoiceUrl: "#" },
-  { id: "4", period: "Q1 2023", amount: 4712.50, aum: 2220000, date: "2023-04-10", status: "paid", invoiceUrl: "#" },
-  { id: "5", period: "Q4 2022", amount: 4575.00, aum: 2150000, date: "2023-01-09", status: "paid", invoiceUrl: "#" },
-  { id: "6", period: "Q3 2022", amount: 4437.50, aum: 2090000, date: "2022-10-10", status: "paid", invoiceUrl: "#" },
-]
-
-// Fee breakdown for current period
-const feeBreakdown = [
-  { category: "Advisory Fee", amount: 5206.25, rate: "0.85%", calculation: "$2,450,000 × 0.85% ÷ 4" },
-  { category: "Custody Fee", amount: 306.25, rate: "0.05%", calculation: "$2,450,000 × 0.05% ÷ 4" },
-  { category: "Trading Costs", amount: 0, rate: "N/A", calculation: "Included in advisory" },
-  { category: "Account Maintenance", amount: 0, rate: "N/A", calculation: "Included in custody" },
-]
-
-// Annual summary
+/** Illustrative annual savings display (static) */
 const annualSummary = {
   year: 2023,
   totalFees: 19640.00,
@@ -86,18 +98,29 @@ const annualSummary = {
   savingsVsIndustry: 4820,
 }
 
+/** Itemised current-period fee calculation (static display) */
+const feeBreakdown = [
+  { category: "Advisory Fee", amount: 5206.25, rate: "0.85%", calculation: "$2,450,000 × 0.85% ÷ 4" },
+  { category: "Custody Fee", amount: 306.25, rate: "0.05%", calculation: "$2,450,000 × 0.05% ÷ 4" },
+  { category: "Trading Costs", amount: 0, rate: "N/A", calculation: "Included in advisory" },
+  { category: "Account Maintenance", amount: 0, rate: "N/A", calculation: "Included in custody" },
+]
+
 const statusConfig = {
   paid: { label: "Paid", icon: CheckCircle2, color: "text-emerald-400", bg: "bg-emerald-400/10" },
   upcoming: { label: "Upcoming", icon: Clock, color: "text-amber-400", bg: "bg-amber-400/10" },
   due: { label: "Due", icon: Calendar, color: "text-rose-400", bg: "bg-rose-400/10" },
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Page component
+// ─────────────────────────────────────────────────────────────────────────────
+
 export default function ClientBillingPage() {
   const reducedMotion = useReducedMotion()
 
-  const totalYTDFees = billingHistory
-    .filter((b) => b.date.startsWith("2024"))
-    .reduce((sum, b) => sum + b.amount, 0)
+  // ── Hook ───────────────────────────────────────────────────────────────────
+  const { billingHistory, stats } = useClientBilling()
 
   const spring = useSpring({
     from: { opacity: 0, transform: "translateY(20px)" },
@@ -129,7 +152,9 @@ export default function ClientBillingPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-zinc-400">Annual Fee Rate</p>
-                <p className="text-2xl font-bold text-zinc-100 mt-1">0.85%</p>
+                <p className="text-2xl font-bold text-zinc-100 mt-1">
+                  {(stats.annualRate * 100).toFixed(2)}%
+                </p>
                 <p className="text-xs text-zinc-500 mt-1">All-in advisory fee</p>
               </div>
               <div className="p-3 rounded-lg bg-tiffany-500/10">
@@ -143,8 +168,8 @@ export default function ClientBillingPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-zinc-400">YTD Fees Paid</p>
-                <p className="text-2xl font-bold text-zinc-100 mt-1">{formatCurrency(totalYTDFees)}</p>
-                <p className="text-xs text-zinc-500 mt-1">January - December 2024</p>
+                <p className="text-2xl font-bold text-zinc-100 mt-1">{formatCurrency(stats.ytdFeesPaid)}</p>
+                <p className="text-xs text-zinc-500 mt-1">January - December {new Date().getFullYear()}</p>
               </div>
               <div className="p-3 rounded-lg bg-blue-400/10">
                 <CreditCard className="h-6 w-6 text-blue-400" />
@@ -157,8 +182,12 @@ export default function ClientBillingPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-zinc-400">Next Payment</p>
-                <p className="text-2xl font-bold text-zinc-100 mt-1">{formatCurrency(currentPeriod.calculatedFee)}</p>
-                <p className="text-xs text-amber-400 mt-1">Due {format(new Date(currentPeriod.dueDate), "MMM d, yyyy")}</p>
+                <p className="text-2xl font-bold text-zinc-100 mt-1">{formatCurrency(stats.nextPaymentAmount)}</p>
+                {stats.nextPaymentDue && (
+                  <p className="text-xs text-amber-400 mt-1">
+                    Due {format(new Date(stats.nextPaymentDue), "MMM d, yyyy")}
+                  </p>
+                )}
               </div>
               <div className="p-3 rounded-lg bg-amber-400/10">
                 <Calendar className="h-6 w-6 text-amber-400" />
@@ -241,7 +270,8 @@ export default function ClientBillingPage() {
             <div>
               <CardTitle className="text-base">{currentPeriod.period} Fee Breakdown</CardTitle>
               <CardDescription>
-                {format(new Date(currentPeriod.startDate), "MMM d")} - {format(new Date(currentPeriod.endDate), "MMM d, yyyy")}
+                {format(new Date(currentPeriod.startDate), "MMM d")} -{" "}
+                {format(new Date(currentPeriod.endDate), "MMM d, yyyy")}
               </CardDescription>
             </div>
             <Badge variant="outline" className="text-amber-400">
@@ -293,6 +323,7 @@ export default function ClientBillingPage() {
           <div className="space-y-3">
             {billingHistory.map((bill) => {
               const status = statusConfig[bill.status as keyof typeof statusConfig]
+              if (!status) return null
               const StatusIcon = status.icon
 
               return (
@@ -309,7 +340,9 @@ export default function ClientBillingPage() {
                       <div className="flex items-center gap-2 mt-1 text-xs text-zinc-500">
                         <span>AUM: {formatCurrency(bill.aum)}</span>
                         <span>•</span>
-                        <span>Processed {format(new Date(bill.date), "MMM d, yyyy")}</span>
+                        <span>
+                          Processed {format(new Date(bill.paidDate ?? bill.dueDate), "MMM d, yyyy")}
+                        </span>
                       </div>
                     </div>
                   </div>

@@ -1,3 +1,25 @@
+/**
+ * @file app/(client)/client/goals/page.tsx
+ *
+ * Client-facing financial goals tracking page.
+ *
+ * Data source: `useGoals` hook (lib/hooks/crud/use-goals.ts) which calls
+ * goalsService.getGoals() and exposes CRUD helpers (addGoal, updateGoal,
+ * deleteGoal). Aggregate stats (totalTargetAmount, totalCurrentAmount,
+ * overallProgress, totalMonthlyContribution) are pre-computed inside the hook
+ * and consumed directly via `stats.*`.
+ *
+ * The "Add New Goal" button opens `GoalFormDialog` in create mode. On submit,
+ * `addGoal(data)` is called which appends the new goal to the in-memory list.
+ *
+ * tRPC swap path:
+ *   Replace `useGoals` internals with:
+ *   `const { data: goals }     = trpc.client.goals.list.useQuery()`
+ *   `const addGoal             = trpc.client.goals.create.useMutation()`
+ *   `const deleteGoal          = trpc.client.goals.delete.useMutation()`
+ *   The consuming component needs zero changes — the hook's return shape is
+ *   identical to what tRPC will return.
+ */
 "use client"
 
 import * as React from "react"
@@ -21,75 +43,29 @@ import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { cn, formatCurrency } from "@/lib/utils"
 import { useReducedMotion } from "@/lib/hooks/use-reduced-motion"
+import { useGoals } from "@/lib/hooks/crud/use-goals"
+import { GoalFormDialog } from "@/components/forms/goal-form-dialog"
+import type { GoalCategory } from "@/lib/mock/types"
 
-// Client's financial goals
-const goals = [
-  {
-    id: "1",
-    name: "Retirement Fund",
-    description: "Build a comfortable retirement nest egg",
-    icon: Shield,
-    current: 1250000,
-    target: 3000000,
-    targetDate: "2040-01-01",
-    monthlyContribution: 8500,
-    color: "#14b8a6",
-    priority: "high",
-  },
-  {
-    id: "2",
-    name: "Real Estate Portfolio",
-    description: "Expand property investments",
-    icon: Home,
-    current: 735000,
-    target: 1500000,
-    targetDate: "2028-06-01",
-    monthlyContribution: 5000,
-    color: "#06b6d4",
-    priority: "high",
-  },
-  {
-    id: "3",
-    name: "Emergency Fund",
-    description: "6 months of living expenses",
-    icon: Briefcase,
-    current: 85000,
-    target: 100000,
-    targetDate: "2024-12-31",
-    monthlyContribution: 2500,
-    color: "#8b5cf6",
-    priority: "medium",
-  },
-  {
-    id: "4",
-    name: "Children's Education",
-    description: "College fund for kids",
-    icon: GraduationCap,
-    current: 180000,
-    target: 400000,
-    targetDate: "2032-09-01",
-    monthlyContribution: 3000,
-    color: "#f59e0b",
-    priority: "high",
-  },
-  {
-    id: "5",
-    name: "Dream Vacation Home",
-    description: "Beach property in Florida",
-    icon: Plane,
-    current: 120000,
-    target: 500000,
-    targetDate: "2030-01-01",
-    monthlyContribution: 2000,
-    color: "#ec4899",
-    priority: "low",
-  },
-]
+// ─────────────────────────────────────────────────────────────────────────────
+// Category → visual config mapping (replaces inline icon/color on mock objects)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const categoryConfig: Record<GoalCategory, { icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>; color: string }> = {
+  retirement: { icon: Shield, color: "#14b8a6" },
+  realestate: { icon: Home, color: "#06b6d4" },
+  emergency:  { icon: Briefcase, color: "#8b5cf6" },
+  education:  { icon: GraduationCap, color: "#f59e0b" },
+  travel:     { icon: Plane, color: "#ec4899" },
+  vehicle:    { icon: Briefcase, color: "#10b981" },
+  investment: { icon: TrendingUp, color: "#3b82f6" },
+  custom:     { icon: Target, color: "#6366f1" },
+}
 
 const priorityConfig = {
-  high: { label: "High Priority", color: "text-rose-400", bg: "bg-rose-400/10" },
+  high:   { label: "High Priority",   color: "text-rose-400",  bg: "bg-rose-400/10" },
   medium: { label: "Medium Priority", color: "text-amber-400", bg: "bg-amber-400/10" },
-  low: { label: "Low Priority", color: "text-zinc-400", bg: "bg-zinc-400/10" },
+  low:    { label: "Low Priority",    color: "text-zinc-400",  bg: "bg-zinc-400/10" },
 }
 
 function formatDate(dateString: string) {
@@ -109,18 +85,18 @@ function getYearsRemaining(targetDate: string) {
 export default function ClientGoalsPage() {
   const reducedMotion = useReducedMotion()
 
+  // Hook: replaces the inline goals array + manually computed totals
+  const { goals, addGoal, deleteGoal, stats } = useGoals()
+
+  // Form dialog state for creating a new goal
+  const [formOpen, setFormOpen] = React.useState(false)
+
   const spring = useSpring({
     from: { opacity: 0, transform: "translateY(20px)" },
     to: { opacity: 1, transform: "translateY(0px)" },
     config: config.gentle,
     immediate: reducedMotion,
   })
-
-  // Calculate totals
-  const totalCurrent = goals.reduce((sum, g) => sum + g.current, 0)
-  const totalTarget = goals.reduce((sum, g) => sum + g.target, 0)
-  const totalProgress = (totalCurrent / totalTarget) * 100
-  const totalMonthly = goals.reduce((sum, g) => sum + g.monthlyContribution, 0)
 
   return (
     <animated.div style={spring} className="space-y-6">
@@ -132,39 +108,39 @@ export default function ClientGoalsPage() {
             Track progress towards your financial objectives
           </p>
         </div>
-        <Button>
+        <Button onClick={() => setFormOpen(true)}>
           <Plus className="h-4 w-4 mr-2" />
           Add New Goal
         </Button>
       </div>
 
-      {/* Summary Cards */}
+      {/* Summary Cards — driven by stats from hook */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-4">
             <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Total Progress</p>
-            <p className="text-2xl font-bold text-zinc-100 mt-1">{totalProgress.toFixed(1)}%</p>
-            <Progress value={totalProgress} className="h-1.5 mt-2" />
+            <p className="text-2xl font-bold text-zinc-100 mt-1">{stats.overallProgress.toFixed(1)}%</p>
+            <Progress value={stats.overallProgress} className="h-1.5 mt-2" />
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Current Value</p>
-            <p className="text-2xl font-bold text-emerald-400 mt-1">{formatCurrency(totalCurrent)}</p>
+            <p className="text-2xl font-bold text-emerald-400 mt-1">{formatCurrency(stats.totalCurrentAmount)}</p>
             <p className="text-xs text-zinc-500 mt-1">across all goals</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Target Value</p>
-            <p className="text-2xl font-bold text-zinc-100 mt-1">{formatCurrency(totalTarget)}</p>
+            <p className="text-2xl font-bold text-zinc-100 mt-1">{formatCurrency(stats.totalTargetAmount)}</p>
             <p className="text-xs text-zinc-500 mt-1">combined target</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Monthly Savings</p>
-            <p className="text-2xl font-bold text-tiffany-500 mt-1">{formatCurrency(totalMonthly)}</p>
+            <p className="text-2xl font-bold text-tiffany-500 mt-1">{formatCurrency(stats.totalMonthlyContribution)}</p>
             <p className="text-xs text-zinc-500 mt-1">total contributions</p>
           </CardContent>
         </Card>
@@ -173,11 +149,11 @@ export default function ClientGoalsPage() {
       {/* Goals List */}
       <div className="space-y-4">
         {goals.map((goal) => {
-          const progress = Math.min((goal.current / goal.target) * 100, 100)
-          const remaining = goal.target - goal.current
+          const progress = Math.min((goal.currentAmount / goal.targetAmount) * 100, 100)
+          const remaining = goal.targetAmount - goal.currentAmount
           const yearsLeft = getYearsRemaining(goal.targetDate)
           const priority = priorityConfig[goal.priority as keyof typeof priorityConfig]
-          const Icon = goal.icon
+          const { icon: Icon, color } = categoryConfig[goal.category as GoalCategory] ?? categoryConfig.custom
 
           return (
             <Card key={goal.id} className="overflow-hidden">
@@ -188,9 +164,9 @@ export default function ClientGoalsPage() {
                     <div className="flex items-start gap-4">
                       <div
                         className="p-3 rounded-xl"
-                        style={{ backgroundColor: `${goal.color}20` }}
+                        style={{ backgroundColor: `${color}20` }}
                       >
-                        <Icon className="h-6 w-6" style={{ color: goal.color }} />
+                        <Icon className="h-6 w-6" style={{ color }} />
                       </div>
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-1">
@@ -199,7 +175,9 @@ export default function ClientGoalsPage() {
                             {priority.label}
                           </Badge>
                         </div>
-                        <p className="text-sm text-zinc-400 mb-4">{goal.description}</p>
+                        {goal.notes && (
+                          <p className="text-sm text-zinc-400 mb-4">{goal.notes}</p>
+                        )}
 
                         {/* Progress Bar */}
                         <div className="space-y-2">
@@ -212,13 +190,13 @@ export default function ClientGoalsPage() {
                               className="h-full rounded-full transition-all duration-500"
                               style={{
                                 width: `${progress}%`,
-                                backgroundColor: goal.color,
+                                backgroundColor: color,
                               }}
                             />
                           </div>
                           <div className="flex items-center justify-between text-xs text-zinc-500">
-                            <span>{formatCurrency(goal.current)}</span>
-                            <span>{formatCurrency(goal.target)}</span>
+                            <span>{formatCurrency(goal.currentAmount)}</span>
+                            <span>{formatCurrency(goal.targetAmount)}</span>
                           </div>
                         </div>
                       </div>
@@ -299,6 +277,14 @@ export default function ClientGoalsPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Create Goal Dialog */}
+      <GoalFormDialog
+        mode="create"
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        onSubmit={(data) => addGoal(data)}
+      />
     </animated.div>
   )
 }

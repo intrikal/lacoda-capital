@@ -1,3 +1,30 @@
+/**
+ * @file app/(client)/client/documents/page.tsx
+ *
+ * Client-facing documents vault page.
+ *
+ * Data source: `useDocuments` hook (lib/hooks/crud/use-documents.ts) which calls
+ * documentsService.getDocuments() and exposes CRUD helpers (addDocument,
+ * updateDocument, deleteDocument). Aggregate stats (total, verified, pending,
+ * expired, missing) are pre-computed inside the hook via `stats.*`.
+ *
+ * The "Upload" button opens `UploadDocumentDialog`. On submit, `addDocument`
+ * is called with a payload built from the selected file and folder. The Delete
+ * dropdown item calls `deleteDocument(doc.id)` to remove the entry in-memory.
+ *
+ * The `Document` type from lib/mock/types uses `uploadedAt` and `folder`
+ * instead of the old mock's `date` and `starred` fields. The UI adapts
+ * accordingly — starred functionality is preserved via a local Set stored in
+ * component state (visual only; not persisted to the service layer yet).
+ *
+ * tRPC swap path:
+ *   Replace `useDocuments` internals with:
+ *   `const { data: documents } = trpc.client.documents.list.useQuery()`
+ *   `const addDocument         = trpc.client.documents.upload.useMutation()`
+ *   `const deleteDocument      = trpc.client.documents.delete.useMutation()`
+ *   The consuming component needs zero changes — the hook's return shape is
+ *   identical to what tRPC will return.
+ */
 "use client"
 
 import * as React from "react"
@@ -50,23 +77,12 @@ import { Label } from "@/components/ui/label"
 import { Progress } from "@/components/ui/progress"
 import { ContentCard, StatCard } from "@/components/client/content-card"
 import { cn } from "@/lib/utils"
+import { useDocuments } from "@/lib/hooks/crud/use-documents"
+import type { Document } from "@/lib/mock/types"
 
 // ============================================================================
-// DATA
+// STATIC DATA
 // ============================================================================
-
-const documents = [
-  { id: "1", name: "Q4 2023 Portfolio Statement", folder: "Statements", status: "verified", date: "2024-01-15", size: "2.4 MB", starred: true },
-  { id: "2", name: "Q3 2023 Portfolio Statement", folder: "Statements", status: "verified", date: "2023-10-15", size: "2.1 MB", starred: false },
-  { id: "3", name: "Annual Tax Summary 2023", folder: "Tax Documents", status: "verified", date: "2024-01-20", size: "1.8 MB", starred: true },
-  { id: "4", name: "1099-DIV Form 2023", folder: "Tax Documents", status: "verified", date: "2024-01-18", size: "456 KB", starred: false },
-  { id: "5", name: "Investment Policy Statement", folder: "Legal", status: "verified", date: "2023-06-01", size: "890 KB", starred: false },
-  { id: "6", name: "Account Agreement", folder: "Legal", status: "verified", date: "2022-03-15", size: "1.2 MB", starred: false },
-  { id: "7", name: "Property Deed - Manhattan", folder: "Real Estate", status: "verified", date: "2021-08-20", size: "3.5 MB", starred: false },
-  { id: "8", name: "Property Deed - Miami Condo", folder: "Real Estate", status: "verified", date: "2022-11-10", size: "2.8 MB", starred: false },
-  { id: "9", name: "Q1 2024 Performance Report", folder: "Reports", status: "pending", date: "2024-01-25", size: "1.5 MB", starred: false },
-  { id: "10", name: "Risk Assessment Report", folder: "Reports", status: "verified", date: "2023-12-01", size: "980 KB", starred: false },
-]
 
 const uploadCategories = [
   { id: "tax", label: "Tax Documents", description: "W-2, 1099, tax returns" },
@@ -78,14 +94,21 @@ const uploadCategories = [
 
 const statusConfig = {
   verified: { label: "Verified", icon: FileCheck, color: "text-emerald-400", bg: "bg-emerald-500/10" },
-  pending: { label: "Pending Review", icon: FileClock, color: "text-amber-400", bg: "bg-amber-500/10" },
+  pending:  { label: "Pending Review", icon: FileClock, color: "text-amber-400", bg: "bg-amber-500/10" },
+  expired:  { label: "Expired", icon: FileClock, color: "text-red-400", bg: "bg-red-500/10" },
+  missing:  { label: "Missing", icon: FileText, color: "text-zinc-400", bg: "bg-zinc-500/10" },
 }
 
 // ============================================================================
-// COMPONENTS
+// UPLOAD DIALOG
 // ============================================================================
 
-function UploadDocumentDialog() {
+interface UploadDocumentDialogProps {
+  /** Called when the user confirms the upload; receives the selected category and file list */
+  onUpload: (fileName: string, selectedFolder: string) => void
+}
+
+function UploadDocumentDialog({ onUpload }: UploadDocumentDialogProps) {
   const [open, setOpen] = React.useState(false)
   const [dragActive, setDragActive] = React.useState(false)
   const [files, setFiles] = React.useState<File[]>([])
@@ -129,6 +152,11 @@ function UploadDocumentDialog() {
     for (let i = 0; i <= 100; i += 10) {
       await new Promise(resolve => setTimeout(resolve, 200))
       setUploadProgress(i)
+    }
+    // Call parent handler for each file so the hook adds each document
+    const selectedLabel = uploadCategories.find(c => c.id === category)?.label ?? category
+    for (const file of files) {
+      onUpload(file.name, selectedLabel)
     }
     setUploading(false)
     setOpen(false)
@@ -286,11 +314,14 @@ function UploadDocumentDialog() {
 type TabId = "all" | "statements" | "tax" | "legal" | "reports" | "starred"
 
 interface DocumentListProps {
-  documents: typeof documents
+  documents: Document[]
   searchQuery: string
+  starredIds: Set<string>
+  onToggleStar: (id: string) => void
+  onDelete: (id: string) => void
 }
 
-function DocumentList({ documents, searchQuery }: DocumentListProps) {
+function DocumentList({ documents, searchQuery, starredIds, onToggleStar, onDelete }: DocumentListProps) {
   const filteredDocs = documents.filter(doc =>
     doc.name.toLowerCase().includes(searchQuery.toLowerCase())
   )
@@ -308,8 +339,9 @@ function DocumentList({ documents, searchQuery }: DocumentListProps) {
   return (
     <div className="divide-y divide-zinc-800/60">
       {filteredDocs.map((doc) => {
-        const status = statusConfig[doc.status as keyof typeof statusConfig]
-        const StatusIcon = status.icon
+        const statusEntry = statusConfig[doc.status as keyof typeof statusConfig] ?? statusConfig.pending
+        const StatusIcon = statusEntry.icon
+        const isStarred = starredIds.has(doc.id)
 
         return (
           <div
@@ -317,13 +349,13 @@ function DocumentList({ documents, searchQuery }: DocumentListProps) {
             className="flex items-center justify-between py-3 px-4 hover:bg-zinc-800/30 transition-colors group"
           >
             <div className="flex items-center gap-4 min-w-0">
-              <div className={cn("p-2 rounded-lg", status.bg)}>
-                <StatusIcon className={cn("h-4 w-4", status.color)} />
+              <div className={cn("p-2 rounded-lg", statusEntry.bg)}>
+                <StatusIcon className={cn("h-4 w-4", statusEntry.color)} />
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <p className="text-sm font-medium text-zinc-100 truncate">{doc.name}</p>
-                  {doc.starred && <Star className="h-3 w-3 text-amber-400 fill-amber-400" />}
+                  {isStarred && <Star className="h-3 w-3 text-amber-400 fill-amber-400" />}
                 </div>
                 <div className="flex items-center gap-2 mt-0.5 text-xs text-zinc-500">
                   <span className="flex items-center gap-1">
@@ -331,7 +363,7 @@ function DocumentList({ documents, searchQuery }: DocumentListProps) {
                     {doc.folder}
                   </span>
                   <span>•</span>
-                  <span>{format(new Date(doc.date), "MMM d, yyyy")}</span>
+                  <span>{format(new Date(doc.uploadedAt), "MMM d, yyyy")}</span>
                   <span>•</span>
                   <span>{doc.size}</span>
                 </div>
@@ -339,8 +371,8 @@ function DocumentList({ documents, searchQuery }: DocumentListProps) {
             </div>
 
             <div className="flex items-center gap-2">
-              <Badge variant="outline" className={cn("text-xs hidden sm:inline-flex", status.color)}>
-                {status.label}
+              <Badge variant="outline" className={cn("text-xs hidden sm:inline-flex", statusEntry.color)}>
+                {statusEntry.label}
               </Badge>
               <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                 <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -356,16 +388,16 @@ function DocumentList({ documents, searchQuery }: DocumentListProps) {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="bg-zinc-900 border-zinc-800">
-                    <DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => onToggleStar(doc.id)}>
                       <Star className="h-4 w-4 mr-2" />
-                      {doc.starred ? "Remove from starred" : "Add to starred"}
+                      {isStarred ? "Remove from starred" : "Add to starred"}
                     </DropdownMenuItem>
                     <DropdownMenuItem>
                       <FolderOpen className="h-4 w-4 mr-2" />
                       Move to folder
                     </DropdownMenuItem>
                     <DropdownMenuSeparator className="bg-zinc-800" />
-                    <DropdownMenuItem className="text-rose-400">
+                    <DropdownMenuItem className="text-rose-400" onClick={() => onDelete(doc.id)}>
                       <Trash2 className="h-4 w-4 mr-2" />
                       Delete
                     </DropdownMenuItem>
@@ -388,29 +420,41 @@ export default function ClientDocumentsPage() {
   const [activeTab, setActiveTab] = React.useState<TabId>("all")
   const [searchQuery, setSearchQuery] = React.useState("")
 
+  // Local starred state (visual only — not persisted to the service layer yet)
+  const [starredIds, setStarredIds] = React.useState<Set<string>>(new Set())
+
+  // Hook: replaces the inline documents array + manually computed stat counts
+  const { documents, addDocument, deleteDocument, stats } = useDocuments()
+
+  const handleToggleStar = (id: string) => {
+    setStarredIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }
+
   const tabs: { id: TabId; label: string; count?: number }[] = [
-    { id: "all", label: "All", count: documents.length },
-    { id: "statements", label: "Statements", count: documents.filter(d => d.folder === "Statements").length },
-    { id: "tax", label: "Tax Documents", count: documents.filter(d => d.folder === "Tax Documents").length },
-    { id: "legal", label: "Legal", count: documents.filter(d => d.folder === "Legal").length },
-    { id: "reports", label: "Reports", count: documents.filter(d => d.folder === "Reports").length },
-    { id: "starred", label: "Starred", count: documents.filter(d => d.starred).length },
+    { id: "all",        label: "All",          count: documents.length },
+    { id: "statements", label: "Statements",   count: documents.filter(d => d.folder === "Statements").length },
+    { id: "tax",        label: "Tax Documents", count: documents.filter(d => d.folder === "Tax Documents").length },
+    { id: "legal",      label: "Legal",        count: documents.filter(d => d.folder === "Legal").length },
+    { id: "reports",    label: "Reports",      count: documents.filter(d => d.folder === "Reports").length },
+    { id: "starred",    label: "Starred",      count: starredIds.size },
   ]
 
   const getFilteredDocuments = () => {
     switch (activeTab) {
-      case "statements":
-        return documents.filter(d => d.folder === "Statements")
-      case "tax":
-        return documents.filter(d => d.folder === "Tax Documents")
-      case "legal":
-        return documents.filter(d => d.folder === "Legal")
-      case "reports":
-        return documents.filter(d => d.folder === "Reports")
-      case "starred":
-        return documents.filter(d => d.starred)
-      default:
-        return documents
+      case "statements": return documents.filter(d => d.folder === "Statements")
+      case "tax":        return documents.filter(d => d.folder === "Tax Documents")
+      case "legal":      return documents.filter(d => d.folder === "Legal")
+      case "reports":    return documents.filter(d => d.folder === "Reports")
+      case "starred":    return documents.filter(d => starredIds.has(d.id))
+      default:           return documents
     }
   }
 
@@ -427,30 +471,43 @@ export default function ClientDocumentsPage() {
             <Download className="h-4 w-4 mr-2" />
             Download All
           </Button>
-          <UploadDocumentDialog />
+          <UploadDocumentDialog
+            onUpload={(fileName, selectedFolder) => {
+              addDocument({
+                name: fileName,
+                type: "pdf",
+                status: "pending",
+                folder: selectedFolder,
+                uploadedBy: "John Doe",
+                uploadedAt: new Date().toISOString(),
+                size: "—",
+                tags: [],
+              })
+            }}
+          />
         </div>
       </div>
 
-      {/* Stats */}
+      {/* Stats — driven by hook */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           label="Total Documents"
-          value={documents.length}
+          value={stats.total}
           icon={<FileText className="h-4 w-4 text-tiffany-500" />}
         />
         <StatCard
           label="Verified"
-          value={documents.filter(d => d.status === "verified").length}
+          value={stats.verified}
           icon={<FileCheck className="h-4 w-4 text-emerald-400" />}
         />
         <StatCard
           label="Pending Review"
-          value={documents.filter(d => d.status === "pending").length}
+          value={stats.pending}
           icon={<Clock className="h-4 w-4 text-amber-400" />}
         />
         <StatCard
           label="Starred"
-          value={documents.filter(d => d.starred).length}
+          value={starredIds.size}
           icon={<Star className="h-4 w-4 text-amber-400" />}
         />
       </div>
@@ -505,7 +562,13 @@ export default function ClientDocumentsPage() {
 
       {/* Document List */}
       <ContentCard noPadding>
-        <DocumentList documents={getFilteredDocuments()} searchQuery={searchQuery} />
+        <DocumentList
+          documents={getFilteredDocuments()}
+          searchQuery={searchQuery}
+          starredIds={starredIds}
+          onToggleStar={handleToggleStar}
+          onDelete={deleteDocument}
+        />
       </ContentCard>
     </div>
   )
