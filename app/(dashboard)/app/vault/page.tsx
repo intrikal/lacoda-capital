@@ -47,10 +47,11 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
-import { mockDocuments, documentStatusConfig } from "@/lib/mock/data"
+import { documentStatusConfig } from "@/lib/mock/data"
 import type { DocumentStatus } from "@/lib/mock/types"
 import { ContentCard, StatCard, PageHeader, Tabs } from "@/components/dashboard/content-card"
 import type { LucideIcon } from "lucide-react"
+import { useDocuments } from "@/lib/hooks/crud/use-documents"
 
 const statusIcons: Record<DocumentStatus, LucideIcon> = {
   verified: FileCheck,
@@ -59,10 +60,23 @@ const statusIcons: Record<DocumentStatus, LucideIcon> = {
   missing: FileText,
 }
 
-const folders = Array.from(new Set(mockDocuments.map((d) => d.folder.split("/")[0])))
-
-function UploadDocumentDialog() {
+function UploadDocumentDialog({ onUpload }: { onUpload: (data: { name: string; folder: string; tags: string[] }) => void }) {
   const [open, setOpen] = React.useState(false)
+  const [docName, setDocName] = React.useState("")
+  const [folder, setFolder] = React.useState("Real Estate")
+  const [tags, setTags] = React.useState("")
+
+  function handleSubmit() {
+    if (!docName.trim()) return
+    onUpload({
+      name: docName.trim(),
+      folder,
+      tags: tags.split(",").map((t) => t.trim()).filter(Boolean),
+    })
+    setDocName("")
+    setTags("")
+    setOpen(false)
+  }
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -90,30 +104,45 @@ function UploadDocumentDialog() {
             </p>
           </div>
           <div className="space-y-2">
+            <Label>Document Name</Label>
+            <Input
+              placeholder="e.g., Q4 Tax Report"
+              value={docName}
+              onChange={(e) => setDocName(e.target.value)}
+              className="bg-zinc-800/50 border-zinc-700"
+            />
+          </div>
+          <div className="space-y-2">
             <Label>Folder</Label>
-            <Select defaultValue="Real Estate">
+            <Select value={folder} onValueChange={setFolder}>
               <SelectTrigger className="bg-zinc-800/50 border-zinc-700">
                 <SelectValue placeholder="Select folder" />
               </SelectTrigger>
               <SelectContent className="bg-zinc-900 border-zinc-800">
-                {folders.map((folder) => (
-                  <SelectItem key={folder} value={folder}>
-                    {folder}
-                  </SelectItem>
-                ))}
+                <SelectItem value="Real Estate">Real Estate</SelectItem>
+                <SelectItem value="Tax">Tax</SelectItem>
+                <SelectItem value="Insurance">Insurance</SelectItem>
+                <SelectItem value="Legal">Legal</SelectItem>
+                <SelectItem value="Compliance">Compliance</SelectItem>
+                <SelectItem value="Investments">Investments</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <div className="space-y-2">
             <Label>Tags</Label>
-            <Input placeholder="Add tags separated by commas" className="bg-zinc-800/50 border-zinc-700" />
+            <Input
+              placeholder="Add tags separated by commas"
+              value={tags}
+              onChange={(e) => setTags(e.target.value)}
+              className="bg-zinc-800/50 border-zinc-700"
+            />
           </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>
             Cancel
           </Button>
-          <Button onClick={() => setOpen(false)}>Upload</Button>
+          <Button onClick={handleSubmit}>Upload</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -123,11 +152,17 @@ function UploadDocumentDialog() {
 type TabId = "all" | "verified" | "pending" | "expired"
 
 export default function VaultPage() {
+  const { documents, addDocument, deleteDocument, stats } = useDocuments()
   const [searchQuery, setSearchQuery] = React.useState("")
   const [activeTab, setActiveTab] = React.useState<TabId>("all")
   const [folderFilter, setFolderFilter] = React.useState<string>("all")
 
-  const filteredDocuments = mockDocuments.filter((doc) => {
+  const folders = React.useMemo(
+    () => Array.from(new Set(documents.map((d) => d.folder.split("/")[0]))),
+    [documents]
+  )
+
+  const filteredDocuments = documents.filter((doc) => {
     const matchesSearch =
       doc.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       doc.tags.some((t) => t.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -137,31 +172,38 @@ export default function VaultPage() {
     return matchesSearch && matchesTab && matchesFolder
   })
 
-  const statusCounts = {
-    verified: mockDocuments.filter((d) => d.status === "verified").length,
-    pending: mockDocuments.filter((d) => d.status === "pending").length,
-    expired: mockDocuments.filter((d) => d.status === "expired").length,
-  }
-
   const tabs = [
-    { id: "all", label: "All Documents", count: mockDocuments.length },
-    { id: "verified", label: "Verified", count: statusCounts.verified },
-    { id: "pending", label: "Pending", count: statusCounts.pending },
-    { id: "expired", label: "Expired", count: statusCounts.expired },
+    { id: "all", label: "All Documents", count: stats.total },
+    { id: "verified", label: "Verified", count: stats.verified },
+    { id: "pending", label: "Pending", count: stats.pending },
+    { id: "expired", label: "Expired", count: stats.expired },
   ]
+
+  function handleUpload(data: { name: string; folder: string; tags: string[] }) {
+    addDocument({
+      name: data.name,
+      type: "pdf",
+      status: "pending",
+      uploadedBy: "Alexander Ward",
+      uploadedAt: new Date().toISOString(),
+      size: "1.2 MB",
+      tags: data.tags,
+      folder: data.folder,
+    })
+  }
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Document Vault"
-        description={`${mockDocuments.length} documents stored securely`}
+        description={`${stats.total} documents stored securely`}
         actions={
           <>
             <Button variant="outline" size="sm">
               <Download className="h-4 w-4 mr-2" />
               Export All
             </Button>
-            <UploadDocumentDialog />
+            <UploadDocumentDialog onUpload={handleUpload} />
           </>
         }
       />
@@ -169,22 +211,22 @@ export default function VaultPage() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           label="Total Documents"
-          value={mockDocuments.length}
+          value={stats.total}
           icon={<FileText className="h-4 w-4 text-tiffany-500" />}
         />
         <StatCard
           label="Verified"
-          value={statusCounts.verified}
+          value={stats.verified}
           icon={<FileCheck className="h-4 w-4 text-emerald-400" />}
         />
         <StatCard
           label="Pending Review"
-          value={statusCounts.pending}
+          value={stats.pending}
           icon={<FileClock className="h-4 w-4 text-amber-400" />}
         />
         <StatCard
           label="Expired"
-          value={statusCounts.expired}
+          value={stats.expired}
           icon={<FileWarning className="h-4 w-4 text-rose-400" />}
         />
       </div>
@@ -303,7 +345,10 @@ export default function VaultPage() {
                             Move to folder
                           </DropdownMenuItem>
                           <DropdownMenuSeparator className="bg-zinc-800" />
-                          <DropdownMenuItem className="text-rose-400">
+                          <DropdownMenuItem
+                            className="text-rose-400"
+                            onClick={() => deleteDocument(doc.id)}
+                          >
                             <Trash2 className="h-4 w-4 mr-2" />
                             Delete
                           </DropdownMenuItem>

@@ -27,6 +27,17 @@ import {
   PerformanceData,
   ActivityItem,
   ConstellationNode,
+  Deal,
+  PipelineStage,
+  CalendarEvent,
+  Conversation,
+  Message,
+  DashboardSummary,
+  FinancialGoal,
+  PortfolioHolding,
+  ClientTransfer,
+  Beneficiary,
+  BillingRecord,
 } from "./types"
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1216,3 +1227,519 @@ export const alertSeverityConfig: Record<AlertSeverity, { label: string; color: 
   warning: { label: "Warning", color: "text-amber-400", bg: "bg-amber-400/10", border: "border-amber-400/20" },
   info: { label: "Info", color: "text-blue-400", bg: "bg-blue-400/10", border: "border-blue-400/20" },
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PIPELINE
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const pipelineStages: PipelineStage[] = [
+  { id: "prospecting",  name: "Prospecting",  color: "#6366f1", description: "Initial opportunities" },
+  { id: "due_diligence", name: "Due Diligence", color: "#8b5cf6", description: "Research & analysis" },
+  { id: "negotiation", name: "Negotiation",  color: "#f59e0b", description: "Terms under discussion" },
+  { id: "closed",      name: "Closed",       color: "#0FBFBF", description: "Awaiting deployment" },
+  { id: "active",      name: "Active",       color: "#10b981", description: "Currently invested" },
+  { id: "exit_planning", name: "Exit Planning", color: "#f97316", description: "Preparing for exit" },
+]
+
+export const mockDeals: Deal[] = [
+  { id: "deal-001", name: "Series C - AI Logistics Startup",  stage: "prospecting",  type: "Private Equity", potentialValue: 500_000,   probability: 25,  assignee: "Sarah Chen",  dueDate: "2026-02-15", lastActivity: "2 hours ago",  notes: "Initial meeting scheduled" },
+  { id: "deal-002", name: "Downtown Office Complex",          stage: "prospecting",  type: "Real Estate",    potentialValue: 2_500_000, probability: 20,  assignee: "Michael Ross", dueDate: "2026-03-01", lastActivity: "1 day ago",    notes: "Reviewing financials" },
+  { id: "deal-003", name: "Growth Fund VII - Allocation",     stage: "due_diligence", type: "Private Equity", potentialValue: 750_000,  probability: 60,  assignee: "Sarah Chen",  dueDate: "2026-02-28", lastActivity: "5 hours ago",  notes: "Reviewing fund terms" },
+  { id: "deal-004", name: "Miami Beach Development",          stage: "due_diligence", type: "Real Estate",   potentialValue: 1_800_000, probability: 55,  assignee: "David Kim",   dueDate: "2026-02-20", lastActivity: "3 hours ago",  notes: "Site visit completed" },
+  { id: "deal-005", name: "Seed Round - HealthTech Platform", stage: "negotiation",  type: "Venture Capital", potentialValue: 250_000, probability: 75,  assignee: "Sarah Chen",  dueDate: "2026-02-10", lastActivity: "1 hour ago",   notes: "Finalizing term sheet" },
+  { id: "deal-006", name: "Industrial Warehouse Portfolio",   stage: "negotiation",  type: "Real Estate",    potentialValue: 3_200_000, probability: 70,  assignee: "Michael Ross", dueDate: "2026-02-18", lastActivity: "6 hours ago",  notes: "Price negotiation" },
+  { id: "deal-007", name: "Corporate Bond Package",           stage: "closed",       type: "Fixed Income",   potentialValue: 500_000,   probability: 95,  assignee: "David Kim",   dueDate: "2026-02-05", lastActivity: "2 days ago",   notes: "Awaiting wire transfer" },
+  { id: "deal-008", name: "Tech Growth Fund III",             stage: "active",       type: "Private Equity", potentialValue: 650_000,   probability: 100, assignee: "Sarah Chen",  dueDate: null,         lastActivity: "1 week ago",   notes: "Q4 distribution received" },
+  { id: "deal-009", name: "Manhattan Penthouse",              stage: "active",       type: "Real Estate",    potentialValue: 1_200_000, probability: 100, assignee: "Michael Ross", dueDate: null,        lastActivity: "2 weeks ago",  notes: "Tenant renewed" },
+  { id: "deal-010", name: "Early Stage FinTech",              stage: "active",       type: "Venture Capital", potentialValue: 320_000,  probability: 100, assignee: "Sarah Chen",  dueDate: null,         lastActivity: "3 days ago",   notes: "Series B upcoming" },
+  { id: "deal-011", name: "Retail Strip Center",              stage: "exit_planning", type: "Real Estate",   potentialValue: 890_000,   probability: 100, assignee: "Michael Ross", dueDate: "2026-04-15", lastActivity: "1 day ago",   notes: "Broker engaged" },
+]
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CALENDAR EVENTS (advisor dashboard)
+// Dates are ISO strings.  The calendar page converts them to Date objects.
+// Days are expressed as offsets from 2026-02-20 (the reference "today").
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const mockCalendarEvents: CalendarEvent[] = [
+  { id: "cal-001", title: "Q1 Portfolio Review",              type: "meeting",  date: "2026-02-20", time: "10:00 AM", endTime: "11:30 AM", location: "Conference Room A", attendees: ["Sarah Chen", "Michael Ross", "Investment Team"], reminder: true },
+  { id: "cal-002", title: "Property Tax Payment - Manhattan", type: "payment",  date: "2026-02-22", amount: 24_500, description: "Annual property tax for 432 Park Ave unit", reminder: true },
+  { id: "cal-003", title: "AAPL Dividend",                    type: "dividend", date: "2026-02-25", amount: 2_840, description: "Quarterly dividend payment - 1,200 shares" },
+  { id: "cal-004", title: "Tax Filing Deadline",              type: "deadline", date: "2026-03-04", description: "Q4 estimated tax payment due", reminder: true },
+  { id: "cal-005", title: "Insurance Renewal Review",         type: "document", date: "2026-02-28", time: "2:00 PM", description: "Review umbrella policy renewal terms" },
+  { id: "cal-006", title: "Call with Estate Attorney",        type: "call",     date: "2026-02-23", time: "3:30 PM", endTime: "4:00 PM", attendees: ["James Mitchell, Esq."] },
+  { id: "cal-007", title: "Board Meeting - Tech Startup",     type: "meeting",  date: "2026-02-27", time: "9:00 AM", endTime: "12:00 PM", location: "Virtual - Zoom", attendees: ["Board Members", "CEO", "CFO"] },
+  { id: "cal-008", title: "Mortgage Payment",                 type: "payment",  date: "2026-02-21", amount: 8_450, description: "Monthly mortgage - Miami Beach property" },
+  { id: "cal-009", title: "MSFT Dividend",                    type: "dividend", date: "2026-03-07", amount: 1_560, description: "Quarterly dividend payment - 600 shares" },
+  { id: "cal-010", title: "Annual Compliance Review",         type: "deadline", date: "2026-03-12", description: "SOC 2 compliance documentation due", reminder: true },
+]
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MESSAGES
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const mockConversations: Conversation[] = [
+  { id: "conv-001", name: "John & Emily Thompson",   type: "client", avatar: "JT", avatarColor: "bg-tiffany-500/20 text-tiffany-500", lastMessage: "Thank you for the portfolio update. When can we schedule our quarterly review?", timestamp: "2024-01-20T14:30:00", unread: 2, online: false, aum: "$2.4M" },
+  { id: "conv-002", name: "Westbrook Family Trust",  type: "client", avatar: "WF", avatarColor: "bg-purple-500/20 text-purple-400",  lastMessage: "The trust documents have been reviewed. Please proceed with the transfer.", timestamp: "2024-01-20T11:15:00", unread: 0, online: true,  aum: "$8.2M" },
+  { id: "conv-003", name: "Sarah Chen",              type: "team",   avatar: "SC", avatarColor: "bg-blue-500/20 text-blue-400",     lastMessage: "I've finished the due diligence on the Miami property. Report attached.", timestamp: "2024-01-20T09:45:00", unread: 1, online: true },
+  { id: "conv-004", name: "Apex Ventures Fund",      type: "client", avatar: "AV", avatarColor: "bg-emerald-500/20 text-emerald-400", lastMessage: "We're ready to move forward with the Series B allocation.", timestamp: "2024-01-19T16:20:00", unread: 0, online: false, aum: "$15.6M" },
+  { id: "conv-005", name: "Michael Roberts",         type: "team",   avatar: "MR", avatarColor: "bg-amber-500/20 text-amber-400",   lastMessage: "Valuation report for the Manhattan property is ready for review.", timestamp: "2024-01-19T14:00:00", unread: 0, online: false },
+  { id: "conv-006", name: "Meridian Capital Partners", type: "client", avatar: "MC", avatarColor: "bg-rose-500/20 text-rose-400", lastMessage: "Can we discuss the Q4 performance report on Thursday?", timestamp: "2024-01-18T10:30:00", unread: 3, online: true,  aum: "$26.5M" },
+]
+
+export const mockMessages: Message[] = [
+  // conv-001: John & Emily Thompson
+  { id: "msg-001", conversationId: "conv-001", sender: "Alexander Ward", senderType: "advisor", content: "Good morning! I've just sent over the Q4 portfolio report. Overall performance is up 14.6% YTD, which puts you ahead of the benchmark by 3.4%.", timestamp: "2024-01-20T10:15:00", read: true },
+  { id: "msg-002", conversationId: "conv-001", sender: "John Thompson",  senderType: "client",  content: "That's wonderful news! We're very pleased with the results. The real estate holdings have been performing exceptionally well.", timestamp: "2024-01-20T11:30:00", read: true },
+  { id: "msg-003", conversationId: "conv-001", sender: "Alexander Ward", senderType: "advisor", content: "Exactly — the Manhattan Tower valuation came in at $45M, up 7.1% from our last appraisal. The Miami project is also on track for Q2 completion.", timestamp: "2024-01-20T13:00:00", read: true },
+  { id: "msg-004", conversationId: "conv-001", sender: "Emily Thompson", senderType: "client",  content: "Thank you for the portfolio update. When can we schedule our quarterly review?", timestamp: "2024-01-20T14:30:00", read: false },
+  { id: "msg-005", conversationId: "conv-001", sender: "John Thompson",  senderType: "client",  content: "We'd also like to discuss the tax planning strategy before the April deadline.", timestamp: "2024-01-20T14:32:00", read: false },
+  // conv-002: Westbrook Family Trust
+  { id: "msg-006", conversationId: "conv-002", sender: "Alexander Ward",       senderType: "advisor", content: "The Westbrook Family Trust annual review documents have been prepared. I'll need your signature on the beneficiary designation updates.", timestamp: "2024-01-20T09:00:00", read: true },
+  { id: "msg-007", conversationId: "conv-002", sender: "Westbrook Family Trust", senderType: "client",  content: "The trust documents have been reviewed. Please proceed with the transfer.", timestamp: "2024-01-20T11:15:00", read: true },
+  // conv-003: Sarah Chen (team)
+  { id: "msg-008", conversationId: "conv-003", sender: "Sarah Chen",    senderType: "team",    content: "Just wrapped up the Miami site visit. The construction timeline looks solid — on track for Q2. Full report is attached.", timestamp: "2024-01-20T09:45:00", read: false, attachments: [{ name: "Miami_Due_Diligence_Report.pdf", size: "4.2 MB", type: "pdf" }] },
+]
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FINANCIAL GOALS
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const mockGoals: FinancialGoal[] = [
+  {
+    id: "goal-001",
+    name: "Retirement Fund",
+    category: "retirement",
+    targetAmount: 5_000_000,
+    currentAmount: 2_850_000,
+    targetDate: "2040-01-01",
+    monthlyContribution: 15_000,
+    priority: "high",
+    status: "on_track",
+    notes: "Target: 4% safe withdrawal rate = $200K/year",
+    milestones: [
+      { name: "First Million", amount: 1_000_000, reached: true },
+      { name: "Two Million", amount: 2_000_000, reached: true },
+      { name: "Halfway", amount: 2_500_000, reached: true },
+      { name: "Three Million", amount: 3_000_000, reached: false },
+      { name: "Four Million", amount: 4_000_000, reached: false },
+    ],
+  },
+  {
+    id: "goal-002",
+    name: "Children's Education Fund",
+    category: "education",
+    targetAmount: 500_000,
+    currentAmount: 145_000,
+    targetDate: "2035-09-01",
+    monthlyContribution: 2_500,
+    priority: "high",
+    status: "on_track",
+    notes: "529 Plan for 2 children - college expenses",
+    milestones: [
+      { name: "First $50K", amount: 50_000, reached: true },
+      { name: "$100K", amount: 100_000, reached: true },
+      { name: "Quarter Way", amount: 125_000, reached: true },
+      { name: "$200K", amount: 200_000, reached: false },
+    ],
+  },
+  {
+    id: "goal-003",
+    name: "Real Estate Portfolio Expansion",
+    category: "realestate",
+    targetAmount: 3_000_000,
+    currentAmount: 1_850_000,
+    targetDate: "2028-12-31",
+    monthlyContribution: 20_000,
+    priority: "medium",
+    status: "ahead",
+    notes: "Target: 3 additional investment properties",
+    milestones: [
+      { name: "First Property", amount: 500_000, reached: true },
+      { name: "Second Property", amount: 1_000_000, reached: true },
+      { name: "Third Property", amount: 1_500_000, reached: true },
+      { name: "Fourth Property", amount: 2_000_000, reached: false },
+    ],
+  },
+  {
+    id: "goal-004",
+    name: "Emergency Fund",
+    category: "emergency",
+    targetAmount: 150_000,
+    currentAmount: 125_000,
+    targetDate: "2024-12-31",
+    monthlyContribution: 5_000,
+    priority: "high",
+    status: "ahead",
+    notes: "12 months of expenses in liquid assets",
+  },
+  {
+    id: "goal-005",
+    name: "European Vacation Home",
+    category: "travel",
+    targetAmount: 800_000,
+    currentAmount: 180_000,
+    targetDate: "2030-06-01",
+    monthlyContribution: 8_000,
+    priority: "low",
+    status: "on_track",
+    notes: "Villa in Tuscany or South of France",
+  },
+  {
+    id: "goal-006",
+    name: "Private Equity Fund",
+    category: "investment",
+    targetAmount: 1_000_000,
+    currentAmount: 650_000,
+    targetDate: "2026-03-01",
+    monthlyContribution: 12_000,
+    priority: "medium",
+    status: "on_track",
+    notes: "Diversified PE allocation across 5-7 funds",
+  },
+]
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DASHBOARD SUMMARY
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const mockDashboardSummary: DashboardSummary = {
+  totalPortfolioValue: 3_945_100,
+  monthlyChange: 244_000,
+  monthlyChangePercent: 6.6,
+  ytdReturn: 14.6,
+  netWorth: 3_402_000,
+  activeAlerts: 3,
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CLIENT PORTAL — PORTFOLIO HOLDINGS
+// Individual investment positions in the client's personal portfolio.
+// Distinct from advisor-side `mockAssets` which tracks firm AUM.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const mockPortfolioHoldings: PortfolioHolding[] = [
+  {
+    id: "hold-001",
+    symbol: "VTI",
+    name: "Vanguard Total Market ETF",
+    assetClass: "equities",
+    value: 425_000,
+    costBasis: 380_000,
+    shares: 1_892,
+    price: 224.63,
+    gain: 45_000,
+    gainPercent: 11.84,
+    annualIncome: 6_800,
+  },
+  {
+    id: "hold-002",
+    symbol: "RE-NYC",
+    name: "Manhattan Luxury Condo",
+    assetClass: "real_estate",
+    value: 485_000,
+    costBasis: 420_000,
+    shares: null,
+    price: null,
+    gain: 65_000,
+    gainPercent: 15.48,
+    annualIncome: 24_000,
+  },
+  {
+    id: "hold-003",
+    symbol: "AGG",
+    name: "iShares Core US Bond ETF",
+    assetClass: "fixed_income",
+    value: 245_000,
+    costBasis: 240_000,
+    shares: 2_286,
+    price: 107.16,
+    gain: 5_000,
+    gainPercent: 2.08,
+    annualIncome: 8_575,
+  },
+  {
+    id: "hold-004",
+    symbol: "AAPL",
+    name: "Apple Inc.",
+    assetClass: "equities",
+    value: 185_000,
+    costBasis: 142_000,
+    shares: 872,
+    price: 212.24,
+    gain: 43_000,
+    gainPercent: 30.28,
+    annualIncome: 876,
+  },
+  {
+    id: "hold-005",
+    symbol: "RE-MIA",
+    name: "Miami Waterfront Condo",
+    assetClass: "real_estate",
+    value: 250_000,
+    costBasis: 215_000,
+    shares: null,
+    price: null,
+    gain: 35_000,
+    gainPercent: 16.28,
+    annualIncome: 18_000,
+  },
+  {
+    id: "hold-006",
+    symbol: "PE-FUND",
+    name: "Lacoda PE Fund III",
+    assetClass: "private_equity",
+    value: 245_000,
+    costBasis: 200_000,
+    shares: null,
+    price: null,
+    gain: 45_000,
+    gainPercent: 22.5,
+    annualIncome: 0,
+  },
+  {
+    id: "hold-007",
+    symbol: "QQQ",
+    name: "Invesco NASDAQ 100 ETF",
+    assetClass: "equities",
+    value: 165_000,
+    costBasis: 130_000,
+    shares: 354,
+    price: 466.1,
+    gain: 35_000,
+    gainPercent: 26.92,
+    annualIncome: 660,
+  },
+  {
+    id: "hold-008",
+    symbol: "LQD",
+    name: "iShares IG Corporate Bond ETF",
+    assetClass: "fixed_income",
+    value: 135_000,
+    costBasis: 130_000,
+    shares: 1_173,
+    price: 115.09,
+    gain: 5_000,
+    gainPercent: 3.85,
+    annualIncome: 6_075,
+  },
+  {
+    id: "hold-009",
+    symbol: "BIL",
+    name: "T-Bill 3-Month",
+    assetClass: "cash",
+    value: 175_000,
+    costBasis: 175_000,
+    shares: 1_747,
+    price: 100.17,
+    gain: 0,
+    gainPercent: 0,
+    annualIncome: 9_275,
+  },
+  {
+    id: "hold-010",
+    symbol: "GLD",
+    name: "SPDR Gold Shares",
+    assetClass: "alternatives",
+    value: 140_000,
+    costBasis: 118_000,
+    shares: 607,
+    price: 230.64,
+    gain: 22_000,
+    gainPercent: 18.64,
+    annualIncome: 0,
+  },
+]
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CLIENT PORTAL — TRANSFER REQUESTS
+// Fund movement history: deposits, withdrawals, and internal transfers.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const mockClientTransfers: ClientTransfer[] = [
+  {
+    id: "txfr-001",
+    type: "deposit",
+    amount: 25_000,
+    fromAccount: "Chase Bank ****4532",
+    toAccount: "Brokerage Account",
+    status: "processing",
+    frequency: "One-time",
+    createdAt: "2024-01-20T10:30:00Z",
+    reference: "DEP-2024-0120",
+  },
+  {
+    id: "txfr-002",
+    type: "transfer",
+    amount: 10_000,
+    fromAccount: "Brokerage Account",
+    toAccount: "Roth IRA",
+    status: "pending",
+    frequency: "One-time",
+    createdAt: "2024-01-22T14:15:00Z",
+    reference: "INT-2024-0122",
+  },
+  {
+    id: "txfr-003",
+    type: "deposit",
+    amount: 5_000,
+    fromAccount: "Bank of America ****7891",
+    toAccount: "Retirement IRA",
+    status: "completed",
+    frequency: "Monthly",
+    createdAt: "2024-01-01T09:00:00Z",
+    completedAt: "2024-01-03T16:45:00Z",
+    reference: "DEP-2024-0101",
+  },
+  {
+    id: "txfr-004",
+    type: "withdrawal",
+    amount: 8_500,
+    fromAccount: "Brokerage Account",
+    toAccount: "Chase Bank ****4532",
+    status: "completed",
+    frequency: "One-time",
+    createdAt: "2023-12-28T11:00:00Z",
+    completedAt: "2023-12-30T14:20:00Z",
+    reference: "WDR-2023-1228",
+  },
+  {
+    id: "txfr-005",
+    type: "deposit",
+    amount: 15_000,
+    fromAccount: "Chase Bank ****4532",
+    toAccount: "Brokerage Account",
+    status: "completed",
+    frequency: "One-time",
+    createdAt: "2023-12-15T09:30:00Z",
+    completedAt: "2023-12-17T11:00:00Z",
+    reference: "DEP-2023-1215",
+  },
+]
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CLIENT PORTAL — BENEFICIARIES
+// Estate planning beneficiary designations on client investment accounts.
+// Primary beneficiaries receive assets first; contingent only if primaries
+// have predeceased the account holder.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const mockBeneficiaries: Beneficiary[] = [
+  {
+    id: "ben-001",
+    name: "Emily Johnson",
+    relationship: "Spouse",
+    designation: "primary",
+    percentage: 60,
+    accounts: ["Brokerage Account", "Retirement IRA", "Roth IRA"],
+    ssnLast4: "4521",
+    dateOfBirth: "1985-07-14",
+    phone: "+1 (555) 234-5678",
+    email: "emily.johnson@email.com",
+    verified: true,
+  },
+  {
+    id: "ben-002",
+    name: "Michael Johnson",
+    relationship: "Child",
+    designation: "primary",
+    percentage: 25,
+    accounts: ["Brokerage Account", "Roth IRA"],
+    ssnLast4: "8834",
+    dateOfBirth: "2012-03-22",
+    phone: undefined,
+    email: undefined,
+    verified: true,
+  },
+  {
+    id: "ben-003",
+    name: "Sophia Johnson",
+    relationship: "Child",
+    designation: "primary",
+    percentage: 15,
+    accounts: ["Brokerage Account"],
+    ssnLast4: "2267",
+    dateOfBirth: "2015-11-08",
+    verified: false,
+  },
+  {
+    id: "ben-004",
+    name: "Robert Doe",
+    relationship: "Parent",
+    designation: "contingent",
+    percentage: 50,
+    accounts: ["Brokerage Account", "Retirement IRA"],
+    ssnLast4: "6643",
+    dateOfBirth: "1952-04-30",
+    phone: "+1 (555) 876-5432",
+    email: "robert.doe@email.com",
+    verified: true,
+  },
+]
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CLIENT PORTAL — BILLING HISTORY
+// Advisory fee invoices billed quarterly as a percentage of AUM.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const mockBillingHistory: BillingRecord[] = [
+  {
+    id: "inv-001",
+    period: "Q1 2024",
+    amount: 5_196,
+    aum: 2_450_000,
+    status: "upcoming",
+    dueDate: "2024-04-01",
+    effectiveRate: 0.0085,
+  },
+  {
+    id: "inv-002",
+    period: "Q4 2023",
+    amount: 5_056,
+    aum: 2_380_000,
+    status: "paid",
+    dueDate: "2024-01-01",
+    paidDate: "2023-12-28",
+    effectiveRate: 0.0085,
+  },
+  {
+    id: "inv-003",
+    period: "Q3 2023",
+    amount: 4_888,
+    aum: 2_300_000,
+    status: "paid",
+    dueDate: "2023-10-01",
+    paidDate: "2023-09-29",
+    effectiveRate: 0.0085,
+  },
+  {
+    id: "inv-004",
+    period: "Q2 2023",
+    amount: 4_632,
+    aum: 2_180_000,
+    status: "paid",
+    dueDate: "2023-07-01",
+    paidDate: "2023-06-30",
+    effectiveRate: 0.0085,
+  },
+  {
+    id: "inv-005",
+    period: "Q1 2023",
+    amount: 4_420,
+    aum: 2_080_000,
+    status: "paid",
+    dueDate: "2023-04-01",
+    paidDate: "2023-03-31",
+    effectiveRate: 0.0085,
+  },
+  {
+    id: "inv-006",
+    period: "Q4 2022",
+    amount: 4_148,
+    aum: 1_952_000,
+    status: "paid",
+    dueDate: "2023-01-01",
+    paidDate: "2022-12-29",
+    effectiveRate: 0.0085,
+  },
+]

@@ -26,8 +26,9 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
-import { mockLedgerEntries } from "@/lib/mock/data"
 import { useReducedMotion } from "@/lib/hooks/use-reduced-motion"
+import { useLedger } from "@/lib/hooks/crud/use-ledger"
+import type { LedgerEntry as LedgerEntryType } from "@/lib/mock/types"
 
 const actionLabels = {
   asset_created: "Asset Created",
@@ -73,7 +74,7 @@ function LedgerEntry({
   entry,
   index,
 }: {
-  entry: (typeof mockLedgerEntries)[0]
+  entry: LedgerEntryType
   index: number
 }) {
   const reducedMotion = useReducedMotion()
@@ -151,14 +152,15 @@ function LedgerEntry({
 }
 
 export default function LedgerPage() {
+  const { entries } = useLedger()
   const [searchQuery, setSearchQuery] = React.useState("")
   const [actionFilter, setActionFilter] = React.useState<string>("all")
   const [userFilter, setUserFilter] = React.useState<string>("all")
   const reducedMotion = useReducedMotion()
 
-  const uniqueUsers = Array.from(new Set(mockLedgerEntries.map((e) => e.user)))
+  const uniqueUsers = Array.from(new Set(entries.map((e) => e.user)))
 
-  const filteredEntries = mockLedgerEntries.filter((entry) => {
+  const filteredEntries = entries.filter((entry) => {
     const matchesSearch =
       entry.details.toLowerCase().includes(searchQuery.toLowerCase()) ||
       entry.entity.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -255,12 +257,14 @@ export default function LedgerPage() {
         <CardHeader className="pb-0">
           <CardTitle className="text-base flex items-center justify-between">
             <span>{filteredEntries.length} entries</span>
-            <Badge variant="outline" className="font-normal">
-              Last updated{" "}
-              {formatDistanceToNow(new Date(filteredEntries[0]?.timestamp), {
-                addSuffix: true,
-              })}
-            </Badge>
+            {filteredEntries[0]?.timestamp && (
+              <Badge variant="outline" className="font-normal">
+                Last updated{" "}
+                {formatDistanceToNow(new Date(filteredEntries[0].timestamp), {
+                  addSuffix: true,
+                })}
+              </Badge>
+            )}
           </CardTitle>
         </CardHeader>
         <CardContent>

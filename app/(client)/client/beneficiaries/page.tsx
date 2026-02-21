@@ -1,3 +1,37 @@
+/**
+ * @file app/(client)/client/beneficiaries/page.tsx
+ *
+ * Client portal — Beneficiaries page.
+ *
+ * Data source: `useClientBeneficiaries` hook from
+ * `@/lib/hooks/crud/use-client-beneficiaries`
+ * The hook returns `{ beneficiaries, addBeneficiary, updateBeneficiary,
+ * deleteBeneficiary, stats, isLoading }`.
+ *
+ * Form dialog: `BeneficiaryFormDialog` from
+ * `@/components/forms/beneficiary-form-dialog` replaces the inline
+ * `AddBeneficiaryDialog` component (which has been removed).
+ *
+ * Interactive wiring:
+ *   - "Add Beneficiary" button → opens form in "create" mode.
+ *   - Edit (pencil) button on `BeneficiaryCard` → opens form in "edit" mode
+ *     with `editingBeneficiary` set as `initialData`.
+ *   - Delete (trash) button on `BeneficiaryCard` → calls `deleteBeneficiary(id)`.
+ *   - `BeneficiaryFormDialog.onSubmit` routes to `addBeneficiary` or
+ *     `updateBeneficiary` depending on `formMode`.
+ *   - Summary alert and section badges read from `stats.*`.
+ *
+ * Type mapping:
+ *   The `Beneficiary` type uses `designation` ("primary" | "contingent")
+ *   instead of the old mock `type` field, and `ssnLast4` instead of `ssn`.
+ *   The `BeneficiaryCard` component below has been updated to match.
+ *
+ * Preserved as-is:
+ *   - Full card layout, badge styling, alert card, info card.
+ *   - Account summary section (static display config — account data is
+ *     advisor-managed, not part of the beneficiaries CRUD contract).
+ */
+
 "use client"
 
 import * as React from "react"
@@ -16,25 +50,7 @@ import {
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -48,197 +64,33 @@ import {
 } from "@/components/ui/alert-dialog"
 import { cn } from "@/lib/utils"
 import { useReducedMotion } from "@/lib/hooks/use-reduced-motion"
+import { useClientBeneficiaries } from "@/lib/hooks/crud/use-client-beneficiaries"
+import { BeneficiaryFormDialog } from "@/components/forms/beneficiary-form-dialog"
+import type { Beneficiary } from "@/lib/mock/types"
 
-// Mock beneficiaries
-const beneficiaries = [
-  {
-    id: "1",
-    name: "Sarah Doe",
-    relationship: "Spouse",
-    type: "primary",
-    percentage: 50,
-    accounts: ["Brokerage Account", "Retirement IRA"],
-    ssn: "***-**-1234",
-    dateOfBirth: "1985-03-15",
-    address: "123 Main St, New York, NY 10001",
-    phone: "+1 (555) 123-4567",
-    email: "sarah.doe@example.com",
-    verified: true,
-  },
-  {
-    id: "2",
-    name: "Michael Doe",
-    relationship: "Child",
-    type: "primary",
-    percentage: 25,
-    accounts: ["Brokerage Account"],
-    ssn: "***-**-5678",
-    dateOfBirth: "2010-08-22",
-    address: "123 Main St, New York, NY 10001",
-    phone: null,
-    email: null,
-    verified: true,
-  },
-  {
-    id: "3",
-    name: "Emily Doe",
-    relationship: "Child",
-    type: "primary",
-    percentage: 25,
-    accounts: ["Brokerage Account"],
-    ssn: "***-**-9012",
-    dateOfBirth: "2013-11-30",
-    address: "123 Main St, New York, NY 10001",
-    phone: null,
-    email: null,
-    verified: true,
-  },
-  {
-    id: "4",
-    name: "Robert Doe",
-    relationship: "Sibling",
-    type: "contingent",
-    percentage: 100,
-    accounts: ["Brokerage Account", "Retirement IRA"],
-    ssn: "***-**-3456",
-    dateOfBirth: "1982-06-10",
-    address: "456 Oak Ave, Boston, MA 02101",
-    phone: "+1 (555) 987-6543",
-    email: "robert.doe@example.com",
-    verified: false,
-  },
-]
+// ─────────────────────────────────────────────────────────────────────────────
+// Static display config (not data)
+// ─────────────────────────────────────────────────────────────────────────────
 
-// Investment accounts
+/** Investment accounts shown in the account summary section */
 const accounts = [
   { id: "1", name: "Brokerage Account", totalPercentage: 100, hasBeneficiaries: true },
   { id: "2", name: "Retirement IRA", totalPercentage: 100, hasBeneficiaries: true },
   { id: "3", name: "Roth IRA", totalPercentage: 0, hasBeneficiaries: false },
 ]
 
-const relationshipOptions = [
-  "Spouse",
-  "Child",
-  "Parent",
-  "Sibling",
-  "Grandchild",
-  "Other Family",
-  "Trust",
-  "Charity",
-  "Estate",
-  "Other",
-]
+// ─────────────────────────────────────────────────────────────────────────────
+// BeneficiaryCard
+// ─────────────────────────────────────────────────────────────────────────────
 
-function AddBeneficiaryDialog() {
-  const [open, setOpen] = React.useState(false)
-
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Beneficiary
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Add Beneficiary</DialogTitle>
-          <DialogDescription>
-            Add a new beneficiary to your accounts
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-4 py-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="firstName">First Name</Label>
-              <Input id="firstName" placeholder="First name" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="lastName">Last Name</Label>
-              <Input id="lastName" placeholder="Last name" />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Relationship</Label>
-              <Select>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {relationshipOptions.map((rel) => (
-                    <SelectItem key={rel} value={rel.toLowerCase()}>
-                      {rel}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Type</Label>
-              <Select>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="primary">Primary</SelectItem>
-                  <SelectItem value="contingent">Contingent</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="ssn">Social Security Number</Label>
-            <Input id="ssn" placeholder="XXX-XX-XXXX" />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="dob">Date of Birth</Label>
-            <Input id="dob" type="date" />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="percentage">Percentage Share</Label>
-            <div className="relative">
-              <Input id="percentage" type="number" min="0" max="100" placeholder="0" />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500">%</span>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Accounts</Label>
-            <div className="space-y-2">
-              {accounts.map((account) => (
-                <label
-                  key={account.id}
-                  className="flex items-center gap-3 p-3 rounded-lg border border-zinc-800 cursor-pointer hover:bg-zinc-800/50"
-                >
-                  <input type="checkbox" className="rounded border-zinc-700" />
-                  <span className="text-sm text-zinc-100">{account.name}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>
-            Cancel
-          </Button>
-          <Button onClick={() => setOpen(false)}>
-            Add Beneficiary
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  )
+interface BeneficiaryCardProps {
+  beneficiary: Beneficiary
+  onEdit: (b: Beneficiary) => void
+  onDelete: (id: string) => void
 }
 
-function BeneficiaryCard({ beneficiary }: { beneficiary: typeof beneficiaries[0] }) {
-  const isPrimary = beneficiary.type === "primary"
+function BeneficiaryCard({ beneficiary, onEdit, onDelete }: BeneficiaryCardProps) {
+  const isPrimary = beneficiary.designation === "primary"
 
   return (
     <Card className={cn(!beneficiary.verified && "border-amber-500/50")}>
@@ -270,8 +122,10 @@ function BeneficiaryCard({ beneficiary }: { beneficiary: typeof beneficiaries[0]
                 </Badge>
               </div>
               <div className="mt-3 text-xs text-zinc-500">
-                <p>SSN: {beneficiary.ssn}</p>
-                <p>DOB: {new Date(beneficiary.dateOfBirth).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</p>
+                {beneficiary.ssnLast4 && <p>SSN: ***-**-{beneficiary.ssnLast4}</p>}
+                {beneficiary.dateOfBirth && (
+                  <p>DOB: {new Date(beneficiary.dateOfBirth).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</p>
+                )}
                 <p className="mt-1">Accounts: {beneficiary.accounts.join(", ")}</p>
               </div>
               {!beneficiary.verified && (
@@ -284,7 +138,7 @@ function BeneficiaryCard({ beneficiary }: { beneficiary: typeof beneficiaries[0]
           </div>
 
           <div className="flex items-center gap-1">
-            <Button variant="ghost" size="icon">
+            <Button variant="ghost" size="icon" onClick={() => onEdit(beneficiary)}>
               <Edit2 className="h-4 w-4" />
             </Button>
             <AlertDialog>
@@ -303,7 +157,10 @@ function BeneficiaryCard({ beneficiary }: { beneficiary: typeof beneficiaries[0]
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction className="bg-rose-500 hover:bg-rose-600">
+                  <AlertDialogAction
+                    className="bg-rose-500 hover:bg-rose-600"
+                    onClick={() => onDelete(beneficiary.id)}
+                  >
                     Remove
                   </AlertDialogAction>
                 </AlertDialogFooter>
@@ -316,12 +173,38 @@ function BeneficiaryCard({ beneficiary }: { beneficiary: typeof beneficiaries[0]
   )
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Page component
+// ─────────────────────────────────────────────────────────────────────────────
+
 export default function ClientBeneficiariesPage() {
   const reducedMotion = useReducedMotion()
 
-  const primaryBeneficiaries = beneficiaries.filter((b) => b.type === "primary")
-  const contingentBeneficiaries = beneficiaries.filter((b) => b.type === "contingent")
-  const unverifiedCount = beneficiaries.filter((b) => !b.verified).length
+  // ── Form state ─────────────────────────────────────────────────────────────
+  const [formOpen, setFormOpen] = React.useState(false)
+  const [formMode, setFormMode] = React.useState<"create" | "edit">("create")
+  const [editingBeneficiary, setEditingBeneficiary] = React.useState<Beneficiary | undefined>(undefined)
+
+  // ── Hook ───────────────────────────────────────────────────────────────────
+  const { beneficiaries, addBeneficiary, updateBeneficiary, deleteBeneficiary, stats } =
+    useClientBeneficiaries()
+
+  // ── Derived lists ──────────────────────────────────────────────────────────
+  const primaryBeneficiaries = beneficiaries.filter((b) => b.designation === "primary")
+  const contingentBeneficiaries = beneficiaries.filter((b) => b.designation === "contingent")
+
+  // ── Handlers ───────────────────────────────────────────────────────────────
+  function handleAddClick() {
+    setFormMode("create")
+    setEditingBeneficiary(undefined)
+    setFormOpen(true)
+  }
+
+  function handleEditClick(b: Beneficiary) {
+    setFormMode("edit")
+    setEditingBeneficiary(b)
+    setFormOpen(true)
+  }
 
   const spring = useSpring({
     from: { opacity: 0, transform: "translateY(20px)" },
@@ -340,18 +223,22 @@ export default function ClientBeneficiariesPage() {
             Manage beneficiaries for your investment accounts
           </p>
         </div>
-        <AddBeneficiaryDialog />
+        <Button onClick={handleAddClick}>
+          <Plus className="h-4 w-4 mr-2" />
+          Add Beneficiary
+        </Button>
       </div>
 
       {/* Alert if unverified */}
-      {unverifiedCount > 0 && (
+      {stats.unverifiedCount > 0 && (
         <Card className="border-amber-500/50 bg-amber-500/5">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <AlertTriangle className="h-5 w-5 text-amber-400" />
               <div>
                 <p className="font-medium text-zinc-100">
-                  {unverifiedCount} beneficiary {unverifiedCount === 1 ? "requires" : "require"} verification
+                  {stats.unverifiedCount} beneficiary{" "}
+                  {stats.unverifiedCount === 1 ? "requires" : "require"} verification
                 </p>
                 <p className="text-sm text-zinc-400 mt-1">
                   Please review and verify beneficiary information to ensure accuracy.
@@ -403,7 +290,12 @@ export default function ClientBeneficiariesPage() {
         </div>
         <div className="grid gap-4">
           {primaryBeneficiaries.map((beneficiary) => (
-            <BeneficiaryCard key={beneficiary.id} beneficiary={beneficiary} />
+            <BeneficiaryCard
+              key={beneficiary.id}
+              beneficiary={beneficiary}
+              onEdit={handleEditClick}
+              onDelete={deleteBeneficiary}
+            />
           ))}
         </div>
       </div>
@@ -418,7 +310,12 @@ export default function ClientBeneficiariesPage() {
         {contingentBeneficiaries.length > 0 ? (
           <div className="grid gap-4">
             {contingentBeneficiaries.map((beneficiary) => (
-              <BeneficiaryCard key={beneficiary.id} beneficiary={beneficiary} />
+              <BeneficiaryCard
+                key={beneficiary.id}
+                beneficiary={beneficiary}
+                onEdit={handleEditClick}
+                onDelete={deleteBeneficiary}
+              />
             ))}
           </div>
         ) : (
@@ -429,7 +326,7 @@ export default function ClientBeneficiariesPage() {
               <p className="text-sm text-zinc-500 mt-1">
                 Contingent beneficiaries receive assets if primary beneficiaries are unavailable
               </p>
-              <Button variant="outline" className="mt-4">
+              <Button variant="outline" className="mt-4" onClick={handleAddClick}>
                 Add Contingent Beneficiary
               </Button>
             </CardContent>
@@ -454,6 +351,21 @@ export default function ClientBeneficiariesPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Beneficiary Form Dialog */}
+      <BeneficiaryFormDialog
+        mode={formMode}
+        initialData={editingBeneficiary}
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        onSubmit={(data) => {
+          if (formMode === "create") {
+            addBeneficiary(data)
+          } else if (editingBeneficiary) {
+            updateBeneficiary(editingBeneficiary.id, data)
+          }
+        }}
+      />
     </animated.div>
   )
 }

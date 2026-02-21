@@ -32,29 +32,10 @@ import {
 import { cn } from "@/lib/utils"
 import { formatCurrency } from "@/lib/utils"
 import { StatCard, PageHeader } from "@/components/dashboard/content-card"
-
-const pipelineStages = [
-  { id: "prospecting", name: "Prospecting", color: "#6366f1", description: "Initial opportunities" },
-  { id: "due_diligence", name: "Due Diligence", color: "#8b5cf6", description: "Research & analysis" },
-  { id: "negotiation", name: "Negotiation", color: "#f59e0b", description: "Terms under discussion" },
-  { id: "closed", name: "Closed", color: "#0FBFBF", description: "Awaiting deployment" },
-  { id: "active", name: "Active", color: "#10b981", description: "Currently invested" },
-  { id: "exit_planning", name: "Exit Planning", color: "#f97316", description: "Preparing for exit" },
-]
-
-const mockDeals = [
-  { id: "1", name: "Series C - AI Logistics Startup", stage: "prospecting", type: "Private Equity", potentialValue: 500000, probability: 25, assignee: "Sarah Chen", dueDate: "2026-02-15", lastActivity: "2 hours ago", notes: "Initial meeting scheduled" },
-  { id: "2", name: "Downtown Office Complex", stage: "prospecting", type: "Real Estate", potentialValue: 2500000, probability: 20, assignee: "Michael Ross", dueDate: "2026-03-01", lastActivity: "1 day ago", notes: "Reviewing financials" },
-  { id: "3", name: "Growth Fund VII - Allocation", stage: "due_diligence", type: "Private Equity", potentialValue: 750000, probability: 60, assignee: "Sarah Chen", dueDate: "2026-02-28", lastActivity: "5 hours ago", notes: "Reviewing fund terms" },
-  { id: "4", name: "Miami Beach Development", stage: "due_diligence", type: "Real Estate", potentialValue: 1800000, probability: 55, assignee: "David Kim", dueDate: "2026-02-20", lastActivity: "3 hours ago", notes: "Site visit completed" },
-  { id: "5", name: "Seed Round - HealthTech Platform", stage: "negotiation", type: "Venture Capital", potentialValue: 250000, probability: 75, assignee: "Sarah Chen", dueDate: "2026-02-10", lastActivity: "1 hour ago", notes: "Finalizing term sheet" },
-  { id: "6", name: "Industrial Warehouse Portfolio", stage: "negotiation", type: "Real Estate", potentialValue: 3200000, probability: 70, assignee: "Michael Ross", dueDate: "2026-02-18", lastActivity: "6 hours ago", notes: "Price negotiation" },
-  { id: "7", name: "Corporate Bond Package", stage: "closed", type: "Fixed Income", potentialValue: 500000, probability: 95, assignee: "David Kim", dueDate: "2026-02-05", lastActivity: "2 days ago", notes: "Awaiting wire transfer" },
-  { id: "8", name: "Tech Growth Fund III", stage: "active", type: "Private Equity", potentialValue: 650000, probability: 100, assignee: "Sarah Chen", dueDate: null, lastActivity: "1 week ago", notes: "Q4 distribution received" },
-  { id: "9", name: "Manhattan Penthouse", stage: "active", type: "Real Estate", potentialValue: 1200000, probability: 100, assignee: "Michael Ross", dueDate: null, lastActivity: "2 weeks ago", notes: "Tenant renewed" },
-  { id: "10", name: "Early Stage FinTech", stage: "active", type: "Venture Capital", potentialValue: 320000, probability: 100, assignee: "Sarah Chen", dueDate: null, lastActivity: "3 days ago", notes: "Series B upcoming" },
-  { id: "11", name: "Retail Strip Center", stage: "exit_planning", type: "Real Estate", potentialValue: 890000, probability: 100, assignee: "Michael Ross", dueDate: "2026-04-15", lastActivity: "1 day ago", notes: "Broker engaged" },
-]
+import { pipelineStages } from "@/lib/mock/data"
+import { useDeals } from "@/lib/hooks/crud/use-deals"
+import { DealFormDialog } from "@/components/forms/deal-form-dialog"
+import type { Deal, PipelineStageId } from "@/lib/mock/types"
 
 import type { LucideIcon } from "lucide-react"
 
@@ -65,7 +46,19 @@ const typeIcons: Record<string, LucideIcon> = {
   "Fixed Income": DollarSign,
 }
 
-function DealCard({ deal, onClick }: { deal: typeof mockDeals[0]; onClick: () => void }) {
+function DealCard({
+  deal,
+  onClick,
+  onEdit,
+  onMoveNext,
+  onArchive,
+}: {
+  deal: Deal
+  onClick: () => void
+  onEdit: () => void
+  onMoveNext: () => void
+  onArchive: () => void
+}) {
   const Icon = typeIcons[deal.type] || Briefcase
 
   return (
@@ -87,10 +80,10 @@ function DealCard({ deal, onClick }: { deal: typeof mockDeals[0]; onClick: () =>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="bg-zinc-900 border-zinc-800">
-            <DropdownMenuItem>Edit Deal</DropdownMenuItem>
-            <DropdownMenuItem>Move to Next Stage</DropdownMenuItem>
+            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit() }}>Edit Deal</DropdownMenuItem>
+            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onMoveNext() }}>Move to Next Stage</DropdownMenuItem>
             <DropdownMenuItem>Add Note</DropdownMenuItem>
-            <DropdownMenuItem className="text-rose-400">Archive</DropdownMenuItem>
+            <DropdownMenuItem className="text-rose-400" onClick={(e) => { e.stopPropagation(); onArchive() }}>Archive</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -130,10 +123,12 @@ function DealDetailDialog({
   deal,
   open,
   onClose,
+  onEdit,
 }: {
-  deal: typeof mockDeals[0] | null
+  deal: Deal | null
   open: boolean
   onClose: () => void
+  onEdit: (deal: Deal) => void
 }) {
   if (!deal) return null
 
@@ -204,8 +199,8 @@ function DealDetailDialog({
           </div>
 
           <div className="flex gap-2">
-            <Button className="flex-1">Edit Deal</Button>
-            <Button variant="outline" className="flex-1">Add Activity</Button>
+            <Button className="flex-1" onClick={() => { onEdit(deal); onClose() }}>Edit Deal</Button>
+            <Button variant="outline" className="flex-1" onClick={() => { onEdit(deal); onClose() }}>Add Activity</Button>
           </div>
         </div>
       </DialogContent>
@@ -215,43 +210,86 @@ function DealDetailDialog({
 
 export default function PipelinePage() {
   const [searchQuery, setSearchQuery] = React.useState("")
-  const [selectedDeal, setSelectedDeal] = React.useState<typeof mockDeals[0] | null>(null)
+  const [selectedDeal, setSelectedDeal] = React.useState<Deal | null>(null)
 
-  const dealsByStage = React.useMemo(() => {
-    const filtered = mockDeals.filter(
+  // CRUD hook
+  const { deals, addDeal, updateDeal, deleteDeal, moveDealToStage } = useDeals()
+
+  // Form dialog state
+  const [formOpen, setFormOpen] = React.useState(false)
+  const [formMode, setFormMode] = React.useState<"create" | "edit">("create")
+  const [editingDeal, setEditingDeal] = React.useState<Deal | undefined>(undefined)
+
+  // Helpers to open the form dialog
+  function openCreateForm() {
+    setFormMode("create")
+    setEditingDeal(undefined)
+    setFormOpen(true)
+  }
+
+  function openEditForm(deal: Deal) {
+    setFormMode("edit")
+    setEditingDeal(deal)
+    setFormOpen(true)
+  }
+
+  // Compute the next stage for a given deal
+  function getNextStageId(currentStageId: PipelineStageId): PipelineStageId | null {
+    const currentIndex = pipelineStages.findIndex((s) => s.id === currentStageId)
+    if (currentIndex === -1 || currentIndex >= pipelineStages.length - 1) return null
+    return pipelineStages[currentIndex + 1].id
+  }
+
+  function handleMoveNext(deal: Deal) {
+    const nextStageId = getNextStageId(deal.stage)
+    if (nextStageId) {
+      moveDealToStage(deal.id, nextStageId)
+    }
+  }
+
+  // Handle form submission for both create and edit
+  function handleFormSubmit(data: Parameters<typeof addDeal>[0]) {
+    if (formMode === "create") {
+      addDeal(data)
+    } else if (editingDeal) {
+      updateDeal(editingDeal.id, { ...data, lastActivity: "Just now" })
+    }
+  }
+
+  const filteredDealsByStage = React.useMemo(() => {
+    const filtered = deals.filter(
       (deal) =>
         deal.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         deal.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
         deal.assignee.toLowerCase().includes(searchQuery.toLowerCase())
     )
-
     return pipelineStages.reduce((acc, stage) => {
       acc[stage.id] = filtered.filter((deal) => deal.stage === stage.id)
       return acc
-    }, {} as Record<string, typeof mockDeals>)
-  }, [searchQuery])
+    }, {} as Record<string, Deal[]>)
+  }, [deals, searchQuery])
 
   const stageTotals = React.useMemo(() => {
     return pipelineStages.reduce((acc, stage) => {
-      const deals = dealsByStage[stage.id] || []
+      const stageDeals = filteredDealsByStage[stage.id] || []
       acc[stage.id] = {
-        count: deals.length,
-        value: deals.reduce((sum, d) => sum + d.potentialValue, 0),
-        weightedValue: deals.reduce((sum, d) => sum + (d.potentialValue * d.probability) / 100, 0),
+        count: stageDeals.length,
+        value: stageDeals.reduce((sum, d) => sum + d.potentialValue, 0),
+        weightedValue: stageDeals.reduce((sum, d) => sum + (d.potentialValue * d.probability) / 100, 0),
       }
       return acc
     }, {} as Record<string, { count: number; value: number; weightedValue: number }>)
-  }, [dealsByStage])
+  }, [filteredDealsByStage])
 
   const pipelineSummary = React.useMemo(() => {
-    const allDeals = Object.values(dealsByStage).flat()
+    const allDeals = Object.values(filteredDealsByStage).flat()
     return {
       totalDeals: allDeals.length,
       totalValue: allDeals.reduce((sum, d) => sum + d.potentialValue, 0),
       weightedValue: allDeals.reduce((sum, d) => sum + (d.potentialValue * d.probability) / 100, 0),
-      activeValue: (dealsByStage.active || []).reduce((sum, d) => sum + d.potentialValue, 0),
+      activeValue: (filteredDealsByStage.active || []).reduce((sum, d) => sum + d.potentialValue, 0),
     }
-  }, [dealsByStage])
+  }, [filteredDealsByStage])
 
   return (
     <div className="space-y-6">
@@ -259,7 +297,7 @@ export default function PipelinePage() {
         title="Investment Pipeline"
         description="Track deals from prospecting to exit"
         actions={
-          <Button size="sm">
+          <Button size="sm" onClick={openCreateForm}>
             <Plus className="h-4 w-4 mr-2" />
             Add Deal
           </Button>
@@ -312,7 +350,7 @@ export default function PipelinePage() {
       <div className="overflow-x-auto pb-4">
         <div className="flex gap-4 min-w-max">
           {pipelineStages.map((stage) => {
-            const deals = dealsByStage[stage.id] || []
+            const stageDeals = filteredDealsByStage[stage.id] || []
             const totals = stageTotals[stage.id]
 
             return (
@@ -322,7 +360,7 @@ export default function PipelinePage() {
                     <div className="h-2 w-2 rounded-full" style={{ backgroundColor: stage.color }} />
                     <h3 className="text-sm font-semibold text-zinc-200">{stage.name}</h3>
                     <Badge variant="secondary" className="ml-auto text-xs">
-                      {deals.length}
+                      {stageDeals.length}
                     </Badge>
                   </div>
                   <p className="text-xs text-zinc-500">{stage.description}</p>
@@ -340,13 +378,20 @@ export default function PipelinePage() {
                   className="space-y-2 min-h-[200px] p-2 rounded-lg border border-zinc-800/60 bg-zinc-900/30"
                   style={{ borderTopColor: stage.color, borderTopWidth: 2 }}
                 >
-                  {deals.length === 0 ? (
+                  {stageDeals.length === 0 ? (
                     <div className="flex items-center justify-center h-24 text-xs text-zinc-600">
                       No deals in this stage
                     </div>
                   ) : (
-                    deals.map((deal) => (
-                      <DealCard key={deal.id} deal={deal} onClick={() => setSelectedDeal(deal)} />
+                    stageDeals.map((deal) => (
+                      <DealCard
+                        key={deal.id}
+                        deal={deal}
+                        onClick={() => setSelectedDeal(deal)}
+                        onEdit={() => openEditForm(deal)}
+                        onMoveNext={() => handleMoveNext(deal)}
+                        onArchive={() => deleteDeal(deal.id)}
+                      />
                     ))
                   )}
                 </div>
@@ -360,6 +405,15 @@ export default function PipelinePage() {
         deal={selectedDeal}
         open={!!selectedDeal}
         onClose={() => setSelectedDeal(null)}
+        onEdit={openEditForm}
+      />
+
+      <DealFormDialog
+        mode={formMode}
+        initialData={editingDeal}
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        onSubmit={handleFormSubmit}
       />
     </div>
   )

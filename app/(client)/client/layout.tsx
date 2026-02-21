@@ -1,91 +1,271 @@
+/**
+ * layout.tsx — Client Portal Shell
+ *
+ * The top-level layout for the authenticated client portal at `/client/**`.
+ * Renders a collapsible sidebar with grouped navigation and a sticky top bar.
+ *
+ * Sidebar nav groups:
+ *   Main     — Dashboard, Portfolio, Goals
+ *   Manage   — Documents, Reports, Transfers, Activity
+ *   Planning — Calendar, Beneficiaries
+ *   Account  — Messages, Billing
+ *   Bottom   — Settings, Help
+ *
+ * Collapse behaviour:
+ *   Collapsed (68 px): icons only with tooltips on hover
+ *   Expanded (240 px): icons + labels + group headings
+ *
+ * Active state:
+ *   Dashboard uses exact match (`pathname === "/client"`).
+ *   All other items use `pathname.startsWith(item.href)`.
+ */
+
 "use client"
 
 import * as React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { TooltipProvider } from "@/components/ui/tooltip"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { TooltipProvider, Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { Button } from "@/components/ui/button"
 import { Logo } from "@/components/marketing/logo"
 import {
   LayoutDashboard,
   Briefcase,
+  Target,
   FolderLock,
+  FileBarChart2,
+  ArrowRightLeft,
+  Clock,
+  CalendarDays,
+  Users,
+  MessageSquare,
+  Receipt,
   Settings,
   HelpCircle,
-  MessageSquare,
-  ArrowRightLeft,
   PanelLeft,
   PanelLeftClose,
-  LogOut,
   Bell,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-const navigation = [
+// ─────────────────────────────────────────────────────────────────────────────
+// Navigation structure — grouped for wealth management client UX
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * A single navigable item in the sidebar.
+ */
+interface NavItem {
+  name: string
+  href: string
+  icon: React.ComponentType<{ className?: string }>
+  /** Shown in the collapsed tooltip for context */
+  description: string
+}
+
+/**
+ * A labelled group of nav items, rendered with a section heading when expanded.
+ */
+interface NavGroup {
+  /** Section heading — hidden when sidebar is collapsed */
+  label: string
+  items: NavItem[]
+}
+
+const navGroups: NavGroup[] = [
   {
-    name: "Dashboard",
-    href: "/client",
-    icon: LayoutDashboard,
-    description: "Overview & goals"
+    label: "Main",
+    items: [
+      {
+        name: "Dashboard",
+        href: "/client",
+        icon: LayoutDashboard,
+        description: "Portfolio overview & summary",
+      },
+      {
+        name: "Portfolio",
+        href: "/client/portfolio",
+        icon: Briefcase,
+        description: "Holdings, performance & allocation",
+      },
+      {
+        name: "Goals",
+        href: "/client/goals",
+        icon: Target,
+        description: "Financial goals & milestones",
+      },
+    ],
   },
   {
-    name: "Portfolio",
-    href: "/client/portfolio",
-    icon: Briefcase,
-    description: "Holdings & performance"
+    label: "Manage",
+    items: [
+      {
+        name: "Documents",
+        href: "/client/documents",
+        icon: FolderLock,
+        description: "Statements, tax docs & legal",
+      },
+      {
+        name: "Reports",
+        href: "/client/reports",
+        icon: FileBarChart2,
+        description: "Portfolio & performance reports",
+      },
+      {
+        name: "Transfers",
+        href: "/client/transfers",
+        icon: ArrowRightLeft,
+        description: "Deposits, withdrawals & transfers",
+      },
+      {
+        name: "Activity",
+        href: "/client/activity",
+        icon: Clock,
+        description: "Transaction history & ledger",
+      },
+    ],
   },
   {
-    name: "Activity",
-    href: "/client/activity",
-    icon: ArrowRightLeft,
-    description: "Transactions & transfers"
+    label: "Planning",
+    items: [
+      {
+        name: "Calendar",
+        href: "/client/calendar",
+        icon: CalendarDays,
+        description: "Meetings, payments & deadlines",
+      },
+      {
+        name: "Beneficiaries",
+        href: "/client/beneficiaries",
+        icon: Users,
+        description: "Estate planning & designations",
+      },
+    ],
   },
   {
-    name: "Documents",
-    href: "/client/documents",
-    icon: FolderLock,
-    description: "Statements & reports"
-  },
-  {
-    name: "Messages",
-    href: "/client/messages",
-    icon: MessageSquare,
-    description: "Advisor communication"
+    label: "Account",
+    items: [
+      {
+        name: "Messages",
+        href: "/client/messages",
+        icon: MessageSquare,
+        description: "Advisor communication",
+      },
+      {
+        name: "Billing",
+        href: "/client/billing",
+        icon: Receipt,
+        description: "Advisory fees & invoices",
+      },
+    ],
   },
 ]
 
-const bottomNavigation = [
-  { name: "Settings", href: "/client/settings", icon: Settings },
-  { name: "Help", href: "/client/help", icon: HelpCircle },
+/** Settings and Help always live at the bottom of the sidebar */
+const bottomNav: NavItem[] = [
+  {
+    name: "Settings",
+    href: "/client/settings",
+    icon: Settings,
+    description: "Profile, security & preferences",
+  },
+  {
+    name: "Help",
+    href: "/client/help",
+    icon: HelpCircle,
+    description: "FAQs, guides & support",
+  },
 ]
 
-export default function ClientLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+// ─────────────────────────────────────────────────────────────────────────────
+// NavLink — renders a single sidebar link with active + collapsed states
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface NavLinkProps {
+  item: NavItem
+  isActive: boolean
+  collapsed: boolean
+}
+
+function NavLink({ item, isActive, collapsed }: NavLinkProps) {
+  const link = (
+    <Link
+      href={item.href}
+      className={cn(
+        "group flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+        collapsed && "justify-center px-2",
+        isActive
+          ? "bg-tiffany-500/10 text-tiffany-500"
+          : "text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-100"
+      )}
+    >
+      <item.icon
+        className={cn(
+          "h-[18px] w-[18px] shrink-0 transition-colors",
+          isActive
+            ? "text-tiffany-500"
+            : "text-zinc-500 group-hover:text-zinc-300"
+        )}
+      />
+      {!collapsed && <span className="truncate">{item.name}</span>}
+    </Link>
+  )
+
+  if (collapsed) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>{link}</TooltipTrigger>
+        <TooltipContent
+          side="right"
+          sideOffset={8}
+          className="bg-zinc-900 border-zinc-800 text-zinc-100 px-3 py-1.5"
+        >
+          <p className="font-medium text-sm">{item.name}</p>
+          <p className="text-xs text-zinc-500">{item.description}</p>
+        </TooltipContent>
+      </Tooltip>
+    )
+  }
+
+  return link
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Layout
+// ─────────────────────────────────────────────────────────────────────────────
+
+export default function ClientLayout({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = React.useState(false)
   const pathname = usePathname()
 
   const sidebarWidth = collapsed ? "w-[68px]" : "w-[240px]"
   const mainMargin = collapsed ? "ml-[68px]" : "ml-[240px]"
 
+  /**
+   * Determines whether a nav item is currently active.
+   * Dashboard uses exact match to avoid "/client" matching all child routes.
+   */
+  function isActive(href: string): boolean {
+    return href === "/client" ? pathname === "/client" : pathname.startsWith(href)
+  }
+
   return (
     <TooltipProvider delayDuration={0}>
       <div className="min-h-screen bg-zinc-950">
-        {/* Sidebar */}
+        {/* ── Sidebar ──────────────────────────────────────────────────────── */}
         <aside
           className={cn(
-            "fixed left-0 top-0 bottom-0 z-40 flex flex-col border-r border-zinc-800/60 bg-zinc-950 transition-all duration-200",
+            "fixed left-0 top-0 bottom-0 z-40 flex flex-col border-r border-zinc-800/60 bg-zinc-950 transition-all duration-200 overflow-y-auto",
             sidebarWidth
           )}
         >
-          {/* Header */}
-          <div className={cn(
-            "flex h-14 items-center border-b border-zinc-800/60 shrink-0",
-            collapsed ? "justify-between px-3" : "justify-between px-4"
-          )}>
+          {/* Logo + collapse toggle */}
+          <div
+            className={cn(
+              "flex h-14 items-center border-b border-zinc-800/60 shrink-0",
+              collapsed ? "justify-between px-3" : "justify-between px-4"
+            )}
+          >
             <Link href="/" className="flex items-center">
               <Logo showText={!collapsed} size="sm" />
             </Link>
@@ -94,114 +274,62 @@ export default function ClientLayout({
               size="icon"
               onClick={() => setCollapsed(!collapsed)}
               className="h-8 w-8 text-zinc-500 hover:text-zinc-100 hover:bg-zinc-800/60"
+              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
             >
-              {collapsed ? <PanelLeft className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+              {collapsed ? (
+                <PanelLeft className="h-4 w-4" />
+              ) : (
+                <PanelLeftClose className="h-4 w-4" />
+              )}
             </Button>
           </div>
 
-          {/* Main Navigation */}
-          <nav className="flex-1 px-3 py-4">
-            <div className="space-y-1">
-              {navigation.map((item) => {
-                const isActive =
-                  item.href === "/client"
-                    ? pathname === "/client"
-                    : pathname.startsWith(item.href)
-
-                const linkContent = (
-                  <Link
-                    href={item.href}
-                    className={cn(
-                      "group flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                      collapsed && "justify-center px-2",
-                      isActive
-                        ? "bg-tiffany-500/10 text-tiffany-500"
-                        : "text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-100"
-                    )}
-                  >
-                    <item.icon className={cn(
-                      "h-[18px] w-[18px] shrink-0 transition-colors",
-                      isActive ? "text-tiffany-500" : "text-zinc-500 group-hover:text-zinc-300"
-                    )} />
-                    {!collapsed && (
-                      <span className="truncate">{item.name}</span>
-                    )}
-                  </Link>
-                )
-
-                if (collapsed) {
-                  return (
-                    <Tooltip key={item.name}>
-                      <TooltipTrigger asChild>{linkContent}</TooltipTrigger>
-                      <TooltipContent
-                        side="right"
-                        className="bg-zinc-900 border-zinc-800 text-zinc-100 px-3 py-1.5"
-                        sideOffset={8}
-                      >
-                        <p className="font-medium">{item.name}</p>
-                        <p className="text-xs text-zinc-500">{item.description}</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  )
-                }
-
-                return <div key={item.name}>{linkContent}</div>
-              })}
-            </div>
+          {/* ── Grouped navigation ─────────────────────────────────────────── */}
+          <nav className="flex-1 px-3 py-4 space-y-5">
+            {navGroups.map((group) => (
+              <div key={group.label}>
+                {/* Section heading — hidden in collapsed mode */}
+                {!collapsed && (
+                  <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-widest text-zinc-600">
+                    {group.label}
+                  </p>
+                )}
+                <div className="space-y-0.5">
+                  {group.items.map((item) => (
+                    <NavLink
+                      key={item.href}
+                      item={item}
+                      isActive={isActive(item.href)}
+                      collapsed={collapsed}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
           </nav>
 
-          {/* Bottom Navigation */}
-          <div className="border-t border-zinc-800/60 px-3 py-3">
-            <div className="space-y-1">
-              {bottomNavigation.map((item) => {
-                const isActive = pathname.startsWith(item.href)
-
-                const linkContent = (
-                  <Link
-                    href={item.href}
-                    className={cn(
-                      "group flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                      collapsed && "justify-center px-2",
-                      isActive
-                        ? "bg-tiffany-500/10 text-tiffany-500"
-                        : "text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-100"
-                    )}
-                  >
-                    <item.icon className={cn(
-                      "h-[18px] w-[18px] shrink-0 transition-colors",
-                      isActive ? "text-tiffany-500" : "text-zinc-500 group-hover:text-zinc-300"
-                    )} />
-                    {!collapsed && <span>{item.name}</span>}
-                  </Link>
-                )
-
-                if (collapsed) {
-                  return (
-                    <Tooltip key={item.name}>
-                      <TooltipTrigger asChild>{linkContent}</TooltipTrigger>
-                      <TooltipContent
-                        side="right"
-                        className="bg-zinc-900 border-zinc-800 text-zinc-100"
-                        sideOffset={8}
-                      >
-                        {item.name}
-                      </TooltipContent>
-                    </Tooltip>
-                  )
-                }
-
-                return <div key={item.name}>{linkContent}</div>
-              })}
-            </div>
+          {/* ── Bottom nav (Settings, Help) ────────────────────────────────── */}
+          <div className="border-t border-zinc-800/60 px-3 py-3 space-y-0.5">
+            {bottomNav.map((item) => (
+              <NavLink
+                key={item.href}
+                item={item}
+                isActive={isActive(item.href)}
+                collapsed={collapsed}
+              />
+            ))}
           </div>
 
-          {/* User Section */}
+          {/* ── User identity chip ────────────────────────────────────────── */}
           <div className="border-t border-zinc-800/60 p-3">
-            <div className={cn(
-              "flex items-center gap-3 rounded-md p-2 transition-colors hover:bg-zinc-800/60 cursor-pointer",
-              collapsed && "justify-center p-2"
-            )}>
-              <div className="h-8 w-8 rounded-full bg-gradient-to-br from-tiffany-500/20 to-tiffany-600/20 flex items-center justify-center shrink-0 ring-1 ring-tiffany-500/20">
+            <div
+              className={cn(
+                "flex items-center gap-3 rounded-md p-2 transition-colors hover:bg-zinc-800/60 cursor-pointer",
+                collapsed && "justify-center"
+              )}
+            >
+              {/* Avatar with tiffany ring */}
+              <div className="h-8 w-8 rounded-full bg-gradient-to-br from-tiffany-500/20 to-tiffany-600/20 flex items-center justify-center shrink-0 ring-1 ring-tiffany-500/30">
                 <span className="text-xs font-semibold text-tiffany-500">JD</span>
               </div>
               {!collapsed && (
@@ -214,13 +342,30 @@ export default function ClientLayout({
           </div>
         </aside>
 
-        {/* Main content */}
-        <main className={cn("min-h-screen transition-all duration-200", mainMargin)}>
-          {/* Top bar */}
+        {/* ── Main content area ─────────────────────────────────────────────── */}
+        <main
+          className={cn("min-h-screen transition-all duration-200", mainMargin)}
+        >
+          {/* Sticky top bar */}
           <div className="sticky top-0 z-30 flex h-14 items-center justify-end gap-2 border-b border-zinc-800/60 bg-zinc-950/80 backdrop-blur-sm px-6">
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-400 hover:text-zinc-100">
-              <Bell className="h-4 w-4" />
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-zinc-400 hover:text-zinc-100"
+                  aria-label="Notifications"
+                >
+                  <Bell className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent
+                side="bottom"
+                className="bg-zinc-900 border-zinc-800 text-zinc-100"
+              >
+                Notifications
+              </TooltipContent>
+            </Tooltip>
           </div>
 
           {/* Page content */}

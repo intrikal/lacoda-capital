@@ -42,8 +42,11 @@ import {
 } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 import { formatCurrency, formatDate } from "@/lib/utils"
-import { mockAssets, assetClassConfig } from "@/lib/mock/data"
+import { assetClassConfig } from "@/lib/mock/data"
+import { useAssets } from "@/lib/hooks/crud/use-assets"
+import { AssetFormDialog } from "@/components/forms/asset-form-dialog"
 import type { Asset, AssetClass } from "@/lib/mock/types"
+import type { CreateAssetInput } from "@/lib/hooks/crud/use-assets"
 import { ContentCard, StatCard, PageHeader, Tabs } from "@/components/dashboard/content-card"
 import {
   AllocationChart,
@@ -106,10 +109,12 @@ function AssetDetailDrawer({
   asset,
   open,
   onClose,
+  onEdit,
 }: {
   asset: Asset | null
   open: boolean
   onClose: () => void
+  onEdit: (asset: Asset) => void
 }) {
   if (!asset) return null
 
@@ -190,7 +195,7 @@ function AssetDetailDrawer({
           )}
 
           <div className="flex gap-2">
-            <Button className="flex-1">Edit Asset</Button>
+            <Button className="flex-1" onClick={() => { onEdit(asset); onClose(); }}>Edit Asset</Button>
             <Button variant="outline" className="flex-1">View Documents</Button>
           </div>
         </div>
@@ -202,12 +207,17 @@ function AssetDetailDrawer({
 type TabId = "all" | "real_estate" | "equities" | "private_equity" | "fixed_income"
 
 export default function AssetsPage() {
+  const { assets, addAsset, updateAsset, deleteAsset, stats } = useAssets()
+
   const [searchQuery, setSearchQuery] = React.useState("")
   const [activeTab, setActiveTab] = React.useState<TabId>("all")
   const [statusFilter, setStatusFilter] = React.useState<string>("all")
   const [selectedAsset, setSelectedAsset] = React.useState<Asset | null>(null)
+  const [formOpen, setFormOpen] = React.useState(false)
+  const [formMode, setFormMode] = React.useState<"create" | "edit">("create")
+  const [editingAsset, setEditingAsset] = React.useState<Asset | undefined>(undefined)
 
-  const filteredAssets = mockAssets.filter((asset) => {
+  const filteredAssets = assets.filter((asset) => {
     const matchesSearch =
       asset.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       asset.description.toLowerCase().includes(searchQuery.toLowerCase())
@@ -217,18 +227,26 @@ export default function AssetsPage() {
   })
 
   const totalValue = filteredAssets.reduce((sum, a) => sum + a.value, 0)
-  const activeAssets = mockAssets.filter(a => a.status === "active")
-  const avgChange = mockAssets.reduce((sum, a) => {
-    return sum + ((a.value - a.previousValue) / a.previousValue) * 100
-  }, 0) / mockAssets.length
 
   const tabs = [
-    { id: "all", label: "All Assets", count: mockAssets.length },
-    { id: "real_estate", label: "Real Estate", count: mockAssets.filter(a => a.class === "real_estate").length },
-    { id: "equities", label: "Equities", count: mockAssets.filter(a => a.class === "equities").length },
-    { id: "private_equity", label: "Private Equity", count: mockAssets.filter(a => a.class === "private_equity").length },
-    { id: "fixed_income", label: "Fixed Income", count: mockAssets.filter(a => a.class === "fixed_income").length },
+    { id: "all", label: "All Assets", count: assets.length },
+    { id: "real_estate", label: "Real Estate", count: assets.filter(a => a.class === "real_estate").length },
+    { id: "equities", label: "Equities", count: assets.filter(a => a.class === "equities").length },
+    { id: "private_equity", label: "Private Equity", count: assets.filter(a => a.class === "private_equity").length },
+    { id: "fixed_income", label: "Fixed Income", count: assets.filter(a => a.class === "fixed_income").length },
   ]
+
+  function handleAddAsset() {
+    setFormMode("create")
+    setEditingAsset(undefined)
+    setFormOpen(true)
+  }
+
+  function handleEditAsset(asset: Asset) {
+    setFormMode("edit")
+    setEditingAsset(asset)
+    setFormOpen(true)
+  }
 
   return (
     <div className="space-y-6">
@@ -241,7 +259,7 @@ export default function AssetsPage() {
               <Download className="h-4 w-4 mr-2" />
               Export
             </Button>
-            <Button size="sm">
+            <Button size="sm" onClick={handleAddAsset}>
               <Plus className="h-4 w-4 mr-2" />
               Add Asset
             </Button>
@@ -252,25 +270,25 @@ export default function AssetsPage() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           label="Total Value"
-          value={formatCurrency(totalValue)}
+          value={formatCurrency(stats.totalValue)}
           icon={<Briefcase className="h-4 w-4 text-tiffany-500" />}
-          trend={{ value: `${avgChange >= 0 ? "+" : ""}${avgChange.toFixed(1)}% overall`, positive: avgChange >= 0 }}
+          trend={{ value: `${stats.avgChange >= 0 ? "+" : ""}${stats.avgChange.toFixed(1)}% overall`, positive: stats.avgChange >= 0 }}
         />
         <StatCard
           label="Active Holdings"
-          value={activeAssets.length}
-          subtext={`${Math.round((activeAssets.length / mockAssets.length) * 100)}% of portfolio`}
+          value={stats.active}
+          subtext={`${stats.total > 0 ? Math.round((stats.active / stats.total) * 100) : 0}% of portfolio`}
           icon={<TrendingUp className="h-4 w-4 text-emerald-400" />}
         />
         <StatCard
           label="Real Estate"
-          value={formatCurrency(mockAssets.filter(a => a.class === "real_estate").reduce((s, a) => s + a.value, 0))}
-          subtext={`${mockAssets.filter(a => a.class === "real_estate").length} properties`}
+          value={formatCurrency(assets.filter(a => a.class === "real_estate").reduce((s, a) => s + a.value, 0))}
+          subtext={`${assets.filter(a => a.class === "real_estate").length} properties`}
           icon={<Building2 className="h-4 w-4 text-tiffany-500" />}
         />
         <StatCard
           label="Avg Risk Score"
-          value={(mockAssets.reduce((s, a) => s + a.riskScore, 0) / mockAssets.length).toFixed(0)}
+          value={stats.avgRiskScore.toFixed(0)}
           subtext="Moderate risk"
           icon={<PiggyBank className="h-4 w-4 text-amber-400" />}
         />
@@ -396,6 +414,21 @@ export default function AssetsPage() {
         asset={selectedAsset}
         open={!!selectedAsset}
         onClose={() => setSelectedAsset(null)}
+        onEdit={handleEditAsset}
+      />
+
+      <AssetFormDialog
+        mode={formMode}
+        initialData={editingAsset}
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        onSubmit={(data) => {
+          if (formMode === "create") {
+            addAsset(data)
+          } else if (editingAsset) {
+            updateAsset(editingAsset.id, data)
+          }
+        }}
       />
     </div>
   )

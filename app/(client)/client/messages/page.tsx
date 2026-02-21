@@ -1,3 +1,37 @@
+/**
+ * @file app/(client)/client/messages/page.tsx
+ *
+ * Client-facing secure messaging page.
+ *
+ * Data source: `useMessages` hook (lib/hooks/crud/use-messages.ts) which calls
+ * messagesService.getConversations() on mount, then loads per-conversation
+ * messages lazily via `loadMessages(conversationId)`. New outbound messages are
+ * dispatched with `sendMessage(conversationId, content)` which optimistically
+ * appends a Message to the in-memory list.
+ *
+ * Conversation selection is tracked in local state (`selectedConversationId`).
+ * On first load a `useEffect` auto-selects the first conversation and calls
+ * `loadMessages` so the chat area is never empty.
+ *
+ * The `Message` type uses `senderType: "advisor" | "client" | "team"`. From
+ * the client portal's perspective a message is "from me" when
+ * `message.senderType === "client"`, which controls the bubble alignment and
+ * color (right-aligned tiffany bubble vs left-aligned zinc bubble).
+ *
+ * The `Conversation` type does not have a `role` field; the subtitle row shows
+ * the conversation `type` ("client" | "team") instead.
+ *
+ * `Message.attachments` is an array (`MessageAttachment[]`); the bubble renders
+ * the first attachment when present to preserve the existing attachment UI.
+ *
+ * tRPC swap path:
+ *   Replace `useMessages` internals with:
+ *   `const { data: conversations }  = trpc.client.messages.conversations.useQuery()`
+ *   `const { data: messages }       = trpc.client.messages.list.useQuery({ conversationId })`
+ *   `const sendMessage              = trpc.client.messages.send.useMutation()`
+ *   The consuming component needs zero changes — the hook's return shape is
+ *   identical to what tRPC will return.
+ */
 "use client"
 
 import * as React from "react"
@@ -30,130 +64,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
-
-// ============================================================================
-// DATA
-// ============================================================================
-
-const conversations = [
-  {
-    id: "1",
-    name: "Sarah Anderson",
-    role: "Wealth Advisor",
-    avatar: "SA",
-    avatarColor: "bg-tiffany-500/20 text-tiffany-500",
-    lastMessage: "I've prepared the Q4 report for your review. Let me know when you'd like to discuss.",
-    timestamp: "2024-01-20T14:30:00",
-    unread: 2,
-    online: true,
-  },
-  {
-    id: "2",
-    name: "Michael Chen",
-    role: "Tax Specialist",
-    avatar: "MC",
-    avatarColor: "bg-purple-500/20 text-purple-400",
-    lastMessage: "Your tax documents are ready for review.",
-    timestamp: "2024-01-19T11:15:00",
-    unread: 0,
-    online: false,
-  },
-  {
-    id: "3",
-    name: "Lacoda Capital Support",
-    role: "Support Team",
-    avatar: "LC",
-    avatarColor: "bg-blue-500/20 text-blue-400",
-    lastMessage: "Welcome to Lacoda Capital! We're here to help.",
-    timestamp: "2024-01-15T09:00:00",
-    unread: 0,
-    online: true,
-  },
-]
-
-const messagesByConversation: Record<string, Array<{
-  id: string
-  senderId: "advisor" | "client"
-  content: string
-  timestamp: string
-  status: "sent" | "delivered" | "read"
-  attachment?: { name: string; size: string; type: "pdf" | "image" }
-}>> = {
-  "1": [
-    {
-      id: "1",
-      senderId: "advisor",
-      content: "Good morning! I wanted to follow up on our discussion about your portfolio allocation.",
-      timestamp: "2024-01-20T09:00:00",
-      status: "read",
-    },
-    {
-      id: "2",
-      senderId: "client",
-      content: "Good morning Sarah! Yes, I've been thinking about it. What do you recommend?",
-      timestamp: "2024-01-20T09:15:00",
-      status: "read",
-    },
-    {
-      id: "3",
-      senderId: "advisor",
-      content: "Based on your goals and risk tolerance, I suggest we increase your real estate allocation by 5% and reduce fixed income accordingly. This would give you better growth potential while maintaining stability.",
-      timestamp: "2024-01-20T09:20:00",
-      status: "read",
-    },
-    {
-      id: "4",
-      senderId: "client",
-      content: "That sounds reasonable. Can you send me the analysis?",
-      timestamp: "2024-01-20T10:00:00",
-      status: "read",
-    },
-    {
-      id: "5",
-      senderId: "advisor",
-      content: "Of course! I've attached the detailed analysis report. Take your time reviewing it, and we can schedule a call to discuss any questions.",
-      timestamp: "2024-01-20T10:15:00",
-      status: "read",
-      attachment: {
-        name: "Portfolio_Reallocation_Analysis.pdf",
-        size: "2.4 MB",
-        type: "pdf",
-      },
-    },
-    {
-      id: "6",
-      senderId: "advisor",
-      content: "I've prepared the Q4 report for your review. Let me know when you'd like to discuss.",
-      timestamp: "2024-01-20T14:30:00",
-      status: "delivered",
-    },
-  ],
-  "2": [
-    {
-      id: "1",
-      senderId: "advisor",
-      content: "Hi, I've finished preparing your 2023 tax documents. They're ready for your review.",
-      timestamp: "2024-01-19T10:00:00",
-      status: "read",
-    },
-    {
-      id: "2",
-      senderId: "advisor",
-      content: "Your tax documents are ready for review.",
-      timestamp: "2024-01-19T11:15:00",
-      status: "read",
-    },
-  ],
-  "3": [
-    {
-      id: "1",
-      senderId: "advisor",
-      content: "Welcome to Lacoda Capital! We're here to help you manage your wealth effectively. Feel free to reach out anytime.",
-      timestamp: "2024-01-15T09:00:00",
-      status: "read",
-    },
-  ],
-}
+import { useMessages } from "@/lib/hooks/crud/use-messages"
+import type { Conversation, Message } from "@/lib/mock/types"
 
 // ============================================================================
 // HELPERS
@@ -178,7 +90,7 @@ function formatConversationTime(dateString: string) {
 // ============================================================================
 
 interface ConversationItemProps {
-  conversation: typeof conversations[0]
+  conversation: Conversation
   isSelected: boolean
   onClick: () => void
 }
@@ -209,7 +121,8 @@ function ConversationItem({ conversation, isSelected, onClick }: ConversationIte
             {formatConversationTime(conversation.timestamp)}
           </span>
         </div>
-        <p className="text-xs text-zinc-500 mt-0.5">{conversation.role}</p>
+        {/* `type` replaces the old inline `role` field which didn't exist on the Conversation type */}
+        <p className="text-xs text-zinc-500 mt-0.5 capitalize">{conversation.type}</p>
         <p className={cn("text-sm truncate mt-1", conversation.unread > 0 ? "text-zinc-300" : "text-zinc-500")}>
           {conversation.lastMessage}
         </p>
@@ -224,48 +137,52 @@ function ConversationItem({ conversation, isSelected, onClick }: ConversationIte
 }
 
 interface MessageBubbleProps {
-  message: typeof messagesByConversation["1"][0]
-  isClient: boolean
+  message: Message
+  /** True when the message was sent by the logged-in client (senderType === "client") */
+  isMe: boolean
 }
 
-function MessageBubble({ message, isClient }: MessageBubbleProps) {
+function MessageBubble({ message, isMe }: MessageBubbleProps) {
+  // Render the first attachment when present (mirrors the original single-attachment UI)
+  const attachment = message.attachments?.[0]
+
   return (
-    <div className={cn("flex", isClient ? "justify-end" : "justify-start")}>
+    <div className={cn("flex", isMe ? "justify-end" : "justify-start")}>
       <div
         className={cn(
           "max-w-[70%] rounded-2xl px-4 py-3",
-          isClient
+          isMe
             ? "bg-tiffany-500 text-white"
             : "bg-zinc-800/80 text-zinc-100"
         )}
       >
         <p className="text-sm leading-relaxed">{message.content}</p>
 
-        {message.attachment && (
+        {attachment && (
           <div className={cn(
             "mt-3 p-3 rounded-xl flex items-center gap-3",
-            isClient ? "bg-tiffany-600/50" : "bg-zinc-700/50"
+            isMe ? "bg-tiffany-600/50" : "bg-zinc-700/50"
           )}>
             <div className={cn(
               "p-2 rounded-lg",
-              isClient ? "bg-tiffany-500" : "bg-zinc-600"
+              isMe ? "bg-tiffany-500" : "bg-zinc-600"
             )}>
-              {message.attachment.type === "pdf" ? (
+              {attachment.type === "pdf" ? (
                 <File className="h-4 w-4" />
               ) : (
                 <ImageIcon className="h-4 w-4" />
               )}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">{message.attachment.name}</p>
-              <p className={cn("text-xs", isClient ? "text-tiffany-200" : "text-zinc-400")}>
-                {message.attachment.size}
+              <p className="text-sm font-medium truncate">{attachment.name}</p>
+              <p className={cn("text-xs", isMe ? "text-tiffany-200" : "text-zinc-400")}>
+                {attachment.size}
               </p>
             </div>
             <Button
               variant="ghost"
               size="icon"
-              className={cn("h-8 w-8 shrink-0", isClient ? "hover:bg-tiffany-500" : "hover:bg-zinc-600")}
+              className={cn("h-8 w-8 shrink-0", isMe ? "hover:bg-tiffany-500" : "hover:bg-zinc-600")}
             >
               <Download className="h-4 w-4" />
             </Button>
@@ -274,11 +191,11 @@ function MessageBubble({ message, isClient }: MessageBubbleProps) {
 
         <div className={cn(
           "flex items-center justify-end gap-1.5 mt-2",
-          isClient ? "text-tiffany-200" : "text-zinc-500"
+          isMe ? "text-tiffany-200" : "text-zinc-500"
         )}>
           <span className="text-xs">{format(new Date(message.timestamp), "h:mm a")}</span>
-          {isClient && (
-            message.status === "read" ? (
+          {isMe && (
+            message.read ? (
               <CheckCheck className="h-3.5 w-3.5" />
             ) : (
               <Check className="h-3.5 w-3.5" />
@@ -295,40 +212,57 @@ function MessageBubble({ message, isClient }: MessageBubbleProps) {
 // ============================================================================
 
 export default function ClientMessagesPage() {
-  const [selectedConversation, setSelectedConversation] = React.useState(conversations[0])
+  // Hook: replaces inline conversations array + messagesByConversation object
+  const { conversations, messages, isLoading, loadMessages, sendMessage } = useMessages()
+
+  // Track which conversation is selected by ID (null until first load)
+  const [selectedConversationId, setSelectedConversationId] = React.useState<string | null>(null)
+
   const [searchQuery, setSearchQuery] = React.useState("")
   const [newMessage, setNewMessage] = React.useState("")
   const [showMobileChat, setShowMobileChat] = React.useState(false)
   const messagesEndRef = React.useRef<HTMLDivElement>(null)
 
-  const messages = messagesByConversation[selectedConversation.id] || []
+  // Auto-select the first conversation when the list arrives
+  React.useEffect(() => {
+    if (conversations.length > 0 && !selectedConversationId) {
+      setSelectedConversationId(conversations[0].id)
+      loadMessages(conversations[0].id)
+    }
+  }, [conversations, selectedConversationId, loadMessages])
 
+  // Scroll to bottom whenever messages or selected conversation changes
   React.useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [messages, selectedConversation])
+  }, [messages, selectedConversationId])
+
+  // Derive the full conversation object from the selected ID
+  const selectedConversation = conversations.find(c => c.id === selectedConversationId)
 
   const filteredConversations = conversations.filter((conv) =>
     conv.name.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
   const handleSend = () => {
-    if (newMessage.trim()) {
+    if (newMessage.trim() && selectedConversationId) {
+      sendMessage(selectedConversationId, newMessage.trim())
       setNewMessage("")
     }
   }
 
-  const handleSelectConversation = (conv: typeof conversations[0]) => {
-    setSelectedConversation(conv)
+  const handleSelectConversation = (conv: Conversation) => {
+    setSelectedConversationId(conv.id)
+    loadMessages(conv.id)
     setShowMobileChat(true)
   }
 
-  // Group messages by date
+  // Group messages by date label for display
   const groupedMessages = messages.reduce((groups, message) => {
     const date = formatMessageDate(message.timestamp)
     if (!groups[date]) groups[date] = []
     groups[date].push(message)
     return groups
-  }, {} as Record<string, typeof messages>)
+  }, {} as Record<string, Message[]>)
 
   return (
     <div className="space-y-6">
@@ -383,7 +317,7 @@ export default function ClientMessagesPage() {
                   <ConversationItem
                     key={conversation.id}
                     conversation={conversation}
-                    isSelected={selectedConversation.id === conversation.id}
+                    isSelected={selectedConversationId === conversation.id}
                     onClick={() => handleSelectConversation(conversation)}
                   />
                 ))
@@ -396,115 +330,127 @@ export default function ClientMessagesPage() {
             "flex-1 flex flex-col",
             !showMobileChat && "hidden md:flex"
           )}>
-            {/* Chat Header */}
-            <div className="p-4 border-b border-zinc-800/60 flex items-center justify-between bg-zinc-900/30">
-              <div className="flex items-center gap-3">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="md:hidden h-8 w-8"
-                  onClick={() => setShowMobileChat(false)}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <div className="relative">
-                  <div className={cn("h-10 w-10 rounded-full flex items-center justify-center", selectedConversation.avatarColor)}>
-                    <span className="text-sm font-semibold">{selectedConversation.avatar}</span>
+            {selectedConversation ? (
+              <>
+                {/* Chat Header */}
+                <div className="p-4 border-b border-zinc-800/60 flex items-center justify-between bg-zinc-900/30">
+                  <div className="flex items-center gap-3">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="md:hidden h-8 w-8"
+                      onClick={() => setShowMobileChat(false)}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <div className="relative">
+                      <div className={cn("h-10 w-10 rounded-full flex items-center justify-center", selectedConversation.avatarColor)}>
+                        <span className="text-sm font-semibold">{selectedConversation.avatar}</span>
+                      </div>
+                      {selectedConversation.online && (
+                        <div className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-emerald-400 border-2 border-zinc-900" />
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-zinc-100">{selectedConversation.name}</p>
+                      <p className="text-xs text-zinc-500 flex items-center gap-1">
+                        {selectedConversation.online ? (
+                          <>
+                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                            Online
+                          </>
+                        ) : (
+                          <>
+                            <Clock className="h-3 w-3" />
+                            Last seen recently
+                          </>
+                        )}
+                      </p>
+                    </div>
                   </div>
-                  {selectedConversation.online && (
-                    <div className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-emerald-400 border-2 border-zinc-900" />
-                  )}
+                  <div className="flex items-center gap-1">
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-400 hover:text-zinc-100">
+                      <Phone className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-400 hover:text-zinc-100">
+                      <Video className="h-4 w-4" />
+                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-400 hover:text-zinc-100">
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="bg-zinc-900 border-zinc-800">
+                        <DropdownMenuItem>View profile</DropdownMenuItem>
+                        <DropdownMenuItem>Search in conversation</DropdownMenuItem>
+                        <DropdownMenuSeparator className="bg-zinc-800" />
+                        <DropdownMenuItem>Mute notifications</DropdownMenuItem>
+                        <DropdownMenuItem className="text-rose-400">Clear chat</DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm font-medium text-zinc-100">{selectedConversation.name}</p>
-                  <p className="text-xs text-zinc-500 flex items-center gap-1">
-                    {selectedConversation.online ? (
-                      <>
-                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                        Online
-                      </>
-                    ) : (
-                      <>
-                        <Clock className="h-3 w-3" />
-                        Last seen recently
-                      </>
-                    )}
+
+                {/* Messages */}
+                <div className="flex-1 overflow-y-auto p-4 space-y-6">
+                  {Object.entries(groupedMessages).map(([date, dateMessages]) => (
+                    <div key={date}>
+                      <div className="flex items-center justify-center mb-4">
+                        <span className="px-3 py-1 rounded-full bg-zinc-800/50 text-xs text-zinc-500">
+                          {date}
+                        </span>
+                      </div>
+                      <div className="space-y-3">
+                        {dateMessages.map((message) => (
+                          <MessageBubble
+                            key={message.id}
+                            message={message}
+                            isMe={message.senderType === "client"}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                  <div ref={messagesEndRef} />
+                </div>
+
+                {/* Message Input */}
+                <div className="p-4 border-t border-zinc-800/60 bg-zinc-900/30">
+                  <div className="flex items-center gap-2">
+                    <Button variant="ghost" size="icon" className="h-9 w-9 text-zinc-400 hover:text-zinc-100 shrink-0">
+                      <Paperclip className="h-4 w-4" />
+                    </Button>
+                    <Input
+                      placeholder="Type a message..."
+                      value={newMessage}
+                      onChange={(e) => setNewMessage(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
+                      className="flex-1 bg-zinc-800/50 border-zinc-700/50"
+                    />
+                    <Button
+                      onClick={handleSend}
+                      disabled={!newMessage.trim()}
+                      size="icon"
+                      className="h-9 w-9 shrink-0"
+                    >
+                      <Send className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <p className="text-xs text-zinc-500 mt-2 text-center">
+                    End-to-end encrypted • Your advisor typically responds within 24 hours
                   </p>
                 </div>
-              </div>
-              <div className="flex items-center gap-1">
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-400 hover:text-zinc-100">
-                  <Phone className="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-400 hover:text-zinc-100">
-                  <Video className="h-4 w-4" />
-                </Button>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-400 hover:text-zinc-100">
-                      <MoreVertical className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="bg-zinc-900 border-zinc-800">
-                    <DropdownMenuItem>View profile</DropdownMenuItem>
-                    <DropdownMenuItem>Search in conversation</DropdownMenuItem>
-                    <DropdownMenuSeparator className="bg-zinc-800" />
-                    <DropdownMenuItem>Mute notifications</DropdownMenuItem>
-                    <DropdownMenuItem className="text-rose-400">Clear chat</DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </div>
-
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-6">
-              {Object.entries(groupedMessages).map(([date, dateMessages]) => (
-                <div key={date}>
-                  <div className="flex items-center justify-center mb-4">
-                    <span className="px-3 py-1 rounded-full bg-zinc-800/50 text-xs text-zinc-500">
-                      {date}
-                    </span>
-                  </div>
-                  <div className="space-y-3">
-                    {dateMessages.map((message) => (
-                      <MessageBubble
-                        key={message.id}
-                        message={message}
-                        isClient={message.senderId === "client"}
-                      />
-                    ))}
-                  </div>
+              </>
+            ) : (
+              // Empty state while conversations are loading or none selected
+              <div className="flex-1 flex items-center justify-center">
+                <div className="text-center">
+                  <MessageSquare className="h-12 w-12 text-zinc-600 mx-auto mb-4" />
+                  <p className="text-sm text-zinc-400">Select a conversation to start messaging</p>
                 </div>
-              ))}
-              <div ref={messagesEndRef} />
-            </div>
-
-            {/* Message Input */}
-            <div className="p-4 border-t border-zinc-800/60 bg-zinc-900/30">
-              <div className="flex items-center gap-2">
-                <Button variant="ghost" size="icon" className="h-9 w-9 text-zinc-400 hover:text-zinc-100 shrink-0">
-                  <Paperclip className="h-4 w-4" />
-                </Button>
-                <Input
-                  placeholder="Type a message..."
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
-                  className="flex-1 bg-zinc-800/50 border-zinc-700/50"
-                />
-                <Button
-                  onClick={handleSend}
-                  disabled={!newMessage.trim()}
-                  size="icon"
-                  className="h-9 w-9 shrink-0"
-                >
-                  <Send className="h-4 w-4" />
-                </Button>
               </div>
-              <p className="text-xs text-zinc-500 mt-2 text-center">
-                End-to-end encrypted • Your advisor typically responds within 24 hours
-              </p>
-            </div>
+            )}
           </div>
         </div>
       </div>

@@ -31,8 +31,9 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
-import { mockComplianceControls, mockLedgerEntries } from "@/lib/mock/data"
 import { useReducedMotion } from "@/lib/hooks/use-reduced-motion"
+import { useCompliance } from "@/lib/hooks/crud/use-compliance"
+import { useLedger } from "@/lib/hooks/crud/use-ledger"
 import {
   AllocationChart,
   PerformanceChart,
@@ -136,28 +137,28 @@ function ProgressBar({ value, className }: { value: number; className?: string }
 }
 
 export default function CompliancePage() {
+  const { controls, updateControlStatus, stats } = useCompliance()
+  const { entries } = useLedger()
   const [activeTab, setActiveTab] = React.useState("controls")
   const [auditSearchQuery, setAuditSearchQuery] = React.useState("")
   const [actionFilter, setActionFilter] = React.useState<string>("all")
   const reducedMotion = useReducedMotion()
 
-  const compliantCount = mockComplianceControls.filter(
-    (c) => c.status === "compliant"
-  ).length
-  const totalCount = mockComplianceControls.length
-  const compliancePercentage = Math.round((compliantCount / totalCount) * 100)
+  const compliantCount = stats.compliant
+  const totalCount = stats.total
+  const compliancePercentage = totalCount > 0 ? Math.round((compliantCount / totalCount) * 100) : 0
 
   // Group controls by category
-  const controlsByCategory = mockComplianceControls.reduce((acc, control) => {
+  const controlsByCategory = controls.reduce((acc, control) => {
     if (!acc[control.category]) {
       acc[control.category] = []
     }
     acc[control.category].push(control)
     return acc
-  }, {} as Record<string, typeof mockComplianceControls>)
+  }, {} as Record<string, typeof controls>)
 
   // Filter audit log entries
-  const filteredLedgerEntries = mockLedgerEntries.filter((entry) => {
+  const filteredLedgerEntries = entries.filter((entry) => {
     const matchesSearch =
       entry.details.toLowerCase().includes(auditSearchQuery.toLowerCase()) ||
       entry.entity.toLowerCase().includes(auditSearchQuery.toLowerCase()) ||
@@ -183,7 +184,16 @@ export default function CompliancePage() {
             SOC 2 Type II controls, evidence tracking & audit logs
           </p>
         </div>
-        <Button variant="outline">
+        <Button
+          variant="outline"
+          onClick={() => {
+            controls.forEach((c) => {
+              if (c.status !== "compliant") {
+                updateControlStatus(c.id, "in_progress")
+              }
+            })
+          }}
+        >
           <RefreshCw className="h-4 w-4 mr-2" />
           Run Compliance Check
         </Button>
@@ -312,19 +322,32 @@ export default function CompliancePage() {
                     </div>
 
                     <div className="flex items-center gap-3">
-                      <Badge
-                        variant={
-                          control.status === "compliant"
-                            ? "success"
-                            : control.status === "in_progress"
-                            ? "warning"
-                            : control.status === "non_compliant"
-                            ? "destructive"
-                            : "default"
-                        }
+                      <Select
+                        value={control.status}
+                        onValueChange={(v) => updateControlStatus(control.id, v as typeof control.status)}
                       >
-                        {status.label}
-                      </Badge>
+                        <SelectTrigger className="w-[150px] h-8 text-xs">
+                          <Badge
+                            variant={
+                              control.status === "compliant"
+                                ? "success"
+                                : control.status === "in_progress"
+                                ? "warning"
+                                : control.status === "non_compliant"
+                                ? "destructive"
+                                : "default"
+                            }
+                          >
+                            {status.label}
+                          </Badge>
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="compliant">Compliant</SelectItem>
+                          <SelectItem value="in_progress">In Progress</SelectItem>
+                          <SelectItem value="non_compliant">Non-Compliant</SelectItem>
+                          <SelectItem value="not_started">Not Started</SelectItem>
+                        </SelectContent>
+                      </Select>
                       {control.evidenceLinks.length > 0 && (
                         <Button variant="ghost" size="sm">
                           <ExternalLink className="h-4 w-4 mr-1" />
