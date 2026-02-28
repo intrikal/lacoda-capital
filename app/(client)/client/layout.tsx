@@ -45,8 +45,10 @@ import {
   PanelLeft,
   PanelLeftClose,
   Bell,
+  LogOut,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { logoutAction } from "@/lib/actions/auth.actions"
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Navigation structure — grouped for wealth management client UX
@@ -322,23 +324,48 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
 
           {/* ── User identity chip ────────────────────────────────────────── */}
           <div className="border-t border-zinc-800/60 p-3">
-            <div
-              className={cn(
-                "flex items-center gap-3 rounded-md p-2 transition-colors hover:bg-zinc-800/60 cursor-pointer",
-                collapsed && "justify-center"
-              )}
-            >
-              {/* Avatar with tiffany ring */}
-              <div className="h-8 w-8 rounded-full bg-gradient-to-br from-tiffany-500/20 to-tiffany-600/20 flex items-center justify-center shrink-0 ring-1 ring-tiffany-500/30">
-                <span className="text-xs font-semibold text-tiffany-500">JD</span>
-              </div>
-              {!collapsed && (
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-zinc-100 truncate">John Doe</p>
-                  <p className="text-xs text-zinc-500 truncate">Premium Client</p>
+            {collapsed ? (
+              <Tooltip delayDuration={0}>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => logoutAction()}
+                    className="w-full flex justify-center items-center rounded-md p-2 text-zinc-500 hover:text-red-400 hover:bg-zinc-800/60 transition-colors"
+                    aria-label="Sign out"
+                  >
+                    <LogOut className="h-[18px] w-[18px]" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="bg-zinc-900 border-zinc-800 text-zinc-100" sideOffset={8}>
+                  Sign out
+                </TooltipContent>
+              </Tooltip>
+            ) : (
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3 flex-1 min-w-0 rounded-md p-2">
+                  <div className="h-8 w-8 rounded-full bg-gradient-to-br from-tiffany-500/20 to-tiffany-600/20 flex items-center justify-center shrink-0 ring-1 ring-tiffany-500/30">
+                    <span className="text-xs font-semibold text-tiffany-500">JD</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-zinc-100 truncate">John Doe</p>
+                    <p className="text-xs text-zinc-500 truncate">Client</p>
+                  </div>
                 </div>
-              )}
-            </div>
+                <Tooltip delayDuration={0}>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => logoutAction()}
+                      className="h-8 w-8 flex items-center justify-center rounded-md text-zinc-500 hover:text-red-400 hover:bg-zinc-800/60 transition-colors shrink-0"
+                      aria-label="Sign out"
+                    >
+                      <LogOut className="h-4 w-4" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="bg-zinc-900 border-zinc-800 text-zinc-100" sideOffset={6}>
+                    Sign out
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+            )}
           </div>
         </aside>
 

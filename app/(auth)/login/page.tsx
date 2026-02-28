@@ -2,12 +2,13 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useSearchParams } from "next/navigation"
 import { Eye, EyeOff, Mail, Lock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Logo } from "@/components/marketing/logo"
+import { loginAction, getOAuthUrlAction } from "@/lib/actions/auth.actions"
 
 // Social login icons
 function GoogleIcon({ className }: { className?: string }) {
@@ -32,33 +33,43 @@ function MicrosoftIcon({ className }: { className?: string }) {
   )
 }
 
-export default function LoginPage() {
-  const router = useRouter()
+function LoginForm() {
+  const searchParams = useSearchParams()
+  const next = searchParams.get("next") ?? undefined
+  const authError = searchParams.get("error")
+
   const [email, setEmail] = React.useState("")
   const [password, setPassword] = React.useState("")
   const [showPassword, setShowPassword] = React.useState(false)
   const [isLoading, setIsLoading] = React.useState(false)
-  const [error, setError] = React.useState("")
+  const [error, setError] = React.useState(
+    authError === "auth_failed" ? "Authentication failed. Please try again." :
+    authError === "link_expired" ? "This link has expired. Please request a new one." :
+    ""
+  )
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
     setIsLoading(true)
 
-    // Simulate authentication
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-
-    // For demo, just redirect to app
-    router.push("/app")
+    const result = await loginAction(email, password, next)
+    // If we reach here, the action returned an error (redirect throws, not returns)
+    if ("error" in result) {
+      setError(result.error)
+      setIsLoading(false)
+    }
   }
 
-  const handleSocialLogin = (provider: string) => {
+  const handleSocialLogin = async (provider: "google" | "azure") => {
     setIsLoading(true)
-    // Simulate OAuth redirect
-    console.log(`Logging in with ${provider}`)
-    setTimeout(() => {
-      router.push("/app")
-    }, 1000)
+    const result = await getOAuthUrlAction(provider)
+    if ("error" in result) {
+      setError(result.error)
+      setIsLoading(false)
+      return
+    }
+    window.location.href = result.url
   }
 
   return (
@@ -114,7 +125,7 @@ export default function LoginPage() {
                     />
                   </svg>
                 </div>
-                <span>SOC 2 Type II certified</span>
+                <span>Audit trail on every action</span>
               </div>
             </div>
           </div>
@@ -157,7 +168,7 @@ export default function LoginPage() {
                 type="button"
                 variant="outline"
                 className="w-full h-11 bg-zinc-900 border-zinc-700 hover:bg-zinc-800 hover:border-zinc-600"
-                onClick={() => handleSocialLogin("Google")}
+                onClick={() => handleSocialLogin("google")}
                 disabled={isLoading}
               >
                 <GoogleIcon className="w-5 h-5 mr-3" />
@@ -167,7 +178,7 @@ export default function LoginPage() {
                 type="button"
                 variant="outline"
                 className="w-full h-11 bg-zinc-900 border-zinc-700 hover:bg-zinc-800 hover:border-zinc-600"
-                onClick={() => handleSocialLogin("Microsoft")}
+                onClick={() => handleSocialLogin("azure")}
                 disabled={isLoading}
               >
                 <MicrosoftIcon className="w-5 h-5 mr-3" />
@@ -280,5 +291,13 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <React.Suspense>
+      <LoginForm />
+    </React.Suspense>
   )
 }
