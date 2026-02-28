@@ -33,7 +33,7 @@ function MicrosoftIcon({ className }: { className?: string }) {
   )
 }
 
-export default function LoginPage() {
+function LoginForm() {
   const searchParams = useSearchParams()
   const next = searchParams.get("next") ?? undefined
   const authError = searchParams.get("error")
@@ -291,5 +291,13 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <React.Suspense>
+      <LoginForm />
+    </React.Suspense>
   )
 }
