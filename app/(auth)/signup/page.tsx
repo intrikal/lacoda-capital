@@ -2,7 +2,6 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import { Eye, EyeOff, Mail, Lock, User, Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -10,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { cn } from "@/lib/utils"
 import { Logo } from "@/components/marketing/logo"
+import { signupAction, getOAuthUrlAction } from "@/lib/actions/auth.actions"
 
 // Password strength checker
 function getPasswordStrength(password: string): {
@@ -54,7 +54,6 @@ function MicrosoftIcon({ className }: { className?: string }) {
 }
 
 export default function SignUpPage() {
-  const router = useRouter()
   const [formData, setFormData] = React.useState({
     fullName: "",
     email: "",
@@ -66,6 +65,7 @@ export default function SignUpPage() {
   const [agreedToTerms, setAgreedToTerms] = React.useState(false)
   const [isLoading, setIsLoading] = React.useState(false)
   const [errors, setErrors] = React.useState<Record<string, string>>({})
+  const [emailSent, setEmailSent] = React.useState(false)
 
   const passwordStrength = getPasswordStrength(formData.password)
 
@@ -107,19 +107,32 @@ export default function SignUpPage() {
 
     setIsLoading(true)
 
-    // Simulate registration
-    await new Promise((resolve) => setTimeout(resolve, 1500))
+    const result = await signupAction(formData.email, formData.password, formData.fullName)
 
-    // Redirect to onboarding
-    router.push("/onboarding")
+    if ("error" in result) {
+      setErrors({ form: result.error })
+      setIsLoading(false)
+      return
+    }
+
+    if (result.emailConfirmationRequired) {
+      setEmailSent(true)
+      setIsLoading(false)
+      return
+    }
+
+    // No email confirmation required — redirect was handled server-side
   }
 
-  const handleSocialSignup = (provider: string) => {
+  const handleSocialSignup = async (provider: "google" | "azure") => {
     setIsLoading(true)
-    console.log(`Signing up with ${provider}`)
-    setTimeout(() => {
-      router.push("/onboarding")
-    }, 1000)
+    const result = await getOAuthUrlAction(provider)
+    if ("error" in result) {
+      setErrors({ form: result.error })
+      setIsLoading(false)
+      return
+    }
+    window.location.href = result.url
   }
 
   const updateField = (field: string, value: string) => {
@@ -195,6 +208,15 @@ export default function SignUpPage() {
 
         <div className="flex-1 flex items-center justify-center p-6 lg:p-12">
           <div className="w-full max-w-md">
+            {emailSent && (
+              <div className="mb-6 p-4 rounded-lg bg-tiffany-500/10 border border-tiffany-500/20">
+                <p className="text-tiffany-400 font-medium mb-1">Check your email</p>
+                <p className="text-zinc-400 text-sm">
+                  We sent a confirmation link to <span className="text-zinc-200">{formData.email}</span>.
+                  Click it to activate your account.
+                </p>
+              </div>
+            )}
             <div className="mb-8">
               <h1 className="text-2xl font-bold text-zinc-100 mb-2">
                 Create your account
@@ -216,7 +238,7 @@ export default function SignUpPage() {
                 type="button"
                 variant="outline"
                 className="w-full h-11 bg-zinc-900 border-zinc-700 hover:bg-zinc-800 hover:border-zinc-600"
-                onClick={() => handleSocialSignup("Google")}
+                onClick={() => handleSocialSignup("google")}
                 disabled={isLoading}
               >
                 <GoogleIcon className="w-5 h-5 mr-3" />
@@ -226,7 +248,7 @@ export default function SignUpPage() {
                 type="button"
                 variant="outline"
                 className="w-full h-11 bg-zinc-900 border-zinc-700 hover:bg-zinc-800 hover:border-zinc-600"
-                onClick={() => handleSocialSignup("Microsoft")}
+                onClick={() => handleSocialSignup("azure")}
                 disabled={isLoading}
               >
                 <MicrosoftIcon className="w-5 h-5 mr-3" />
@@ -248,6 +270,11 @@ export default function SignUpPage() {
 
             {/* Signup Form */}
             <form onSubmit={handleSubmit} className="space-y-5">
+              {errors.form && (
+                <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+                  {errors.form}
+                </div>
+              )}
               <div className="space-y-2">
                 <Label htmlFor="fullName">Full name</Label>
                 <div className="relative">
