@@ -1,0 +1,79 @@
+enum TaskStatus {
+  pending
+  in_progress
+  completed
+  cancelled
+}
+
+enum TaskPriority {
+  low
+  medium
+  high
+  urgent
+}
+
+type Task {
+  id: ID!
+  orgId: ID!
+  title: String!
+  description: String
+  status: TaskStatus!
+  priority: TaskPriority!
+  dueDate: DateTime
+  assignedTo: ID
+  createdBy: ID
+  clientId: ID
+  entityId: ID
+  assetId: ID
+  documentId: ID
+  completedAt: DateTime
+  completedBy: ID
+  metadata: JSON
+  createdAt: DateTime!
+  updatedAt: DateTime!
+
+  # Relations
+  assignedToUser: User
+  createdByUser: User
+  completedByUser: User
+  client: Client
+  entity: Entity
+  asset: Asset
+  document: Document
+}
+
+type TaskConnection {
+  items: [Task!]!
+  totalCount: Int!
+  page: Int!
+  limit: Int!
+}
+
+input CreateTaskInput {
+  title: String!
+  description: String
+  status: TaskStatus
+  priority: TaskPriority
+  dueDate: DateTime
+  assignedTo: ID
+  clientId: ID
+  entityId: ID
+  assetId: ID
+  documentId: ID
+  metadata: JSON
+}
+
+input UpdateTaskInput {
+  title: String
+  description: String
+  status: TaskStatus
+  priority: TaskPriority
+  dueDate: DateTime
+  assignedTo: ID
+  clientId: ID
+  entityId: ID
+  assetId: ID
+  documentId: ID
+  completedAt: DateTime
+  metadata: JSON
+}

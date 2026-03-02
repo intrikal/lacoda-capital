@@ -6,6 +6,7 @@ import { Sidebar } from "@/components/dashboard/sidebar"
 import { Button } from "@/components/ui/button"
 import { Bell, Search } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { ApolloProviderWrapper } from "@/components/providers/apollo-provider"
 
 export default function DashboardLayout({
   children,
@@ -17,6 +18,7 @@ export default function DashboardLayout({
   const mainMargin = sidebarCollapsed ? "ml-[68px]" : "ml-[240px]"
 
   return (
+    <ApolloProviderWrapper>
     <TooltipProvider delayDuration={0}>
       <div className="min-h-screen bg-zinc-950">
         <Sidebar
@@ -39,5 +41,6 @@ export default function DashboardLayout({
         </main>
       </div>
     </TooltipProvider>
+    </ApolloProviderWrapper>
   )
 }

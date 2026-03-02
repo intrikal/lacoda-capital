@@ -1,0 +1,10 @@
+type User {
+  id: ID!
+  email: String!
+  fullName: String
+  avatarUrl: String
+  phone: String
+  preferences: JSON
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
