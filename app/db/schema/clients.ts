@@ -401,6 +401,8 @@ export const clients = pgTable(
  * The "?" after each property means it's OPTIONAL (can be undefined).
  */
 export interface ClientProfile {
+  clientType?: "individual" | "institution" | "trust" | "fund";
+  clientStatus?: "active" | "inactive" | "prospect";
   address?: {
     street?: string;
     city?: string;

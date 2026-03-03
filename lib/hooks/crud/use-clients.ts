@@ -1,61 +1,125 @@
 "use client"
 
-import { useCallback, useMemo } from "react"
-import { useCrudState } from "./use-crud-state"
-import { getClients } from "@/lib/services/clients.service"
-import type { Client } from "@/lib/mock/types"
+import { useMemo, useCallback } from "react"
+import { useQuery, useMutation } from "@apollo/client/react"
+import {
+  GET_CLIENTS,
+  CREATE_CLIENT,
+  UPDATE_CLIENT,
+  DELETE_CLIENT,
+} from "@/lib/graphql/operations/client"
+import type {
+  CreateClientInput,
+  UpdateClientInput,
+  ClientRecord,
+} from "@/lib/validations/client.schema"
 
-function generateId(): string {
-  return `client-${crypto.randomUUID().slice(0, 8)}`
+interface GetClientsData {
+  clients: { items: (ClientRecord & { entityCount: number })[]; totalCount: number; page: number; limit: number }
 }
 
-export type CreateClientInput = Omit<Client, "id" | "assignedAssets" | "assignedDocuments" | "lastActivity">
+/**
+ * useClients — Fetches the list of clients and computes statistics.
+ *
+ * Preserves the same return API as the previous React Query implementation:
+ *   { clients, isLoading, isError, error, stats }
+ */
+export function useClients(params?: { search?: string; status?: string }) {
+  const variables: Record<string, unknown> = {}
+  if (params?.search) variables.search = params.search
+  if (params?.status && params.status !== "all") variables.status = params.status
 
-export function useClients() {
-  const { data, isLoading, add, update, remove, getById } = useCrudState<Client>(getClients)
+  const { data, loading, error } = useQuery<GetClientsData>(GET_CLIENTS, {
+    variables,
+  })
 
-  const addClient = useCallback(
-    (input: CreateClientInput): Client => {
-      const newClient: Client = {
-        ...input,
-        id: generateId(),
-        assignedAssets: [],
-        assignedDocuments: [],
-        lastActivity: new Date().toISOString().split("T")[0],
-      }
-      add(newClient)
-      return newClient
-    },
-    [add]
-  )
-
-  const updateClient = useCallback(
-    (id: string, patch: Partial<Client>) => {
-      update(id, { ...patch, lastActivity: new Date().toISOString().split("T")[0] })
-    },
-    [update]
-  )
+  const clients = data?.clients?.items ?? []
 
   const stats = useMemo(() => {
-    const active = data.filter((c) => c.status === "active")
-    const totalAUM = data.reduce((sum, c) => sum + c.aum, 0)
+    const totalAUM = clients.reduce(
+      (sum, c) => sum + (c.totalAUM ?? 0),
+      0
+    )
     return {
-      total: data.length,
-      active: active.length,
-      prospects: data.filter((c) => c.status === "prospect").length,
-      inactive: data.filter((c) => c.status === "inactive").length,
+      total: clients.length,
+      active: clients.filter((c) => c.clientStatus === "active").length,
+      prospects: clients.filter((c) => c.clientStatus === "prospect").length,
+      inactive: clients.filter((c) => c.clientStatus === "inactive").length,
       totalAUM,
-      avgAUM: data.length > 0 ? totalAUM / data.length : 0,
+      avgAUM: clients.length > 0 ? totalAUM / clients.length : 0,
     }
-  }, [data])
+  }, [clients])
 
   return {
-    clients: data,
-    isLoading,
-    addClient,
-    updateClient,
-    deleteClient: remove,
-    getClientById: getById,
+    clients,
+    isLoading: loading,
+    isError: !!error,
+    error: error ?? null,
     stats,
   }
+}
+
+/**
+ * useCreateClient — Hook for creating a new client.
+ *
+ * Returns: { mutate, isPending }
+ * Usage: createMutation.mutate(data)
+ */
+export function useCreateClient() {
+  const [createClient, { loading }] = useMutation(CREATE_CLIENT, {
+    refetchQueries: [{ query: GET_CLIENTS }],
+  })
+
+  const mutate = useCallback(
+    (input: CreateClientInput) => {
+      createClient({ variables: { input } })
+    },
+    [createClient]
+  )
+
+  return { mutate, isPending: loading }
+}
+
+/**
+ * useUpdateClient — Hook for updating an existing client.
+ *
+ * Returns: { mutate, isPending }
+ * Usage: updateMutation.mutate({ id, input })
+ */
+export function useUpdateClient() {
+  const [updateClient, { loading }] = useMutation(UPDATE_CLIENT, {
+    refetchQueries: [{ query: GET_CLIENTS }],
+  })
+
+  const mutate = useCallback(
+    ({ id, input }: { id: string; input: UpdateClientInput }) => {
+      updateClient({ variables: { id, input } })
+    },
+    [updateClient]
+  )
+
+  return { mutate, isPending: loading }
+}
+
+/**
+ * useDeleteClient — Hook for deleting a client.
+ *
+ * Returns: { mutate, isPending }
+ * Usage: deleteMutation.mutate(id, { onSuccess })
+ */
+export function useDeleteClient() {
+  const [deleteClient, { loading }] = useMutation(DELETE_CLIENT, {
+    refetchQueries: [{ query: GET_CLIENTS }],
+  })
+
+  const mutate = useCallback(
+    (id: string, options?: { onSuccess?: () => void }) => {
+      deleteClient({ variables: { id } }).then(() => {
+        options?.onSuccess?.()
+      })
+    },
+    [deleteClient]
+  )
+
+  return { mutate, isPending: loading }
 }

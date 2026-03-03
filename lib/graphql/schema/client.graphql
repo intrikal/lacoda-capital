@@ -1,0 +1,62 @@
+enum ClientType {
+  individual
+  institution
+  trust
+  fund
+}
+
+enum ClientStatus {
+  active
+  inactive
+  prospect
+}
+
+type Client {
+  id: ID!
+  displayName: String!
+  email: String
+  phone: String
+  externalId: String
+  clientType: ClientType!
+  clientStatus: ClientStatus!
+  profile: JSON
+  createdAt: DateTime!
+  updatedAt: DateTime!
+
+  # Relations
+  entities: [Entity!]!
+  documents: [Document!]!
+  documentRequests: [DocumentRequest!]!
+  tasks: [Task!]!
+  assignments: [Assignment!]!
+
+  # Computed
+  entityCount: Int!
+  assetCount: Int!
+  totalAUM: Float!
+}
+
+type ClientConnection {
+  items: [Client!]!
+  totalCount: Int!
+  page: Int!
+  limit: Int!
+}
+
+input CreateClientInput {
+  displayName: String!
+  email: String
+  phone: String
+  externalId: String
+  clientType: ClientType
+  clientStatus: ClientStatus
+}
+
+input UpdateClientInput {
+  displayName: String
+  email: String
+  phone: String
+  externalId: String
+  clientType: ClientType
+  clientStatus: ClientStatus
+}
