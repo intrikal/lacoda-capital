@@ -203,12 +203,12 @@ import type { ClientRecord, CreateClientInput } from "@/lib/validations/client.s
  * USAGE: const TypeIcon = typeIcons[client.clientType]
  *        <TypeIcon className="h-4 w-4" />
  */
-const typeIcons = {
+const typeIcons: Record<string, typeof User> = {
   individual: User,
   institution: Building2,
   trust: Users,
   fund: Briefcase,
-} as const
+}
 
 /**
  * statusConfig — Configuration for how each status is displayed.
@@ -219,7 +219,7 @@ const typeIcons = {
  *
  * These are used by Badge components throughout the page.
  */
-const statusConfig = {
+const statusConfig: Record<string, { label: string; color: string; bg: string }> = {
   active: { label: "Active", color: "text-emerald-400", bg: "bg-emerald-500/10" },
   inactive: { label: "Inactive", color: "text-zinc-400", bg: "bg-zinc-500/10" },
   prospect: { label: "Prospect", color: "text-blue-400", bg: "bg-blue-500/10" },

@@ -20,4 +20,7 @@ const handler = startServerAndCreateNextHandler(server, {
   context: async () => buildContext(),
 })
 
-export { handler as GET, handler as POST }
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const GET = handler as any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const POST = handler as any

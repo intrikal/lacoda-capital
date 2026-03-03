@@ -295,6 +295,9 @@ export interface ClientRecord {
   /** When this client was created, as an ISO 8601 string (e.g., "2024-01-15T10:30:00Z") */
   createdAt: string
 
+  /** Number of entities belonging to this client */
+  entityCount: number
+
   /** Number of active assets across all entities belonging to this client */
   assetCount: number
 

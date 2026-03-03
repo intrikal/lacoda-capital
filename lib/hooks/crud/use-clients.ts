@@ -11,23 +11,11 @@ import {
 import type {
   CreateClientInput,
   UpdateClientInput,
+  ClientRecord,
 } from "@/lib/validations/client.schema"
 
-interface ClientRecord {
-  id: string
-  displayName: string
-  clientType: string
-  clientStatus: string
-  email: string | null
-  phone: string | null
-  totalAUM: number
-  entityCount: number
-  createdAt: string
-  updatedAt: string
-}
-
 interface GetClientsData {
-  clients: { items: ClientRecord[]; totalCount: number; page: number; limit: number }
+  clients: { items: (ClientRecord & { entityCount: number })[]; totalCount: number; page: number; limit: number }
 }
 
 /**
