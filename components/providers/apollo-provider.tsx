@@ -1,6 +1,7 @@
 "use client"
 
-import { ApolloClient, ApolloProvider, InMemoryCache, HttpLink } from "@apollo/client"
+import { ApolloClient, InMemoryCache, HttpLink } from "@apollo/client"
+import { ApolloProvider } from "@apollo/client/react"
 import type { ReactNode } from "react"
 
 function makeClient() {
@@ -35,7 +36,7 @@ function makeClient() {
   })
 }
 
-let browserClient: ApolloClient<object> | undefined
+let browserClient: ApolloClient | undefined
 
 function getClient() {
   if (typeof window === "undefined") {

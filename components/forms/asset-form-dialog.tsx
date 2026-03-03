@@ -19,15 +19,28 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import type { Asset, AssetClass, AssetStatus } from "@/lib/mock/types"
-import type { CreateAssetInput } from "@/lib/hooks/crud/use-assets"
+import type { CreateAssetInput } from "@/lib/validations/asset.schema"
 
 interface AssetFormDialogProps {
   mode: "create" | "edit"
-  initialData?: Partial<Asset>
+  initialData?: {
+    id?: string
+    name?: string
+    assetClass?: string
+    status?: string
+    entityId?: string
+    description?: string | null
+    acquisitionDate?: string | null
+    acquisitionCost?: number | null
+    currency?: string
+    currentValue?: number | null
+    externalId?: string | null
+  }
   open: boolean
   onOpenChange: (open: boolean) => void
   onSubmit: (data: CreateAssetInput) => void
+  isPending?: boolean
+  entities?: Array<{ id: string; name: string }>
 }
 
 export function AssetFormDialog({
@@ -36,46 +49,50 @@ export function AssetFormDialog({
   open,
   onOpenChange,
   onSubmit,
+  isPending = false,
+  entities = [],
 }: AssetFormDialogProps) {
   const [name, setName] = React.useState("")
-  const [assetClass, setAssetClass] = React.useState<AssetClass>("real_estate")
-  const [status, setStatus] = React.useState<AssetStatus>("active")
-  const [value, setValue] = React.useState("0")
-  const [location, setLocation] = React.useState("")
+  const [assetClass, setAssetClass] = React.useState("real_estate")
+  const [status, setStatus] = React.useState("active")
+  const [entityId, setEntityId] = React.useState("")
   const [description, setDescription] = React.useState("")
-  const [notes, setNotes] = React.useState("")
-  const [riskScore, setRiskScore] = React.useState("50")
+  const [acquisitionDate, setAcquisitionDate] = React.useState("")
+  const [acquisitionCost, setAcquisitionCost] = React.useState("")
+  const [currentValue, setCurrentValue] = React.useState("")
+  const [currency, setCurrency] = React.useState("USD")
+  const [externalId, setExternalId] = React.useState("")
 
   React.useEffect(() => {
     if (open) {
       setName(initialData?.name ?? "")
-      setAssetClass(initialData?.class ?? "real_estate")
+      setAssetClass(initialData?.assetClass ?? "real_estate")
       setStatus(initialData?.status ?? "active")
-      setValue(initialData?.value?.toString() ?? "0")
-      setLocation(initialData?.location ?? "")
+      setEntityId(initialData?.entityId ?? (entities[0]?.id ?? ""))
       setDescription(initialData?.description ?? "")
-      setNotes(initialData?.notes ?? "")
-      setRiskScore(initialData?.riskScore?.toString() ?? "50")
+      setAcquisitionDate(initialData?.acquisitionDate?.split("T")[0] ?? "")
+      setAcquisitionCost(initialData?.acquisitionCost?.toString() ?? "")
+      setCurrentValue(initialData?.currentValue?.toString() ?? "")
+      setCurrency(initialData?.currency ?? "USD")
+      setExternalId(initialData?.externalId ?? "")
     }
-  }, [open, initialData])
+  }, [open, initialData, entities])
 
   function handleSubmit() {
     if (!name.trim()) return
-    const val = parseFloat(value) || 0
+    if (!entityId && mode === "create") return
+
     onSubmit({
       name: name.trim(),
-      class: assetClass,
-      status,
-      value: val,
-      previousValue: initialData?.previousValue ?? val,
-      acquisitionDate: initialData?.acquisitionDate ?? new Date().toISOString().split("T")[0],
-      lastValuationDate: new Date().toISOString().split("T")[0],
-      location: location.trim() || undefined,
-      description: description.trim(),
-      documents: initialData?.documents ?? [],
-      notes: notes.trim(),
-      assignedTo: initialData?.assignedTo,
-      riskScore: parseInt(riskScore) || 50,
+      assetClass: assetClass as CreateAssetInput["assetClass"],
+      status: status as CreateAssetInput["status"],
+      entityId,
+      description: description.trim() || null,
+      acquisitionDate: acquisitionDate || null,
+      acquisitionCost: acquisitionCost ? parseFloat(acquisitionCost) : null,
+      currentValue: currentValue ? parseFloat(currentValue) : null,
+      currency: currency || "USD",
+      externalId: externalId.trim() || null,
     })
     onOpenChange(false)
   }
@@ -91,8 +108,9 @@ export function AssetFormDialog({
         </DialogHeader>
         <div className="space-y-4 py-4">
           <div className="space-y-2">
-            <Label>Asset Name</Label>
+            <Label htmlFor="asset-name">Asset Name</Label>
             <Input
+              id="asset-name"
               placeholder="e.g., Manhattan Office Tower"
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -102,7 +120,7 @@ export function AssetFormDialog({
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Asset Class</Label>
-              <Select value={assetClass} onValueChange={(v) => setAssetClass(v as AssetClass)}>
+              <Select value={assetClass} onValueChange={setAssetClass}>
                 <SelectTrigger className="bg-zinc-800/50 border-zinc-700">
                   <SelectValue />
                 </SelectTrigger>
@@ -114,13 +132,18 @@ export function AssetFormDialog({
                   <SelectItem value="cash">Cash</SelectItem>
                   <SelectItem value="crypto">Crypto</SelectItem>
                   <SelectItem value="intellectual_property">IP</SelectItem>
-                  <SelectItem value="alternatives">Alternatives</SelectItem>
+                  <SelectItem value="venture_capital">Venture Capital</SelectItem>
+                  <SelectItem value="hedge_funds">Hedge Funds</SelectItem>
+                  <SelectItem value="commodities">Commodities</SelectItem>
+                  <SelectItem value="collectibles">Collectibles</SelectItem>
+                  <SelectItem value="insurance">Insurance</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
               <Label>Status</Label>
-              <Select value={status} onValueChange={(v) => setStatus(v as AssetStatus)}>
+              <Select value={status} onValueChange={setStatus}>
                 <SelectTrigger className="bg-zinc-800/50 border-zinc-700">
                   <SelectValue />
                 </SelectTrigger>
@@ -128,41 +151,69 @@ export function AssetFormDialog({
                   <SelectItem value="active">Active</SelectItem>
                   <SelectItem value="pending">Pending</SelectItem>
                   <SelectItem value="sold">Sold</SelectItem>
-                  <SelectItem value="under_review">Under Review</SelectItem>
+                  <SelectItem value="transferred">Transferred</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
+          {mode === "create" && (
+            <div className="space-y-2">
+              <Label>Entity</Label>
+              <Select value={entityId} onValueChange={setEntityId}>
+                <SelectTrigger className="bg-zinc-800/50 border-zinc-700">
+                  <SelectValue placeholder="Select entity" />
+                </SelectTrigger>
+                <SelectContent className="bg-zinc-900 border-zinc-800">
+                  {entities.map((e) => (
+                    <SelectItem key={e.id} value={e.id}>
+                      {e.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Value ($)</Label>
+              <Label>Current Value ($)</Label>
               <Input
                 type="number"
-                value={value}
-                onChange={(e) => setValue(e.target.value)}
+                placeholder="0.00"
+                value={currentValue}
+                onChange={(e) => setCurrentValue(e.target.value)}
                 className="bg-zinc-800/50 border-zinc-700"
               />
             </div>
             <div className="space-y-2">
-              <Label>Risk Score (0-100)</Label>
+              <Label>Acquisition Cost ($)</Label>
               <Input
                 type="number"
-                min="0"
-                max="100"
-                value={riskScore}
-                onChange={(e) => setRiskScore(e.target.value)}
+                placeholder="0.00"
+                value={acquisitionCost}
+                onChange={(e) => setAcquisitionCost(e.target.value)}
                 className="bg-zinc-800/50 border-zinc-700"
               />
             </div>
           </div>
-          <div className="space-y-2">
-            <Label>Location</Label>
-            <Input
-              placeholder="e.g., New York, NY"
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              className="bg-zinc-800/50 border-zinc-700"
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Acquisition Date</Label>
+              <Input
+                type="date"
+                value={acquisitionDate}
+                onChange={(e) => setAcquisitionDate(e.target.value)}
+                className="bg-zinc-800/50 border-zinc-700"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Currency</Label>
+              <Input
+                placeholder="USD"
+                value={currency}
+                onChange={(e) => setCurrency(e.target.value)}
+                className="bg-zinc-800/50 border-zinc-700"
+              />
+            </div>
           </div>
           <div className="space-y-2">
             <Label>Description</Label>
@@ -174,19 +225,19 @@ export function AssetFormDialog({
             />
           </div>
           <div className="space-y-2">
-            <Label>Notes</Label>
+            <Label>External ID</Label>
             <Input
-              placeholder="Additional notes"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Optional external reference"
+              value={externalId}
+              onChange={(e) => setExternalId(e.target.value)}
               className="bg-zinc-800/50 border-zinc-700"
             />
           </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleSubmit}>
-            {mode === "create" ? "Add Asset" : "Save Changes"}
+          <Button onClick={handleSubmit} disabled={isPending}>
+            {isPending ? "Saving..." : mode === "create" ? "Add Asset" : "Save Changes"}
           </Button>
         </DialogFooter>
       </DialogContent>

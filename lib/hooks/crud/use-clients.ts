@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo, useCallback } from "react"
-import { useQuery, useMutation } from "@apollo/client"
+import { useQuery, useMutation } from "@apollo/client/react"
 import {
   GET_CLIENTS,
   CREATE_CLIENT,
@@ -12,6 +12,23 @@ import type {
   CreateClientInput,
   UpdateClientInput,
 } from "@/lib/validations/client.schema"
+
+interface ClientRecord {
+  id: string
+  displayName: string
+  clientType: string
+  clientStatus: string
+  email: string | null
+  phone: string | null
+  totalAUM: number
+  entityCount: number
+  createdAt: string
+  updatedAt: string
+}
+
+interface GetClientsData {
+  clients: { items: ClientRecord[]; totalCount: number; page: number; limit: number }
+}
 
 /**
  * useClients — Fetches the list of clients and computes statistics.
@@ -24,7 +41,7 @@ export function useClients(params?: { search?: string; status?: string }) {
   if (params?.search) variables.search = params.search
   if (params?.status && params.status !== "all") variables.status = params.status
 
-  const { data, loading, error } = useQuery(GET_CLIENTS, {
+  const { data, loading, error } = useQuery<GetClientsData>(GET_CLIENTS, {
     variables,
   })
 
@@ -32,20 +49,14 @@ export function useClients(params?: { search?: string; status?: string }) {
 
   const stats = useMemo(() => {
     const totalAUM = clients.reduce(
-      (sum: number, c: { totalAUM: number }) => sum + (c.totalAUM ?? 0),
+      (sum, c) => sum + (c.totalAUM ?? 0),
       0
     )
     return {
       total: clients.length,
-      active: clients.filter(
-        (c: { clientStatus: string }) => c.clientStatus === "active"
-      ).length,
-      prospects: clients.filter(
-        (c: { clientStatus: string }) => c.clientStatus === "prospect"
-      ).length,
-      inactive: clients.filter(
-        (c: { clientStatus: string }) => c.clientStatus === "inactive"
-      ).length,
+      active: clients.filter((c) => c.clientStatus === "active").length,
+      prospects: clients.filter((c) => c.clientStatus === "prospect").length,
+      inactive: clients.filter((c) => c.clientStatus === "inactive").length,
       totalAUM,
       avgAUM: clients.length > 0 ? totalAUM / clients.length : 0,
     }
