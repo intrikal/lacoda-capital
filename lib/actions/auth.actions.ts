@@ -5,7 +5,7 @@ import { cookies } from "next/headers";
 import { eq } from "drizzle-orm";
 import { createClient } from "@/utils/supabase/server";
 import { db } from "@/app/db";
-import { orgMembers } from "@/app/db/schema";
+import { orgMembers, orgs, users } from "@/app/db/schema";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -170,6 +170,72 @@ export async function logoutAction() {
   cookieStore.delete("user-role");
 
   redirect("/login");
+}
+
+// ─── Demo Login ──────────────────────────────────────────────────────────────
+
+/**
+ * demoLoginAction
+ *
+ * Quick demo access — signs in with hardcoded credentials and redirects to
+ * the chosen portal view (admin dashboard or client portal).
+ *
+ * The Supabase session is real (so GraphQL/API calls work), but the
+ * `user-role` cookie is overridden to control which portal renders.
+ */
+export async function demoLoginAction(
+  view: "admin" | "client"
+): Promise<ActionResult> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: "kevinsdemo1111@demogmail.com",
+    password: "TimeOfNeed!",
+  });
+
+  if (error || !data.user) {
+    return { error: error?.message ?? "Demo login failed" };
+  }
+
+  // ── Bootstrap: ensure user, org, and membership exist ──────────────────
+  // Same pattern as auth/callback/route.ts — idempotent upserts.
+
+  await db
+    .insert(users)
+    .values({
+      id: data.user.id,
+      email: data.user.email!,
+      fullName: data.user.user_metadata?.full_name ?? "Kevin Lam",
+    })
+    .onConflictDoNothing();
+
+  let org = await db.query.orgs.findFirst({
+    where: eq(orgs.slug, "lacoda-capital"),
+  });
+
+  if (!org) {
+    const [created] = await db
+      .insert(orgs)
+      .values({ name: "Lacoda Capital Holdings", slug: "lacoda-capital" })
+      .returning();
+    org = created;
+  }
+
+  const existingMembership = await db.query.orgMembers.findFirst({
+    where: eq(orgMembers.userId, data.user.id),
+  });
+
+  if (!existingMembership) {
+    await db.insert(orgMembers).values({
+      orgId: org.id,
+      userId: data.user.id,
+      role: "admin",
+    });
+  }
+
+  await setRoleCookie(view === "client" ? "client" : "admin");
+
+  redirect(view === "client" ? "/client" : "/app");
 }
 
 // ─── Forgot / Reset password ──────────────────────────────────────────────────

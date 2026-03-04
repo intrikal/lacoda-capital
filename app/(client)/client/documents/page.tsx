@@ -1,29 +1,48 @@
 /**
- * @file app/(client)/client/documents/page.tsx
+ * ============================================================================
+ * FILE: app/(client)/client/documents/page.tsx
+ * ============================================================================
  *
- * Client-facing documents vault page.
+ * WHAT THIS FILE IS:
+ *   The client-facing document vault — a read/upload/delete view for end users
+ *   (clients) to manage their documents. This is the CLIENT PORTAL counterpart
+ *   to the admin Vault page at app/(dashboard)/app/vault/page.tsx.
  *
- * Data source: `useDocuments` hook (lib/hooks/crud/use-documents.ts) which calls
- * documentsService.getDocuments() and exposes CRUD helpers (addDocument,
- * updateDocument, deleteDocument). Aggregate stats (total, verified, pending,
- * expired, missing) are pre-computed inside the hook via `stats.*`.
+ * DATA SOURCE:
+ *   All data comes from the Apollo-backed hooks in lib/hooks/crud/use-documents.ts:
+ *     - useDocuments()       → fetches document list + computes status stats
+ *     - useCreateDocument()  → creates a new document record after file upload
+ *     - useDeleteDocument()  → removes a document record from the database
  *
- * The "Upload" button opens `UploadDocumentDialog`. On submit, `addDocument`
- * is called with a payload built from the selected file and folder. The Delete
- * dropdown item calls `deleteDocument(doc.id)` to remove the entry in-memory.
+ *   File uploads go to Supabase Storage (bucket: "documents") via the browser
+ *   client from utils/supabase/client.ts. The storage path is then saved to
+ *   the documents table via the createDocument mutation.
  *
- * The `Document` type from lib/mock/types uses `uploadedAt` and `folder`
- * instead of the old mock's `date` and `starred` fields. The UI adapts
- * accordingly — starred functionality is preserved via a local Set stored in
- * component state (visual only; not persisted to the service layer yet).
+ * UI STRUCTURE:
+ *   ┌──────────────────────────────────────────────┐
+ *   │ Header (title + Upload / Download All btns)  │
+ *   ├──────────────────────────────────────────────┤
+ *   │ Stat Cards (Total, Verified, Pending, Stars) │
+ *   ├──────────────────────────────────────────────┤
+ *   │ Tabs (All, Statements, Tax, Legal, Reports)  │
+ *   ├──────────────────────────────────────────────┤
+ *   │ Search bar                                   │
+ *   ├──────────────────────────────────────────────┤
+ *   │ DocumentList (filtered + searchable)          │
+ *   └──────────────────────────────────────────────┘
  *
- * tRPC swap path:
- *   Replace `useDocuments` internals with:
- *   `const { data: documents } = trpc.client.documents.list.useQuery()`
- *   `const addDocument         = trpc.client.documents.upload.useMutation()`
- *   `const deleteDocument      = trpc.client.documents.delete.useMutation()`
- *   The consuming component needs zero changes — the hook's return shape is
- *   identical to what tRPC will return.
+ * KEY DIFFERENCES FROM ADMIN VAULT:
+ *   - Tabs filter by folder name (not status like the admin vault)
+ *   - No edit dialog — clients can only upload and delete, not edit metadata
+ *   - "Starred" is local-only (component state Set, not persisted to DB)
+ *   - Simpler upload dialog (category-based, no explicit folder/tag fields)
+ *
+ * RELATED FILES:
+ *   app/(dashboard)/app/vault/page.tsx           — Admin vault page (same data)
+ *   lib/hooks/crud/use-documents.ts              — Apollo hooks consumed here
+ *   lib/graphql/operations/document.ts           — GraphQL operations
+ *   app/(client)/client/layout.tsx               — Wraps with ApolloProvider
+ *   utils/supabase/client.ts                     — Supabase browser client
  */
 "use client"
 
@@ -77,8 +96,13 @@ import { Label } from "@/components/ui/label"
 import { Progress } from "@/components/ui/progress"
 import { ContentCard, StatCard } from "@/components/client/content-card"
 import { cn } from "@/lib/utils"
-import { useDocuments } from "@/lib/hooks/crud/use-documents"
-import type { Document } from "@/lib/mock/types"
+import {
+  useDocuments,
+  useCreateDocument,
+  useDeleteDocument,
+  type DocumentRecord,
+} from "@/lib/hooks/crud/use-documents"
+import { createClient } from "@/utils/supabase/client"
 
 // ============================================================================
 // STATIC DATA
@@ -96,7 +120,7 @@ const statusConfig = {
   verified: { label: "Verified", icon: FileCheck, color: "text-emerald-400", bg: "bg-emerald-500/10" },
   pending:  { label: "Pending Review", icon: FileClock, color: "text-amber-400", bg: "bg-amber-500/10" },
   expired:  { label: "Expired", icon: FileClock, color: "text-red-400", bg: "bg-red-500/10" },
-  missing:  { label: "Missing", icon: FileText, color: "text-zinc-400", bg: "bg-zinc-500/10" },
+  rejected: { label: "Rejected", icon: FileText, color: "text-zinc-400", bg: "bg-zinc-500/10" },
 }
 
 // ============================================================================
@@ -104,17 +128,17 @@ const statusConfig = {
 // ============================================================================
 
 interface UploadDocumentDialogProps {
-  /** Called when the user confirms the upload; receives the selected category and file list */
-  onUpload: (fileName: string, selectedFolder: string) => void
+  createMutation: ReturnType<typeof useCreateDocument>
 }
 
-function UploadDocumentDialog({ onUpload }: UploadDocumentDialogProps) {
+function UploadDocumentDialog({ createMutation }: UploadDocumentDialogProps) {
   const [open, setOpen] = React.useState(false)
   const [dragActive, setDragActive] = React.useState(false)
   const [files, setFiles] = React.useState<File[]>([])
   const [uploading, setUploading] = React.useState(false)
   const [uploadProgress, setUploadProgress] = React.useState(0)
   const [category, setCategory] = React.useState("")
+  const [uploadError, setUploadError] = React.useState<string | null>(null)
   const inputRef = React.useRef<HTMLInputElement>(null)
 
   const handleDrag = (e: React.DragEvent) => {
@@ -148,21 +172,46 @@ function UploadDocumentDialog({ onUpload }: UploadDocumentDialogProps) {
   }
 
   const handleUpload = async () => {
+    if (files.length === 0 || !category) return
     setUploading(true)
-    for (let i = 0; i <= 100; i += 10) {
-      await new Promise(resolve => setTimeout(resolve, 200))
-      setUploadProgress(i)
-    }
-    // Call parent handler for each file so the hook adds each document
-    const selectedLabel = uploadCategories.find(c => c.id === category)?.label ?? category
-    for (const file of files) {
-      onUpload(file.name, selectedLabel)
-    }
-    setUploading(false)
-    setOpen(false)
-    setFiles([])
+    setUploadError(null)
     setUploadProgress(0)
-    setCategory("")
+
+    try {
+      const supabase = createClient()
+      const selectedLabel = uploadCategories.find(c => c.id === category)?.label ?? category
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i]
+        const filePath = `documents/${Date.now()}-${file.name}`
+        const { data, error } = await supabase.storage
+          .from("documents")
+          .upload(filePath, file, { upsert: false })
+
+        if (error) throw error
+
+        await createMutation.mutate({
+          name: file.name,
+          folder: selectedLabel || null,
+          tags: [],
+          storagePath: data.path,
+          mimeType: file.type || null,
+          fileSize: `${(file.size / 1024 / 1024).toFixed(2)} MB`,
+          status: "pending",
+        })
+
+        setUploadProgress(Math.round(((i + 1) / files.length) * 100))
+      }
+
+      setOpen(false)
+      setFiles([])
+      setUploadProgress(0)
+      setCategory("")
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : "Upload failed")
+    } finally {
+      setUploading(false)
+    }
   }
 
   return (
@@ -272,6 +321,10 @@ function UploadDocumentDialog({ onUpload }: UploadDocumentDialogProps) {
             )}
           </div>
 
+          {uploadError && (
+            <p className="text-xs text-rose-400">{uploadError}</p>
+          )}
+
           {uploading && (
             <div className="space-y-2">
               <div className="flex items-center justify-between text-sm">
@@ -314,7 +367,7 @@ function UploadDocumentDialog({ onUpload }: UploadDocumentDialogProps) {
 type TabId = "all" | "statements" | "tax" | "legal" | "reports" | "starred"
 
 interface DocumentListProps {
-  documents: Document[]
+  documents: DocumentRecord[]
   searchQuery: string
   starredIds: Set<string>
   onToggleStar: (id: string) => void
@@ -360,12 +413,16 @@ function DocumentList({ documents, searchQuery, starredIds, onToggleStar, onDele
                 <div className="flex items-center gap-2 mt-0.5 text-xs text-zinc-500">
                   <span className="flex items-center gap-1">
                     <Folder className="h-3 w-3" />
-                    {doc.folder}
+                    {doc.folder ?? "Uncategorized"}
                   </span>
                   <span>•</span>
-                  <span>{format(new Date(doc.uploadedAt), "MMM d, yyyy")}</span>
-                  <span>•</span>
-                  <span>{doc.size}</span>
+                  <span>{format(new Date(doc.createdAt), "MMM d, yyyy")}</span>
+                  {doc.fileSize && (
+                    <>
+                      <span>•</span>
+                      <span>{doc.fileSize}</span>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -423,8 +480,9 @@ export default function ClientDocumentsPage() {
   // Local starred state (visual only — not persisted to the service layer yet)
   const [starredIds, setStarredIds] = React.useState<Set<string>>(new Set())
 
-  // Hook: replaces the inline documents array + manually computed stat counts
-  const { documents, addDocument, deleteDocument, stats } = useDocuments()
+  const { documents, stats } = useDocuments()
+  const createMutation = useCreateDocument()
+  const deleteMutation = useDeleteDocument()
 
   const handleToggleStar = (id: string) => {
     setStarredIds(prev => {
@@ -471,20 +529,7 @@ export default function ClientDocumentsPage() {
             <Download className="h-4 w-4 mr-2" />
             Download All
           </Button>
-          <UploadDocumentDialog
-            onUpload={(fileName, selectedFolder) => {
-              addDocument({
-                name: fileName,
-                type: "pdf",
-                status: "pending",
-                folder: selectedFolder,
-                uploadedBy: "John Doe",
-                uploadedAt: new Date().toISOString(),
-                size: "—",
-                tags: [],
-              })
-            }}
-          />
+          <UploadDocumentDialog createMutation={createMutation} />
         </div>
       </div>
 
@@ -567,7 +612,7 @@ export default function ClientDocumentsPage() {
           searchQuery={searchQuery}
           starredIds={starredIds}
           onToggleStar={handleToggleStar}
-          onDelete={deleteDocument}
+          onDelete={(id) => deleteMutation.mutate(id)}
         />
       </ContentCard>
     </div>

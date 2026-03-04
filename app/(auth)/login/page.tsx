@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Logo } from "@/components/marketing/logo"
-import { loginAction, getOAuthUrlAction } from "@/lib/actions/auth.actions"
+import { loginAction, getOAuthUrlAction, demoLoginAction } from "@/lib/actions/auth.actions"
 
 // Social login icons
 function GoogleIcon({ className }: { className?: string }) {
@@ -58,6 +58,18 @@ function LoginForm() {
     if ("error" in result) {
       setError(result.error)
       setIsLoading(false)
+    }
+  }
+
+  const [demoLoading, setDemoLoading] = React.useState<"admin" | "client" | null>(null)
+
+  const handleDemoLogin = async (view: "admin" | "client") => {
+    setDemoLoading(view)
+    setError("")
+    const result = await demoLoginAction(view)
+    if ("error" in result) {
+      setError(result.error)
+      setDemoLoading(null)
     }
   }
 
@@ -270,6 +282,44 @@ function LoginForm() {
                 )}
               </Button>
             </form>
+
+            {/* Demo Access */}
+            <div className="mt-8 rounded-lg border border-dashed border-zinc-700 p-4">
+              <p className="text-xs font-medium text-zinc-400 text-center mb-3">
+                Demo Access
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-10 bg-zinc-900/50 border-zinc-700 hover:bg-zinc-800 hover:border-zinc-600 text-sm"
+                  onClick={() => handleDemoLogin("admin")}
+                  disabled={demoLoading !== null || isLoading}
+                >
+                  {demoLoading === "admin" ? (
+                    <div className="w-4 h-4 border-2 border-zinc-500/20 border-t-zinc-400 rounded-full animate-spin" />
+                  ) : (
+                    "Admin Dashboard"
+                  )}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-10 bg-zinc-900/50 border-zinc-700 hover:bg-zinc-800 hover:border-zinc-600 text-sm"
+                  onClick={() => handleDemoLogin("client")}
+                  disabled={demoLoading !== null || isLoading}
+                >
+                  {demoLoading === "client" ? (
+                    <div className="w-4 h-4 border-2 border-zinc-500/20 border-t-zinc-400 rounded-full animate-spin" />
+                  ) : (
+                    "Client Portal"
+                  )}
+                </Button>
+              </div>
+              <p className="text-[10px] text-zinc-600 text-center mt-2">
+                Demo mode — this does not affect the actual database. This is the demo view.
+              </p>
+            </div>
 
             <p className="mt-8 text-center text-xs text-zinc-500">
               By signing in, you agree to our{" "}

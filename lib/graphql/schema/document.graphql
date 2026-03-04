@@ -1,3 +1,20 @@
+# ============================================================================
+# Document GraphQL Schema
+# ============================================================================
+#
+# Defines the Document type, connection, and input types for the Vault feature.
+#
+# Server handler:  lib/graphql/resolvers/document.ts
+# Client queries:  lib/graphql/operations/document.ts
+#
+# Root registrations in schema.graphql:
+#   Query:    documents(...) → DocumentConnection, document(id) → Document
+#   Mutation: createDocument, updateDocument, deleteDocument
+#
+# The `folder` field supports UI folder grouping (e.g., "Real Estate", "Tax").
+# Added via migration 0001 as a nullable text column on the documents table.
+# ============================================================================
+
 enum DocumentStatus {
   pending
   verified
@@ -16,6 +33,7 @@ type Document {
   mimeType: String
   fileSize: String
   storagePath: String!
+  folder: String
   status: DocumentStatus!
   expiresAt: DateTime
   verifiedAt: DateTime
@@ -47,6 +65,7 @@ input CreateDocumentInput {
   mimeType: String
   fileSize: String
   storagePath: String!
+  folder: String
   status: DocumentStatus
   expiresAt: DateTime
   tags: [String!]
@@ -56,6 +75,7 @@ input CreateDocumentInput {
 input UpdateDocumentInput {
   name: String
   description: String
+  folder: String
   status: DocumentStatus
   expiresAt: DateTime
   tags: [String!]
