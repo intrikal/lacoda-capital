@@ -1,3 +1,28 @@
+/**
+ * ============================================================================
+ * FILE: /lib/graphql/resolvers/document.ts
+ * ============================================================================
+ *
+ * Server-side GraphQL resolvers for document CRUD operations.
+ * These run on the server inside POST /api/graphql.
+ *
+ * Security:
+ *   - All queries are org-scoped (tenant isolation via session.orgId)
+ *   - Create/Update require role: admin | assistant
+ *   - Delete requires role: admin only
+ *   - Input is validated via Zod schemas before hitting the DB
+ *
+ * The `folder` field was added to the updateDocument resolver to support
+ * UI folder assignment. It passes through automatically in createDocument
+ * via the `...parsed` spread.
+ *
+ * Related files:
+ *   lib/graphql/schema/document.graphql     — GraphQL type definitions
+ *   lib/graphql/operations/document.ts      — Client-side queries/mutations
+ *   lib/validations/document.schema.ts      — Zod schemas used here
+ *   app/db/schema/documents.ts              — Drizzle table definition
+ */
+
 import { eq, and, count } from "drizzle-orm"
 import { GraphQLError } from "graphql"
 import { db } from "@/app/db"
@@ -70,6 +95,7 @@ export const documentResolvers = {
       const setData: Record<string, unknown> = {}
       if (parsed.name !== undefined) setData.name = parsed.name
       if (parsed.description !== undefined) setData.description = parsed.description ?? null
+      if (parsed.folder !== undefined) setData.folder = parsed.folder ?? null
       if (parsed.status !== undefined) setData.status = parsed.status
       if (parsed.expiresAt !== undefined) setData.expiresAt = parsed.expiresAt ? new Date(parsed.expiresAt) : null
       if (parsed.tags !== undefined) setData.tags = parsed.tags

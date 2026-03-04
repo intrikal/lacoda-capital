@@ -537,6 +537,30 @@ export const documents = pgTable(
      */
     storagePath: text("storage_path").notNull(), // Path in storage bucket
 
+    /**
+     * ┌─────────────────────────────────────────────────────────────────────┐
+     * │ folder: text("folder")                                             │
+     * ├─────────────────────────────────────────────────────────────────────┤
+     * │ WHAT: An optional folder name for organizing documents in the UI.  │
+     * │ WHY:  The Vault page groups documents by folder (e.g., "Real       │
+     * │       Estate", "Tax", "Legal"). This lets admins and clients       │
+     * │       filter the document list by category. Without this column    │
+     * │       we'd have to parse folder names from storagePath (fragile).  │
+     * │                                                                    │
+     * │ EXAMPLE VALUES:                                                    │
+     * │   "Real Estate", "Tax", "Insurance", "Legal", "Compliance",       │
+     * │   "Investments", or NULL (uncategorized).                          │
+     * │                                                                    │
+     * │ NULLABLE:                                                          │
+     * │   No .notNull() — documents can exist without a folder. The UI    │
+     * │   displays these as "Uncategorized" in the folder filter.          │
+     * │                                                                    │
+     * │ MIGRATION: Added in drizzle/migrations/0001_furry_giant_man.sql   │
+     * │   ALTER TABLE "documents" ADD COLUMN "folder" text;               │
+     * └─────────────────────────────────────────────────────────────────────┘
+     */
+    folder: text("folder"),
+
     // ==================== DOCUMENT LIFECYCLE COLUMNS ====================
 
     /**
