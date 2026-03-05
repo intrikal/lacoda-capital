@@ -398,6 +398,24 @@ export const goalPriorityEnum = pgEnum("goal_priority", [
 ]);
 
 // ============================================================================
+// Benchmarks
+// ============================================================================
+
+/**
+ * Benchmark category — the type of market reference point
+ * - index:       Major market index (S&P 500, NASDAQ, Russell 2000)
+ * - etf:         Exchange-traded fund used as benchmark
+ * - mutual_fund: Mutual fund used as benchmark
+ * - custom:      Custom or composite benchmark
+ */
+export const benchmarkCategoryEnum = pgEnum("benchmark_category", [
+  "index",
+  "etf",
+  "mutual_fund",
+  "custom",
+]);
+
+// ============================================================================
 // Insurance Policies
 // ============================================================================
 
