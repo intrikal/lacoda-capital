@@ -1,17 +1,17 @@
 /**
- * use-client-billing.ts
+ * ============================================================================
+ * FILE: lib/hooks/crud/use-client-billing.ts
+ * ============================================================================
  *
  * Read-only hook for the client's advisory fee billing history.
  * Advisory fees are set and managed by the advisor; this hook exposes
  * the data for the client to view their fee statements transparently.
  *
  * Architecture position:
- *   Billing page → useClientBilling() → billingService → mock data
+ *   Billing page → useClientBilling() → Apollo useQuery → POST /api/graphql
  *
- * tRPC swap path:
- *   Replace useEffect with:
- *   `const { data: history } = trpc.client.billing.history.useQuery()`
- *   `const { data: summary } = trpc.client.billing.summary.useQuery()`
+ * CONSUMERS:
+ *   - app/(client)/client/billing/page.tsx (client read-only billing view)
  *
  * @example
  * ```tsx
@@ -21,13 +21,12 @@
 
 "use client"
 
-import * as React from "react"
-import { getBillingHistory, getBillingSummary } from "@/lib/services/billing.service"
-import type { BillingRecord } from "@/lib/mock/types"
+import { useMemo } from "react"
+import { useQuery } from "@apollo/client/react"
+import { GET_BILLING_RECORDS } from "@/lib/graphql/operations/billing-record"
+import type { BillingRecordItem } from "@/lib/hooks/crud/use-billing-records"
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Computed stats shape
-// ─────────────────────────────────────────────────────────────────────────────
+// ─── Computed stats shape (preserved from original hook) ─────────────────────
 
 export interface BillingStats {
   /** Total advisory fees paid year-to-date */
@@ -42,12 +41,33 @@ export interface BillingStats {
   annualRate: number
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Hook
-// ─────────────────────────────────────────────────────────────────────────────
+// ─── Types (compatible with existing client billing page) ────────────────────
+
+/** Maps DB BillingRecordItem to the shape the client billing page expects. */
+export interface ClientBillingRecord {
+  id: string
+  period: string
+  amount: number
+  aum: number
+  status: "paid" | "upcoming" | "due"
+  dueDate: string
+  paidDate?: string
+  effectiveRate: number
+}
+
+interface GetBillingRecordsData {
+  billingRecords: {
+    items: BillingRecordItem[]
+    totalCount: number
+    page: number
+    limit: number
+  }
+}
+
+// ─── Hook ────────────────────────────────────────────────────────────────────
 
 interface UseClientBillingReturn {
-  billingHistory: BillingRecord[]
+  billingHistory: ClientBillingRecord[]
   stats: BillingStats
   isLoading: boolean
 }
@@ -61,23 +81,51 @@ const EMPTY_STATS: BillingStats = {
 }
 
 export function useClientBilling(): UseClientBillingReturn {
-  const [billingHistory, setBillingHistory] = React.useState<BillingRecord[]>([])
-  const [stats, setStats] = React.useState<BillingStats>(EMPTY_STATS)
-  const [isLoading, setIsLoading] = React.useState(true)
-  const hasFetched = React.useRef(false)
+  const { data, loading } = useQuery<GetBillingRecordsData>(GET_BILLING_RECORDS)
 
-  React.useEffect(() => {
-    if (hasFetched.current) return
-    hasFetched.current = true
+  const items = data?.billingRecords?.items ?? []
 
-    Promise.all([getBillingHistory(), getBillingSummary()]).then(
-      ([history, summary]) => {
-        setBillingHistory(history)
-        setStats(summary)
-        setIsLoading(false)
-      }
-    )
-  }, [])
+  /** Map DB records to the shape the client billing page expects. */
+  const billingHistory = useMemo<ClientBillingRecord[]>(
+    () =>
+      items.map((r) => ({
+        id: r.id,
+        period: r.period,
+        amount: r.amount,
+        aum: r.aum,
+        status: r.status,
+        dueDate: r.dueDate,
+        paidDate: r.paidDate ?? undefined,
+        effectiveRate: r.effectiveRate,
+      })),
+    [items]
+  )
 
-  return { billingHistory, stats, isLoading }
+  /** Compute summary stats from the billing records. */
+  const stats = useMemo<BillingStats>(() => {
+    if (items.length === 0) return EMPTY_STATS
+
+    const currentYear = new Date().getFullYear().toString()
+
+    // YTD = all paid records in the current calendar year
+    const ytdPaid = items
+      .filter((r) => r.status === "paid" && r.paidDate?.startsWith(currentYear))
+      .reduce((sum, r) => sum + r.amount, 0)
+
+    // Next upcoming/due payment
+    const upcoming = items.find((r) => r.status === "upcoming" || r.status === "due")
+
+    // Effective rate from the first record
+    const effectiveRate = items[0]?.effectiveRate ?? 0.0085
+
+    return {
+      ytdFeesPaid: ytdPaid,
+      nextPaymentAmount: upcoming?.amount ?? 0,
+      nextPaymentDue: upcoming?.dueDate ?? null,
+      effectiveRate,
+      annualRate: effectiveRate * 4,
+    }
+  }, [items])
+
+  return { billingHistory, stats, isLoading: loading }
 }

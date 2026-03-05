@@ -416,6 +416,22 @@ export const benchmarkCategoryEnum = pgEnum("benchmark_category", [
 ]);
 
 // ============================================================================
+// Billing
+// ============================================================================
+
+/**
+ * Billing record status — the payment lifecycle of an advisory fee invoice
+ * - paid:     Invoice has been settled
+ * - upcoming: Invoice generated but not yet due
+ * - due:      Invoice is past its due date and awaiting payment
+ */
+export const billingStatusEnum = pgEnum("billing_status", [
+  "paid",
+  "upcoming",
+  "due",
+]);
+
+// ============================================================================
 // Insurance Policies
 // ============================================================================
 
