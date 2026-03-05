@@ -15,6 +15,7 @@ import { complianceResolvers } from "./compliance"
 import { integrationResolvers } from "./integration"
 import { notificationResolvers } from "./notification"
 import { calendarEventResolvers } from "./calendar-event"
+import { dealResolvers } from "./deal"
 import { orgResolvers } from "./org"
 
 // Custom scalar resolvers for DateTime and JSON
@@ -53,5 +54,6 @@ export const resolvers = mergeResolvers([
   integrationResolvers,
   notificationResolvers,
   calendarEventResolvers,
+  dealResolvers,
   orgResolvers,
 ])

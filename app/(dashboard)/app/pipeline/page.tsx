@@ -1,3 +1,30 @@
+/**
+ * ============================================================================
+ * FILE: app/(dashboard)/app/pipeline/page.tsx
+ * ============================================================================
+ *
+ * WHAT THIS FILE IS:
+ *   Advisor-facing pipeline page. Displays a Kanban board of investment deals
+ *   across 6 stages, with create/edit/move/archive actions.
+ *
+ * ARCHITECTURE:
+ *   ┌────────────────────────────────────────────────────────────────────┐
+ *   │ PipelinePage                                                      │
+ *   │   ├── useDeals()            → fetches deal list from GraphQL      │
+ *   │   ├── useCreateDeal()       → creates a new deal                  │
+ *   │   ├── useUpdateDeal()       → updates deal / moves stage          │
+ *   │   ├── useDeleteDeal()       → archives a deal                     │
+ *   │         ↓                                                          │
+ *   │ Apollo Client (useQuery / useMutation)                             │
+ *   │         ↓                                                          │
+ *   │ POST /api/graphql                                                  │
+ *   │         ↓                                                          │
+ *   │ dealResolvers → Drizzle ORM → PostgreSQL                          │
+ *   └────────────────────────────────────────────────────────────────────┘
+ *
+ * CONSUMERS:
+ *   This page is rendered at /app/pipeline for advisors/admins.
+ */
 "use client"
 
 import * as React from "react"
@@ -32,19 +59,46 @@ import {
 import { cn } from "@/lib/utils"
 import { formatCurrency } from "@/lib/utils"
 import { StatCard, PageHeader } from "@/components/dashboard/content-card"
-import { pipelineStages } from "@/lib/mock/data"
-import { useDeals } from "@/lib/hooks/crud/use-deals"
+import {
+  useDeals,
+  useCreateDeal,
+  useUpdateDeal,
+  useDeleteDeal,
+} from "@/lib/hooks/crud/use-deals"
 import { DealFormDialog } from "@/components/forms/deal-form-dialog"
-import type { Deal, PipelineStageId } from "@/lib/mock/types"
+import type { DealRecord, DealStage, DealType } from "@/lib/hooks/crud/use-deals"
+import type { CreateDealInput } from "@/lib/validations/deal.schema"
 
 import type { LucideIcon } from "lucide-react"
 
-const typeIcons: Record<string, LucideIcon> = {
-  "Real Estate": Building2,
-  "Private Equity": Briefcase,
-  "Venture Capital": TrendingUp,
-  "Fixed Income": DollarSign,
+// ─── STATIC CONFIG ───────────────────────────────────────────────────────────
+
+/** Pipeline stages in display order — static config, not from DB. */
+const pipelineStages: { id: DealStage; name: string; color: string; description: string }[] = [
+  { id: "prospecting", name: "Prospecting", color: "#60a5fa", description: "Initial identification and research" },
+  { id: "due_diligence", name: "Due Diligence", color: "#a78bfa", description: "Deep analysis and verification" },
+  { id: "negotiation", name: "Negotiation", color: "#fbbf24", description: "Terms and pricing discussion" },
+  { id: "closed", name: "Closed", color: "#34d399", description: "Deal signed and funded" },
+  { id: "active", name: "Active", color: "#2dd4bf", description: "Currently held investment" },
+  { id: "exit_planning", name: "Exit Planning", color: "#f87171", description: "Planning disposition strategy" },
+]
+
+/** Display labels for deal type DB enum values. */
+const dealTypeLabels: Record<DealType, string> = {
+  real_estate: "Real Estate",
+  private_equity: "Private Equity",
+  venture_capital: "Venture Capital",
+  fixed_income: "Fixed Income",
 }
+
+const typeIcons: Record<DealType, LucideIcon> = {
+  real_estate: Building2,
+  private_equity: Briefcase,
+  venture_capital: TrendingUp,
+  fixed_income: DollarSign,
+}
+
+// ─── DEAL CARD ───────────────────────────────────────────────────────────────
 
 function DealCard({
   deal,
@@ -53,7 +107,7 @@ function DealCard({
   onMoveNext,
   onArchive,
 }: {
-  deal: Deal
+  deal: DealRecord
   onClick: () => void
   onEdit: () => void
   onMoveNext: () => void
@@ -82,7 +136,6 @@ function DealCard({
           <DropdownMenuContent align="end" className="bg-zinc-900 border-zinc-800">
             <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit() }}>Edit Deal</DropdownMenuItem>
             <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onMoveNext() }}>Move to Next Stage</DropdownMenuItem>
-            <DropdownMenuItem>Add Note</DropdownMenuItem>
             <DropdownMenuItem className="text-rose-400" onClick={(e) => { e.stopPropagation(); onArchive() }}>Archive</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -101,10 +154,12 @@ function DealCard({
         </div>
 
         <div className="flex items-center gap-3 text-xs text-zinc-500">
-          <div className="flex items-center gap-1">
-            <User className="h-3 w-3" />
-            <span>{deal.assignee.split(" ")[0]}</span>
-          </div>
+          {deal.assigneeName && (
+            <div className="flex items-center gap-1">
+              <User className="h-3 w-3" />
+              <span>{deal.assigneeName.split(" ")[0]}</span>
+            </div>
+          )}
           {deal.dueDate && (
             <div className="flex items-center gap-1">
               <Calendar className="h-3 w-3" />
@@ -113,11 +168,13 @@ function DealCard({
           )}
         </div>
 
-        <p className="text-xs text-zinc-500 truncate">{deal.notes}</p>
+        {deal.notes && <p className="text-xs text-zinc-500 truncate">{deal.notes}</p>}
       </div>
     </div>
   )
 }
+
+// ─── DEAL DETAIL DIALOG ──────────────────────────────────────────────────────
 
 function DealDetailDialog({
   deal,
@@ -125,10 +182,10 @@ function DealDetailDialog({
   onClose,
   onEdit,
 }: {
-  deal: Deal | null
+  deal: DealRecord | null
   open: boolean
   onClose: () => void
-  onEdit: (deal: Deal) => void
+  onEdit: (deal: DealRecord) => void
 }) {
   if (!deal) return null
 
@@ -145,7 +202,7 @@ function DealDetailDialog({
             </div>
             <div>
               <DialogTitle>{deal.name}</DialogTitle>
-              <DialogDescription>{deal.type}</DialogDescription>
+              <DialogDescription>{dealTypeLabels[deal.type]}</DialogDescription>
             </div>
           </div>
         </DialogHeader>
@@ -175,10 +232,12 @@ function DealDetailDialog({
           </div>
 
           <div className="space-y-3">
-            <div className="flex justify-between text-sm">
-              <span className="text-zinc-400">Assigned To</span>
-              <span className="text-zinc-100">{deal.assignee}</span>
-            </div>
+            {deal.assigneeName && (
+              <div className="flex justify-between text-sm">
+                <span className="text-zinc-400">Assigned To</span>
+                <span className="text-zinc-100">{deal.assigneeName}</span>
+              </div>
+            )}
             {deal.dueDate && (
               <div className="flex justify-between text-sm">
                 <span className="text-zinc-400">Target Date</span>
@@ -187,20 +246,23 @@ function DealDetailDialog({
                 </span>
               </div>
             )}
-            <div className="flex justify-between text-sm">
-              <span className="text-zinc-400">Last Activity</span>
-              <span className="text-zinc-100">{deal.lastActivity}</span>
-            </div>
+            {deal.lastActivity && (
+              <div className="flex justify-between text-sm">
+                <span className="text-zinc-400">Last Activity</span>
+                <span className="text-zinc-100">{deal.lastActivity}</span>
+              </div>
+            )}
           </div>
 
-          <div>
-            <p className="text-sm text-zinc-400 mb-2">Notes</p>
-            <p className="text-sm text-zinc-300">{deal.notes}</p>
-          </div>
+          {deal.notes && (
+            <div>
+              <p className="text-sm text-zinc-400 mb-2">Notes</p>
+              <p className="text-sm text-zinc-300">{deal.notes}</p>
+            </div>
+          )}
 
           <div className="flex gap-2">
             <Button className="flex-1" onClick={() => { onEdit(deal); onClose() }}>Edit Deal</Button>
-            <Button variant="outline" className="flex-1" onClick={() => { onEdit(deal); onClose() }}>Add Activity</Button>
           </div>
         </div>
       </DialogContent>
@@ -208,51 +270,53 @@ function DealDetailDialog({
   )
 }
 
+// ─── PAGE COMPONENT ──────────────────────────────────────────────────────────
+
 export default function PipelinePage() {
   const [searchQuery, setSearchQuery] = React.useState("")
-  const [selectedDeal, setSelectedDeal] = React.useState<Deal | null>(null)
+  const [selectedDeal, setSelectedDeal] = React.useState<DealRecord | null>(null)
 
-  // CRUD hook
-  const { deals, addDeal, updateDeal, deleteDeal, moveDealToStage } = useDeals()
+  // GraphQL hooks
+  const { deals } = useDeals()
+  const { mutate: createDeal, isPending: createPending } = useCreateDeal()
+  const { mutate: updateDeal } = useUpdateDeal()
+  const { mutate: deleteDeal } = useDeleteDeal()
 
   // Form dialog state
   const [formOpen, setFormOpen] = React.useState(false)
   const [formMode, setFormMode] = React.useState<"create" | "edit">("create")
-  const [editingDeal, setEditingDeal] = React.useState<Deal | undefined>(undefined)
+  const [editingDeal, setEditingDeal] = React.useState<DealRecord | undefined>(undefined)
 
-  // Helpers to open the form dialog
   function openCreateForm() {
     setFormMode("create")
     setEditingDeal(undefined)
     setFormOpen(true)
   }
 
-  function openEditForm(deal: Deal) {
+  function openEditForm(deal: DealRecord) {
     setFormMode("edit")
     setEditingDeal(deal)
     setFormOpen(true)
   }
 
-  // Compute the next stage for a given deal
-  function getNextStageId(currentStageId: PipelineStageId): PipelineStageId | null {
+  function getNextStageId(currentStageId: DealStage): DealStage | null {
     const currentIndex = pipelineStages.findIndex((s) => s.id === currentStageId)
     if (currentIndex === -1 || currentIndex >= pipelineStages.length - 1) return null
     return pipelineStages[currentIndex + 1].id
   }
 
-  function handleMoveNext(deal: Deal) {
+  function handleMoveNext(deal: DealRecord) {
     const nextStageId = getNextStageId(deal.stage)
     if (nextStageId) {
-      moveDealToStage(deal.id, nextStageId)
+      updateDeal(deal.id, { stage: nextStageId, lastActivity: "Moved to next stage" })
     }
   }
 
-  // Handle form submission for both create and edit
-  function handleFormSubmit(data: Parameters<typeof addDeal>[0]) {
+  function handleFormSubmit(data: CreateDealInput) {
     if (formMode === "create") {
-      addDeal(data)
+      createDeal(data)
     } else if (editingDeal) {
-      updateDeal(editingDeal.id, { ...data, lastActivity: "Just now" })
+      updateDeal(editingDeal.id, { ...data, lastActivity: "Updated" })
     }
   }
 
@@ -260,13 +324,13 @@ export default function PipelinePage() {
     const filtered = deals.filter(
       (deal) =>
         deal.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        deal.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        deal.assignee.toLowerCase().includes(searchQuery.toLowerCase())
+        dealTypeLabels[deal.type].toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (deal.assigneeName?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false)
     )
     return pipelineStages.reduce((acc, stage) => {
       acc[stage.id] = filtered.filter((deal) => deal.stage === stage.id)
       return acc
-    }, {} as Record<string, Deal[]>)
+    }, {} as Record<string, DealRecord[]>)
   }, [deals, searchQuery])
 
   const stageTotals = React.useMemo(() => {
@@ -414,6 +478,7 @@ export default function PipelinePage() {
         open={formOpen}
         onOpenChange={setFormOpen}
         onSubmit={handleFormSubmit}
+        isPending={createPending}
       />
     </div>
   )

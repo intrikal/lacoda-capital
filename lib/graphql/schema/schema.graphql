@@ -60,6 +60,10 @@ type Query {
   calendarEvents(clientId: ID, type: String, dateFrom: String, dateTo: String, page: Int, limit: Int): CalendarEventConnection!
   calendarEvent(id: ID!): CalendarEvent
 
+  # ── Deals (Pipeline) ──
+  deals(clientId: ID, stage: DealStage, type: DealType, page: Int, limit: Int): DealConnection!
+  deal(id: ID!): Deal
+
   # ── Notifications ──
   notifications(unreadOnly: Boolean, page: Int, limit: Int): NotificationConnection!
 
@@ -145,6 +149,11 @@ type Mutation {
   # ── Notifications ──
   markNotificationRead(id: ID!): Notification!
   markAllNotificationsRead: Boolean!
+
+  # ── Deals (Pipeline) ──
+  createDeal(input: CreateDealInput!): Deal!
+  updateDeal(id: ID!, input: UpdateDealInput!): Deal!
+  deleteDeal(id: ID!): Boolean!
 
   # ── Org Members ──
   inviteOrgMember(input: InviteOrgMemberInput!): OrgMember!

@@ -43,6 +43,13 @@
       "when": 1772675159457,
       "tag": "0005_even_alice",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1772679414086,
+      "tag": "0006_unknown_sersi",
+      "breakpoints": true
     }
   ]
 }

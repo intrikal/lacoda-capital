@@ -35,6 +35,8 @@ export {
   integrationStatusEnum,
   integrationProviderEnum,
   notificationTypeEnum,
+  dealStageEnum,
+  dealTypeEnum,
 } from "./00_enums";
 
 // ============================================================================
@@ -201,3 +203,9 @@ export type {
   NewNotification,
   NotificationPayload,
 } from "./notifications";
+
+// ============================================================================
+// Deals (Pipeline)
+// ============================================================================
+export { deals, dealsRelations } from "./deals";
+export type { Deal as DealRecord, NewDeal } from "./deals";

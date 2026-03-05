@@ -398,6 +398,32 @@ export const goalPriorityEnum = pgEnum("goal_priority", [
 ]);
 
 // ============================================================================
+// Pipeline / Deals
+// ============================================================================
+
+/**
+ * Deal pipeline stage — tracks a deal through the investment lifecycle
+ */
+export const dealStageEnum = pgEnum("deal_stage", [
+  "prospecting",
+  "due_diligence",
+  "negotiation",
+  "closed",
+  "active",
+  "exit_planning",
+]);
+
+/**
+ * Deal type — the asset class category of the deal
+ */
+export const dealTypeEnum = pgEnum("deal_type", [
+  "real_estate",
+  "private_equity",
+  "venture_capital",
+  "fixed_income",
+]);
+
+// ============================================================================
 // Reports
 // ============================================================================
 
