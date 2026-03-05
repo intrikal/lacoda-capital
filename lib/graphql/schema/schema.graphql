@@ -68,6 +68,10 @@ type Query {
   insurancePolicies(clientId: ID, status: String, policyType: String, page: Int, limit: Int): InsurancePolicyConnection!
   insurancePolicy(id: ID!): InsurancePolicy
 
+  # ── Benchmarks ──
+  benchmarks(clientId: ID, category: String, page: Int, limit: Int): BenchmarkConnection!
+  benchmark(id: ID!): Benchmark
+
   # ── Notifications ──
   notifications(unreadOnly: Boolean, page: Int, limit: Int): NotificationConnection!
 
@@ -163,6 +167,11 @@ type Mutation {
   createInsurancePolicy(input: CreateInsurancePolicyInput!): InsurancePolicy!
   updateInsurancePolicy(id: ID!, input: UpdateInsurancePolicyInput!): InsurancePolicy!
   deleteInsurancePolicy(id: ID!): Boolean!
+
+  # ── Benchmarks ──
+  createBenchmark(input: CreateBenchmarkInput!): Benchmark!
+  updateBenchmark(id: ID!, input: UpdateBenchmarkInput!): Benchmark!
+  deleteBenchmark(id: ID!): Boolean!
 
   # ── Org Members ──
   inviteOrgMember(input: InviteOrgMemberInput!): OrgMember!

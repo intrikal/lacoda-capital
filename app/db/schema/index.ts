@@ -40,6 +40,7 @@ export {
   policyTypeEnum,
   policyStatusEnum,
   premiumFrequencyEnum,
+  benchmarkCategoryEnum,
 } from "./00_enums";
 
 // ============================================================================
@@ -223,3 +224,9 @@ export type {
   InsurancePolicyMetadata,
   InsuranceAgent,
 } from "./insurance_policies";
+
+// ============================================================================
+// Benchmarks
+// ============================================================================
+export { benchmarks, benchmarksRelations } from "./benchmarks";
+export type { Benchmark, NewBenchmark, BenchmarkMetadata } from "./benchmarks";

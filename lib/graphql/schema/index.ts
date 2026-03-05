@@ -27,6 +27,7 @@ const schemaFiles = [
   "calendar-event.graphql",
   "deal.graphql",
   "insurance-policy.graphql",
+  "benchmark.graphql",
 ]
 
 const typeDefsArray = schemaFiles.map((file) =>
