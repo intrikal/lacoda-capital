@@ -25,6 +25,8 @@ export {
   goalStatusEnum,
   goalPriorityEnum,
   complianceControlStatusEnum,
+  conversationTypeEnum,
+  messageSenderTypeEnum,
   ledgerActionEnum,
   ledgerTargetTypeEnum,
   reportTypeEnum,
@@ -159,6 +161,25 @@ export type {
   NewIntegration,
   IntegrationSettings,
 } from "./integrations";
+
+// ============================================================================
+// Messages
+// ============================================================================
+export {
+  conversations,
+  messages,
+  conversationsRelations,
+  messagesRelations,
+} from "./messages";
+export type {
+  Conversation,
+  NewConversation,
+  Message,
+  NewMessage,
+  ConversationMetadata,
+  MessageMetadata,
+  MessageAttachment,
+} from "./messages";
 
 // ============================================================================
 // Notifications

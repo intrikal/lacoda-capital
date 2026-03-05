@@ -1,36 +1,34 @@
 /**
- * @file app/(client)/client/messages/page.tsx
+ * ============================================================================
+ * FILE: app/(client)/client/messages/page.tsx
+ * ============================================================================
  *
- * Client-facing secure messaging page.
+ * WHAT THIS FILE IS:
+ *   Client-facing secure messaging page. Clients use this to communicate
+ *   with their advisory team.
  *
- * Data source: `useMessages` hook (lib/hooks/crud/use-messages.ts) which calls
- * messagesService.getConversations() on mount, then loads per-conversation
- * messages lazily via `loadMessages(conversationId)`. New outbound messages are
- * dispatched with `sendMessage(conversationId, content)` which optimistically
- * appends a Message to the in-memory list.
+ * ARCHITECTURE:
+ *   ┌────────────────────────────────────────────────────────────────────┐
+ *   │ ClientMessagesPage                                                │
+ *   │   ├── useConversations()          → sidebar conversation list     │
+ *   │   ├── useConversationMessages()   → chat messages for selected    │
+ *   │   ├── useSendMessage()            → sends a new message           │
+ *   │   └── useMarkConversationRead()   → resets unread on selection    │
+ *   │         ↓                                                          │
+ *   │ Apollo Client (useQuery / useMutation)                             │
+ *   │         ↓                                                          │
+ *   │ POST /api/graphql                                                  │
+ *   │         ↓                                                          │
+ *   │ messageResolvers → Drizzle ORM → PostgreSQL                       │
+ *   └────────────────────────────────────────────────────────────────────┘
  *
- * Conversation selection is tracked in local state (`selectedConversationId`).
- * On first load a `useEffect` auto-selects the first conversation and calls
- * `loadMessages` so the chat area is never empty.
+ * KEY DIFFERENCE FROM ADVISOR PAGE:
+ *   - isMe check: `message.senderType === "client"` (not "advisor")
+ *   - No "New Message" button (clients can only reply to existing threads)
+ *   - No tab filters (clients only see their own conversations)
  *
- * The `Message` type uses `senderType: "advisor" | "client" | "team"`. From
- * the client portal's perspective a message is "from me" when
- * `message.senderType === "client"`, which controls the bubble alignment and
- * color (right-aligned tiffany bubble vs left-aligned zinc bubble).
- *
- * The `Conversation` type does not have a `role` field; the subtitle row shows
- * the conversation `type` ("client" | "team") instead.
- *
- * `Message.attachments` is an array (`MessageAttachment[]`); the bubble renders
- * the first attachment when present to preserve the existing attachment UI.
- *
- * tRPC swap path:
- *   Replace `useMessages` internals with:
- *   `const { data: conversations }  = trpc.client.messages.conversations.useQuery()`
- *   `const { data: messages }       = trpc.client.messages.list.useQuery({ conversationId })`
- *   `const sendMessage              = trpc.client.messages.send.useMutation()`
- *   The consuming component needs zero changes — the hook's return shape is
- *   identical to what tRPC will return.
+ * CONSUMERS:
+ *   This page is rendered at /client/messages for client portal users.
  */
 "use client"
 
@@ -48,7 +46,6 @@ import {
   Image as ImageIcon,
   File,
   Download,
-  X,
   MessageSquare,
   Users,
   Clock,
@@ -64,12 +61,41 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
-import { useMessages } from "@/lib/hooks/crud/use-messages"
-import type { Conversation, Message } from "@/lib/mock/types"
+import {
+  useConversations,
+  useConversationMessages,
+  useSendMessage,
+  useMarkConversationRead,
+} from "@/lib/hooks/crud/use-messages"
+import type { ConversationRecord, MessageRecord } from "@/lib/hooks/crud/use-messages"
 
 // ============================================================================
 // HELPERS
 // ============================================================================
+
+/** Deterministic avatar color from name — cycles through a palette. */
+const AVATAR_COLORS = [
+  "bg-tiffany-500/20 text-tiffany-400",
+  "bg-blue-500/20 text-blue-400",
+  "bg-emerald-500/20 text-emerald-400",
+  "bg-amber-500/20 text-amber-400",
+  "bg-rose-500/20 text-rose-400",
+  "bg-purple-500/20 text-purple-400",
+  "bg-cyan-500/20 text-cyan-400",
+  "bg-orange-500/20 text-orange-400",
+]
+
+function getAvatarInitials(name: string): string {
+  const parts = name.trim().split(/\s+/)
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase()
+  return name.slice(0, 2).toUpperCase()
+}
+
+function getAvatarColor(name: string): string {
+  let hash = 0
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash)
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length]
+}
 
 function formatMessageDate(dateString: string) {
   const date = new Date(dateString)
@@ -78,7 +104,8 @@ function formatMessageDate(dateString: string) {
   return format(date, "MMM d, yyyy")
 }
 
-function formatConversationTime(dateString: string) {
+function formatConversationTime(dateString: string | null) {
+  if (!dateString) return ""
   const date = new Date(dateString)
   if (isToday(date)) return format(date, "h:mm a")
   if (isYesterday(date)) return "Yesterday"
@@ -90,12 +117,15 @@ function formatConversationTime(dateString: string) {
 // ============================================================================
 
 interface ConversationItemProps {
-  conversation: Conversation
+  conversation: ConversationRecord
   isSelected: boolean
   onClick: () => void
 }
 
 function ConversationItem({ conversation, isSelected, onClick }: ConversationItemProps) {
+  const avatar = getAvatarInitials(conversation.name)
+  const avatarColor = getAvatarColor(conversation.name)
+
   return (
     <button
       onClick={onClick}
@@ -105,31 +135,27 @@ function ConversationItem({ conversation, isSelected, onClick }: ConversationIte
       )}
     >
       <div className="relative shrink-0">
-        <div className={cn("h-10 w-10 rounded-full flex items-center justify-center", conversation.avatarColor)}>
-          <span className="text-sm font-semibold">{conversation.avatar}</span>
+        <div className={cn("h-10 w-10 rounded-full flex items-center justify-center", avatarColor)}>
+          <span className="text-sm font-semibold">{avatar}</span>
         </div>
-        {conversation.online && (
-          <div className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-emerald-400 border-2 border-zinc-900" />
-        )}
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-2">
-          <p className={cn("text-sm font-medium truncate", conversation.unread > 0 ? "text-zinc-100" : "text-zinc-300")}>
+          <p className={cn("text-sm font-medium truncate", conversation.unreadCount > 0 ? "text-zinc-100" : "text-zinc-300")}>
             {conversation.name}
           </p>
           <span className="text-xs text-zinc-500 shrink-0">
-            {formatConversationTime(conversation.timestamp)}
+            {formatConversationTime(conversation.lastMessageAt)}
           </span>
         </div>
-        {/* `type` replaces the old inline `role` field which didn't exist on the Conversation type */}
         <p className="text-xs text-zinc-500 mt-0.5 capitalize">{conversation.type}</p>
-        <p className={cn("text-sm truncate mt-1", conversation.unread > 0 ? "text-zinc-300" : "text-zinc-500")}>
+        <p className={cn("text-sm truncate mt-1", conversation.unreadCount > 0 ? "text-zinc-300" : "text-zinc-500")}>
           {conversation.lastMessage}
         </p>
       </div>
-      {conversation.unread > 0 && (
+      {conversation.unreadCount > 0 && (
         <div className="h-5 min-w-[20px] rounded-full bg-tiffany-500 flex items-center justify-center px-1.5 shrink-0">
-          <span className="text-xs font-semibold text-white">{conversation.unread}</span>
+          <span className="text-xs font-semibold text-white">{conversation.unreadCount}</span>
         </div>
       )}
     </button>
@@ -137,14 +163,13 @@ function ConversationItem({ conversation, isSelected, onClick }: ConversationIte
 }
 
 interface MessageBubbleProps {
-  message: Message
+  message: MessageRecord
   /** True when the message was sent by the logged-in client (senderType === "client") */
   isMe: boolean
 }
 
 function MessageBubble({ message, isMe }: MessageBubbleProps) {
-  // Render the first attachment when present (mirrors the original single-attachment UI)
-  const attachment = message.attachments?.[0]
+  const attachment = message.metadata?.attachments?.[0]
 
   return (
     <div className={cn("flex", isMe ? "justify-end" : "justify-start")}>
@@ -193,7 +218,7 @@ function MessageBubble({ message, isMe }: MessageBubbleProps) {
           "flex items-center justify-end gap-1.5 mt-2",
           isMe ? "text-tiffany-200" : "text-zinc-500"
         )}>
-          <span className="text-xs">{format(new Date(message.timestamp), "h:mm a")}</span>
+          <span className="text-xs">{format(new Date(message.createdAt), "h:mm a")}</span>
           {isMe && (
             message.read ? (
               <CheckCheck className="h-3.5 w-3.5" />
@@ -212,11 +237,11 @@ function MessageBubble({ message, isMe }: MessageBubbleProps) {
 // ============================================================================
 
 export default function ClientMessagesPage() {
-  // Hook: replaces inline conversations array + messagesByConversation object
-  const { conversations, messages, isLoading, loadMessages, sendMessage } = useMessages()
-
-  // Track which conversation is selected by ID (null until first load)
+  const { conversations } = useConversations()
   const [selectedConversationId, setSelectedConversationId] = React.useState<string | null>(null)
+  const { messages } = useConversationMessages(selectedConversationId)
+  const { mutate: sendMessage } = useSendMessage()
+  const { mutate: markRead } = useMarkConversationRead()
 
   const [searchQuery, setSearchQuery] = React.useState("")
   const [newMessage, setNewMessage] = React.useState("")
@@ -227,16 +252,14 @@ export default function ClientMessagesPage() {
   React.useEffect(() => {
     if (conversations.length > 0 && !selectedConversationId) {
       setSelectedConversationId(conversations[0].id)
-      loadMessages(conversations[0].id)
     }
-  }, [conversations, selectedConversationId, loadMessages])
+  }, [conversations, selectedConversationId])
 
-  // Scroll to bottom whenever messages or selected conversation changes
+  // Scroll to bottom whenever messages change
   React.useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages, selectedConversationId])
 
-  // Derive the full conversation object from the selected ID
   const selectedConversation = conversations.find(c => c.id === selectedConversationId)
 
   const filteredConversations = conversations.filter((conv) =>
@@ -245,24 +268,29 @@ export default function ClientMessagesPage() {
 
   const handleSend = () => {
     if (newMessage.trim() && selectedConversationId) {
-      sendMessage(selectedConversationId, newMessage.trim())
+      sendMessage({
+        conversationId: selectedConversationId,
+        content: newMessage.trim(),
+        senderType: "client",
+      })
       setNewMessage("")
     }
   }
 
-  const handleSelectConversation = (conv: Conversation) => {
+  const handleSelectConversation = (conv: ConversationRecord) => {
     setSelectedConversationId(conv.id)
-    loadMessages(conv.id)
     setShowMobileChat(true)
+    if (conv.unreadCount > 0) {
+      markRead(conv.id)
+    }
   }
 
-  // Group messages by date label for display
   const groupedMessages = messages.reduce((groups, message) => {
-    const date = formatMessageDate(message.timestamp)
+    const date = formatMessageDate(message.createdAt)
     if (!groups[date]) groups[date] = []
     groups[date].push(message)
     return groups
-  }, {} as Record<string, Message[]>)
+  }, {} as Record<string, MessageRecord[]>)
 
   return (
     <div className="space-y-6">
@@ -279,7 +307,7 @@ export default function ClientMessagesPage() {
           </div>
           <div className="flex items-center gap-2">
             <MessageSquare className="h-4 w-4" />
-            <span>{conversations.reduce((sum, c) => sum + c.unread, 0)} unread</span>
+            <span>{conversations.reduce((sum, c) => sum + c.unreadCount, 0)} unread</span>
           </div>
         </div>
       </div>
@@ -344,27 +372,17 @@ export default function ClientMessagesPage() {
                       <ChevronLeft className="h-4 w-4" />
                     </Button>
                     <div className="relative">
-                      <div className={cn("h-10 w-10 rounded-full flex items-center justify-center", selectedConversation.avatarColor)}>
-                        <span className="text-sm font-semibold">{selectedConversation.avatar}</span>
+                      <div className={cn("h-10 w-10 rounded-full flex items-center justify-center", getAvatarColor(selectedConversation.name))}>
+                        <span className="text-sm font-semibold">{getAvatarInitials(selectedConversation.name)}</span>
                       </div>
-                      {selectedConversation.online && (
-                        <div className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-emerald-400 border-2 border-zinc-900" />
-                      )}
                     </div>
                     <div>
                       <p className="text-sm font-medium text-zinc-100">{selectedConversation.name}</p>
                       <p className="text-xs text-zinc-500 flex items-center gap-1">
-                        {selectedConversation.online ? (
-                          <>
-                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                            Online
-                          </>
-                        ) : (
-                          <>
-                            <Clock className="h-3 w-3" />
-                            Last seen recently
-                          </>
-                        )}
+                        <Clock className="h-3 w-3" />
+                        {selectedConversation.lastMessageAt
+                          ? `Last active ${formatConversationTime(selectedConversation.lastMessageAt)}`
+                          : "No messages yet"}
                       </p>
                     </div>
                   </div>
@@ -438,12 +456,11 @@ export default function ClientMessagesPage() {
                     </Button>
                   </div>
                   <p className="text-xs text-zinc-500 mt-2 text-center">
-                    End-to-end encrypted • Your advisor typically responds within 24 hours
+                    End-to-end encrypted · Your advisor typically responds within 24 hours
                   </p>
                 </div>
               </>
             ) : (
-              // Empty state while conversations are loading or none selected
               <div className="flex-1 flex items-center justify-center">
                 <div className="text-center">
                   <MessageSquare className="h-12 w-12 text-zinc-600 mx-auto mb-4" />

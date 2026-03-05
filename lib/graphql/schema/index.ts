@@ -17,6 +17,7 @@ const schemaFiles = [
   "document-request.graphql",
   "task.graphql",
   "goal.graphql",
+  "message.graphql",
   "assignment.graphql",
   "ledger-event.graphql",
   "report.graphql",
