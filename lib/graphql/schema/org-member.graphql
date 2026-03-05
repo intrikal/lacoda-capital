@@ -26,3 +26,14 @@ type OrgMemberConnection {
   page: Int!
   limit: Int!
 }
+
+input InviteOrgMemberInput {
+  email: String!
+  role: OrgMemberRole!
+  clientId: ID
+}
+
+input UpdateOrgMemberRoleInput {
+  role: OrgMemberRole!
+  clientId: ID
+}
