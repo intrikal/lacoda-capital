@@ -18,6 +18,7 @@ import {
   PanelLeft,
   PanelLeftClose,
   MessageSquare,
+  CheckSquare,
   LogOut,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -38,6 +39,7 @@ const mainNavigation = [
   { name: "Assets", href: "/app/assets", icon: Briefcase, description: "Asset tracking" },
   { name: "Finances", href: "/app/finances", icon: Wallet, description: "Financial overview" },
   { name: "Calendar", href: "/app/calendar", icon: Calendar, description: "Schedule & events" },
+  { name: "Tasks", href: "/app/tasks", icon: CheckSquare, description: "Task management" },
   { name: "Reports", href: "/app/reports", icon: BarChart3, description: "Analytics & reports" },
   { name: "Vault", href: "/app/vault", icon: FolderLock, description: "Document storage" },
   { name: "Compliance", href: "/app/compliance", icon: Shield, description: "Regulatory tracking" },
