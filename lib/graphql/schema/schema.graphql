@@ -145,4 +145,9 @@ type Mutation {
   # ── Notifications ──
   markNotificationRead(id: ID!): Notification!
   markAllNotificationsRead: Boolean!
+
+  # ── Org Members ──
+  inviteOrgMember(input: InviteOrgMemberInput!): OrgMember!
+  updateOrgMemberRole(id: ID!, input: UpdateOrgMemberRoleInput!): OrgMember!
+  removeOrgMember(id: ID!): Boolean!
 }
