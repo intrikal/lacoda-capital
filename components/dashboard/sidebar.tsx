@@ -21,6 +21,7 @@ import {
   CheckSquare,
   LogOut,
   Target,
+  Bell,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -45,6 +46,7 @@ const mainNavigation = [
   { name: "Reports", href: "/app/reports", icon: BarChart3, description: "Analytics & reports" },
   { name: "Vault", href: "/app/vault", icon: FolderLock, description: "Document storage" },
   { name: "Compliance", href: "/app/compliance", icon: Shield, description: "Regulatory tracking" },
+  { name: "Notifications", href: "/app/notifications", icon: Bell, description: "Alerts & updates" },
 ]
 
 const secondaryNavigation = [
