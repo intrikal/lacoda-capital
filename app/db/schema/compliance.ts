@@ -111,6 +111,7 @@ import {
   index,
   unique,
 } from "drizzle-orm/pg-core";
+import { complianceControlStatusEnum } from "./00_enums";
 
 /**
  * import { orgs } from "./orgs"
@@ -421,8 +422,22 @@ export const complianceControls = pgTable(
      * │   explicitly disable it.                                            │
      * └─────────────────────────────────────────────────────────────────────┘
      */
-    // Control status
+    // Active/inactive toggle — soft-deactivation without deleting the control
     isActive: boolean("is_active").notNull().default(true),
+
+    /**
+     * Compliance status — the current state of this control.
+     *
+     * Updated manually by advisors or automatically when evidence is reviewed.
+     *
+     * Lifecycle:
+     *   needs_attention → (evidence submitted) → in_progress
+     *                  → (evidence approved)  → compliant
+     *                  → (evidence expired)   → needs_attention
+     *
+     * Default: "needs_attention" — every new control starts without evidence.
+     */
+    status: complianceControlStatusEnum("status").notNull().default("needs_attention"),
 
     /**
      * ┌─────────────────────────────────────────────────────────────────────┐

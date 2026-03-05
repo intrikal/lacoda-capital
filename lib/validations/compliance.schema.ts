@@ -12,11 +12,14 @@ export const createComplianceControlSchema = z.object({
 
 export type CreateComplianceControlInput = z.infer<typeof createComplianceControlSchema>
 
+export const complianceControlStatusEnum = z.enum(["needs_attention", "in_progress", "compliant"])
+
 export const updateComplianceControlSchema = z.object({
   name: z.string().min(1).max(255).trim().optional(),
   description: z.string().max(1000).nullable().optional(),
   category: z.string().max(100).nullable().optional(),
   isActive: z.boolean().optional(),
+  status: complianceControlStatusEnum.optional(),
   frequency: z.string().max(50).nullable().optional(),
   requiredDocumentTypes: z.array(z.string()).optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
