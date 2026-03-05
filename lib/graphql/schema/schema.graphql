@@ -33,6 +33,11 @@ type Query {
   goals(clientId: ID, status: String, category: String, page: Int, limit: Int): GoalConnection!
   goal(id: ID!): Goal
 
+  # ── Messages ──
+  conversations(type: String, clientId: ID, page: Int, limit: Int): ConversationConnection!
+  conversation(id: ID!): Conversation
+  messages(conversationId: ID!, page: Int, limit: Int): MessageConnection!
+
   # ── Assignments ──
   assignments(clientId: ID, assistantMemberId: ID): [Assignment!]!
 
@@ -98,6 +103,12 @@ type Mutation {
   createGoal(input: CreateGoalInput!): Goal!
   updateGoal(id: ID!, input: UpdateGoalInput!): Goal!
   deleteGoal(id: ID!): Boolean!
+
+  # ── Messages ──
+  createConversation(input: CreateConversationInput!): Conversation!
+  sendMessage(input: SendMessageInput!): Message!
+  markConversationRead(id: ID!): Conversation!
+  deleteConversation(id: ID!): Boolean!
 
   # ── Assignments ──
   createAssignment(input: CreateAssignmentInput!): Assignment!

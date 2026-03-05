@@ -454,6 +454,32 @@ export const integrationProviderEnum = pgEnum("integration_provider", [
 ]);
 
 // ============================================================================
+// Messages
+// ============================================================================
+
+/**
+ * Conversation type — determines the kind of messaging thread
+ * - client: Conversation with a client (visible in client portal)
+ * - team:   Internal team conversation (advisors / assistants only)
+ */
+export const conversationTypeEnum = pgEnum("conversation_type", [
+  "client",
+  "team",
+]);
+
+/**
+ * Message sender type — who sent the message
+ * - advisor: Sent by an advisor/admin
+ * - client:  Sent by a client
+ * - team:    Sent by a team member in an internal thread
+ */
+export const messageSenderTypeEnum = pgEnum("message_sender_type", [
+  "advisor",
+  "client",
+  "team",
+]);
+
+// ============================================================================
 // Notifications
 // ============================================================================
 

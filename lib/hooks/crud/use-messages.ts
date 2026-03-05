@@ -1,88 +1,279 @@
+/**
+ * ============================================================================
+ * FILE: lib/hooks/crud/use-messages.ts
+ * ============================================================================
+ *
+ * WHAT THIS FILE IS:
+ *   React hooks that connect the Messages pages to the GraphQL API.
+ *   Provides hooks for conversations (threads) and messages (chat entries).
+ *
+ * ARCHITECTURE:
+ *   ┌────────────────────────────────────────────────────────────────────┐
+ *   │ Messages Page                                                     │
+ *   │   └── useConversations()       → fetches conversation list        │
+ *   │   └── useConversationMessages()→ fetches messages for a thread    │
+ *   │   └── useSendMessage()         → sends a new message              │
+ *   │   └── useMarkConversationRead()→ marks all messages as read       │
+ *   │   └── useCreateConversation()  → creates a new thread             │
+ *   │   └── useDeleteConversation()  → removes a thread                 │
+ *   │         ↓                                                          │
+ *   │ Apollo Client (useQuery / useMutation)                             │
+ *   │         ↓                                                          │
+ *   │ POST /api/graphql                                                  │
+ *   │         ↓                                                          │
+ *   │ messageResolvers → Drizzle ORM → PostgreSQL                       │
+ *   └────────────────────────────────────────────────────────────────────┘
+ *
+ * PREVIOUS IMPLEMENTATION:
+ *   This file previously used useReducer + mock data from messages.service.ts.
+ *   It has been rewritten to use Apollo Client for real database persistence.
+ *
+ * CONSUMERS:
+ *   - app/(dashboard)/app/messages/page.tsx  (advisor messaging)
+ *   - app/(client)/client/messages/page.tsx  (client portal messaging)
+ */
+
 "use client"
 
-import { useCallback, useEffect, useReducer, useRef } from "react"
-import { getConversations, getMessagesByConversation } from "@/lib/services/messages.service"
-import type { Conversation, Message } from "@/lib/mock/types"
+import { useMemo, useCallback } from "react"
+import { useQuery, useMutation } from "@apollo/client/react"
+import {
+  GET_CONVERSATIONS,
+  GET_MESSAGES,
+  CREATE_CONVERSATION,
+  SEND_MESSAGE,
+  MARK_CONVERSATION_READ,
+  DELETE_CONVERSATION,
+} from "@/lib/graphql/operations/message"
+import type {
+  CreateConversationInput,
+  SendMessageInput,
+} from "@/lib/validations/message.schema"
 
-interface MessagesState {
-  conversations: Conversation[]
-  messages: Message[]
-  isLoading: boolean
+// ─── TYPES ────────────────────────────────────────────────────────────────────
+
+/** Attachment stored in message metadata. */
+export interface MessageAttachmentRecord {
+  name: string
+  size: string
+  type: string
 }
 
-type MessagesAction =
-  | { type: "SET_CONVERSATIONS"; payload: Conversation[] }
-  | { type: "SET_MESSAGES"; payload: Message[] }
-  | { type: "ADD_MESSAGE"; payload: Message }
-  | { type: "SET_LOADING"; payload: boolean }
+/**
+ * ConversationRecord — Shape of a conversation returned by the GraphQL API.
+ *
+ * Denormalized fields for sidebar rendering:
+ *   lastMessage   — preview text of the most recent message
+ *   lastMessageAt — timestamp for sorting and display
+ *   unreadCount   — badge count for unread messages
+ */
+export interface ConversationRecord {
+  id: string
+  orgId: string
+  name: string
+  type: "client" | "team"
+  clientId: string | null
+  lastMessage: string | null
+  lastMessageAt: string | null
+  unreadCount: number
+  metadata: Record<string, unknown> | null
+  createdAt: string
+  updatedAt: string
+}
 
-function messagesReducer(state: MessagesState, action: MessagesAction): MessagesState {
-  switch (action.type) {
-    case "SET_CONVERSATIONS":
-      return { ...state, conversations: action.payload, isLoading: false }
-    case "SET_MESSAGES":
-      return { ...state, messages: action.payload }
-    case "ADD_MESSAGE":
-      return {
-        ...state,
-        messages: [...state.messages, action.payload],
-        conversations: state.conversations.map((c) =>
-          c.id === action.payload.conversationId
-            ? { ...c, lastMessage: action.payload.content, timestamp: action.payload.timestamp }
-            : c
-        ),
-      }
-    case "SET_LOADING":
-      return { ...state, isLoading: action.payload }
-    default:
-      return state
+/**
+ * MessageRecord — Shape of a message returned by the GraphQL API.
+ *
+ * senderType drives the bubble position in the UI:
+ *   "advisor" → right side (tiffany colored)
+ *   "client" | "team" → left side
+ */
+export interface MessageRecord {
+  id: string
+  conversationId: string
+  senderId: string | null
+  senderType: "advisor" | "client" | "team"
+  content: string
+  read: boolean
+  metadata: { attachments?: MessageAttachmentRecord[] } & Record<string, unknown> | null
+  createdAt: string
+}
+
+/** Apollo response shape for GET_CONVERSATIONS. */
+interface GetConversationsData {
+  conversations: {
+    items: ConversationRecord[]
+    totalCount: number
+    page: number
+    limit: number
   }
 }
 
-export function useMessages() {
-  const [state, dispatch] = useReducer(messagesReducer, {
-    conversations: [],
-    messages: [],
-    isLoading: true,
-  })
+/** Apollo response shape for GET_MESSAGES. */
+interface GetMessagesData {
+  messages: {
+    items: MessageRecord[]
+    totalCount: number
+    page: number
+    limit: number
+  }
+}
 
-  const hasFetched = useRef(false)
+// ─── HOOKS ────────────────────────────────────────────────────────────────────
 
-  useEffect(() => {
-    if (hasFetched.current) return
-    hasFetched.current = true
+/**
+ * useConversations — Fetches the list of conversations for the sidebar.
+ *
+ * @param params — Optional filters:
+ *   type     — "client" or "team"
+ *   clientId — conversations for a specific client
+ *
+ * @returns
+ *   conversations — Array of ConversationRecord (empty while loading)
+ *   isLoading     — True during the initial fetch
+ *   isError       — True if the query failed
+ *   error         — The ApolloError object (null if no error)
+ *   stats         — { total, unread, clientThreads, teamThreads }
+ */
+export function useConversations(params?: {
+  type?: string
+  clientId?: string
+}) {
+  const variables: Record<string, unknown> = {}
+  if (params?.type) variables.type = params.type
+  if (params?.clientId) variables.clientId = params.clientId
 
-    getConversations().then((convos) => {
-      dispatch({ type: "SET_CONVERSATIONS", payload: convos })
-    })
-  }, [])
-
-  const loadMessages = useCallback(async (conversationId: string) => {
-    const msgs = await getMessagesByConversation(conversationId)
-    dispatch({ type: "SET_MESSAGES", payload: msgs })
-  }, [])
-
-  const sendMessage = useCallback(
-    (conversationId: string, content: string) => {
-      const newMessage: Message = {
-        id: `msg-${crypto.randomUUID().slice(0, 8)}`,
-        conversationId,
-        sender: "Alexander Ward",
-        senderType: "advisor",
-        content,
-        timestamp: new Date().toISOString(),
-        read: true,
-      }
-      dispatch({ type: "ADD_MESSAGE", payload: newMessage })
-    },
-    []
+  const { data, loading, error } = useQuery<GetConversationsData>(
+    GET_CONVERSATIONS,
+    { variables }
   )
 
+  const conversations = data?.conversations?.items ?? []
+
+  const stats = useMemo(() => ({
+    total: conversations.length,
+    unread: conversations.reduce((sum, c) => sum + c.unreadCount, 0),
+    clientThreads: conversations.filter((c) => c.type === "client").length,
+    teamThreads: conversations.filter((c) => c.type === "team").length,
+  }), [conversations])
+
   return {
-    conversations: state.conversations,
-    messages: state.messages,
-    isLoading: state.isLoading,
-    loadMessages,
-    sendMessage,
+    conversations,
+    isLoading: loading,
+    isError: !!error,
+    error: error ?? null,
+    stats,
   }
+}
+
+/**
+ * useConversationMessages — Fetches messages for a specific conversation.
+ *
+ * @param conversationId — Which conversation to load messages for.
+ *   Pass null/undefined to skip the query (no conversation selected).
+ *
+ * @returns
+ *   messages  — Array of MessageRecord (empty while loading or if no ID)
+ *   isLoading — True during the fetch
+ */
+export function useConversationMessages(conversationId: string | null | undefined) {
+  const { data, loading } = useQuery<GetMessagesData>(GET_MESSAGES, {
+    variables: { conversationId },
+    skip: !conversationId,
+  })
+
+  return {
+    messages: data?.messages?.items ?? [],
+    isLoading: loading,
+  }
+}
+
+/**
+ * useSendMessage — Mutation hook for sending a message in a conversation.
+ *
+ * The resolver also updates the conversation's denormalized fields
+ * (lastMessage, lastMessageAt, unreadCount).
+ *
+ * Refetches both conversations (for sidebar update) and messages.
+ */
+export function useSendMessage() {
+  const [sendMessageMutation, { loading }] = useMutation(SEND_MESSAGE, {
+    refetchQueries: [
+      { query: GET_CONVERSATIONS },
+    ],
+  })
+
+  const mutate = useCallback(
+    (input: SendMessageInput) => {
+      return sendMessageMutation({
+        variables: { input },
+        // Also refetch messages for the specific conversation
+        refetchQueries: [
+          { query: GET_CONVERSATIONS },
+          { query: GET_MESSAGES, variables: { conversationId: input.conversationId } },
+        ],
+      })
+    },
+    [sendMessageMutation]
+  )
+
+  return { mutate, isPending: loading }
+}
+
+/**
+ * useCreateConversation — Mutation hook for creating a new conversation thread.
+ * Requires role: admin | assistant.
+ */
+export function useCreateConversation() {
+  const [createConv, { loading }] = useMutation(CREATE_CONVERSATION, {
+    refetchQueries: [{ query: GET_CONVERSATIONS }],
+  })
+
+  const mutate = useCallback(
+    (input: CreateConversationInput) => {
+      return createConv({ variables: { input } })
+    },
+    [createConv]
+  )
+
+  return { mutate, isPending: loading }
+}
+
+/**
+ * useMarkConversationRead — Resets unread count and marks all messages as read.
+ */
+export function useMarkConversationRead() {
+  const [markRead, { loading }] = useMutation(MARK_CONVERSATION_READ, {
+    refetchQueries: [{ query: GET_CONVERSATIONS }],
+  })
+
+  const mutate = useCallback(
+    (id: string) => {
+      return markRead({ variables: { id } })
+    },
+    [markRead]
+  )
+
+  return { mutate, isPending: loading }
+}
+
+/**
+ * useDeleteConversation — Deletes a conversation and all its messages.
+ * Requires role: admin.
+ */
+export function useDeleteConversation() {
+  const [deleteConv, { loading }] = useMutation(DELETE_CONVERSATION, {
+    refetchQueries: [{ query: GET_CONVERSATIONS }],
+  })
+
+  const mutate = useCallback(
+    (id: string, options?: { onSuccess?: () => void }) => {
+      deleteConv({ variables: { id } }).then(() => {
+        options?.onSuccess?.()
+      })
+    },
+    [deleteConv]
+  )
+
+  return { mutate, isPending: loading }
 }
