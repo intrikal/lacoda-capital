@@ -1,3 +1,14 @@
+/**
+ * ============================================================================
+ * FILE: components/forms/deal-form-dialog.tsx
+ * ============================================================================
+ *
+ * WHAT THIS FILE IS:
+ *   Form dialog for creating and editing deals in the pipeline.
+ *
+ * CONSUMERS:
+ *   - app/(dashboard)/app/pipeline/page.tsx
+ */
 "use client"
 
 import * as React from "react"
@@ -19,15 +30,25 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import type { Deal, PipelineStageId } from "@/lib/mock/types"
-import type { CreateDealInput } from "@/lib/hooks/crud/use-deals"
+import type { DealRecord, DealStage, DealType } from "@/lib/hooks/crud/use-deals"
+import type { CreateDealInput } from "@/lib/validations/deal.schema"
+
+// ─── DISPLAY LABELS ──────────────────────────────────────────────────────────
+
+const dealTypeLabels: Record<DealType, string> = {
+  real_estate: "Real Estate",
+  private_equity: "Private Equity",
+  venture_capital: "Venture Capital",
+  fixed_income: "Fixed Income",
+}
 
 interface DealFormDialogProps {
   mode: "create" | "edit"
-  initialData?: Partial<Deal>
+  initialData?: Partial<DealRecord>
   open: boolean
   onOpenChange: (open: boolean) => void
   onSubmit: (data: CreateDealInput) => void
+  isPending?: boolean
 }
 
 export function DealFormDialog({
@@ -36,13 +57,14 @@ export function DealFormDialog({
   open,
   onOpenChange,
   onSubmit,
+  isPending,
 }: DealFormDialogProps) {
   const [name, setName] = React.useState("")
-  const [stage, setStage] = React.useState<PipelineStageId>("prospecting")
-  const [type, setType] = React.useState("Real Estate")
+  const [stage, setStage] = React.useState<DealStage>("prospecting")
+  const [type, setType] = React.useState<DealType>("real_estate")
   const [potentialValue, setPotentialValue] = React.useState("0")
   const [probability, setProbability] = React.useState("50")
-  const [assignee, setAssignee] = React.useState("")
+  const [assigneeName, setAssigneeName] = React.useState("")
   const [dueDate, setDueDate] = React.useState("")
   const [notes, setNotes] = React.useState("")
 
@@ -50,10 +72,10 @@ export function DealFormDialog({
     if (open) {
       setName(initialData?.name ?? "")
       setStage(initialData?.stage ?? "prospecting")
-      setType(initialData?.type ?? "Real Estate")
+      setType(initialData?.type ?? "real_estate")
       setPotentialValue(initialData?.potentialValue?.toString() ?? "0")
       setProbability(initialData?.probability?.toString() ?? "50")
-      setAssignee(initialData?.assignee ?? "")
+      setAssigneeName(initialData?.assigneeName ?? "")
       setDueDate(initialData?.dueDate ?? "")
       setNotes(initialData?.notes ?? "")
     }
@@ -67,9 +89,9 @@ export function DealFormDialog({
       type,
       potentialValue: parseFloat(potentialValue) || 0,
       probability: parseInt(probability) || 50,
-      assignee: assignee.trim() || "Unassigned",
+      assigneeName: assigneeName.trim() || null,
       dueDate: dueDate || null,
-      notes: notes.trim(),
+      notes: notes.trim() || null,
     })
     onOpenChange(false)
   }
@@ -96,7 +118,7 @@ export function DealFormDialog({
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Stage</Label>
-              <Select value={stage} onValueChange={(v) => setStage(v as PipelineStageId)}>
+              <Select value={stage} onValueChange={(v) => setStage(v as DealStage)}>
                 <SelectTrigger className="bg-zinc-800/50 border-zinc-700">
                   <SelectValue />
                 </SelectTrigger>
@@ -112,15 +134,14 @@ export function DealFormDialog({
             </div>
             <div className="space-y-2">
               <Label>Type</Label>
-              <Select value={type} onValueChange={setType}>
+              <Select value={type} onValueChange={(v) => setType(v as DealType)}>
                 <SelectTrigger className="bg-zinc-800/50 border-zinc-700">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-zinc-900 border-zinc-800">
-                  <SelectItem value="Real Estate">Real Estate</SelectItem>
-                  <SelectItem value="Private Equity">Private Equity</SelectItem>
-                  <SelectItem value="Venture Capital">Venture Capital</SelectItem>
-                  <SelectItem value="Fixed Income">Fixed Income</SelectItem>
+                  {(Object.entries(dealTypeLabels) as [DealType, string][]).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>{label}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -152,8 +173,8 @@ export function DealFormDialog({
               <Label>Assigned To</Label>
               <Input
                 placeholder="e.g., Sarah Chen"
-                value={assignee}
-                onChange={(e) => setAssignee(e.target.value)}
+                value={assigneeName}
+                onChange={(e) => setAssigneeName(e.target.value)}
                 className="bg-zinc-800/50 border-zinc-700"
               />
             </div>
@@ -179,8 +200,8 @@ export function DealFormDialog({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleSubmit}>
-            {mode === "create" ? "Add Deal" : "Save Changes"}
+          <Button onClick={handleSubmit} disabled={isPending}>
+            {isPending ? "Saving..." : mode === "create" ? "Add Deal" : "Save Changes"}
           </Button>
         </DialogFooter>
       </DialogContent>
