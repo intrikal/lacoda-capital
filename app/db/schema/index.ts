@@ -41,6 +41,7 @@ export {
   policyStatusEnum,
   premiumFrequencyEnum,
   benchmarkCategoryEnum,
+  billingStatusEnum,
 } from "./00_enums";
 
 // ============================================================================
@@ -230,3 +231,13 @@ export type {
 // ============================================================================
 export { benchmarks, benchmarksRelations } from "./benchmarks";
 export type { Benchmark, NewBenchmark, BenchmarkMetadata } from "./benchmarks";
+
+// ============================================================================
+// Billing Records
+// ============================================================================
+export { billingRecords, billingRecordsRelations } from "./billing_records";
+export type {
+  BillingRecord,
+  NewBillingRecord,
+  BillingRecordMetadata,
+} from "./billing_records";

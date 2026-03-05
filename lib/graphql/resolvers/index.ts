@@ -18,6 +18,7 @@ import { calendarEventResolvers } from "./calendar-event"
 import { dealResolvers } from "./deal"
 import { insurancePolicyResolvers } from "./insurance-policy"
 import { benchmarkResolvers } from "./benchmark"
+import { billingRecordResolvers } from "./billing-record"
 import { orgResolvers } from "./org"
 
 // Custom scalar resolvers for DateTime and JSON
@@ -59,5 +60,6 @@ export const resolvers = mergeResolvers([
   dealResolvers,
   insurancePolicyResolvers,
   benchmarkResolvers,
+  billingRecordResolvers,
   orgResolvers,
 ])

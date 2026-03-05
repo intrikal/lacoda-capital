@@ -72,6 +72,10 @@ type Query {
   benchmarks(clientId: ID, category: String, page: Int, limit: Int): BenchmarkConnection!
   benchmark(id: ID!): Benchmark
 
+  # ── Billing Records ──
+  billingRecords(clientId: ID, status: String, page: Int, limit: Int): BillingRecordConnection!
+  billingRecord(id: ID!): BillingRecord
+
   # ── Notifications ──
   notifications(unreadOnly: Boolean, page: Int, limit: Int): NotificationConnection!
 
@@ -172,6 +176,11 @@ type Mutation {
   createBenchmark(input: CreateBenchmarkInput!): Benchmark!
   updateBenchmark(id: ID!, input: UpdateBenchmarkInput!): Benchmark!
   deleteBenchmark(id: ID!): Boolean!
+
+  # ── Billing Records ──
+  createBillingRecord(input: CreateBillingRecordInput!): BillingRecord!
+  updateBillingRecord(id: ID!, input: UpdateBillingRecordInput!): BillingRecord!
+  deleteBillingRecord(id: ID!): Boolean!
 
   # ── Org Members ──
   inviteOrgMember(input: InviteOrgMemberInput!): OrgMember!

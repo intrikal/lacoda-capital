@@ -23,6 +23,7 @@ import {
   Target,
   Bell,
   TrendingUp,
+  Receipt,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -45,6 +46,7 @@ const mainNavigation = [
   { name: "Calendar", href: "/app/calendar", icon: Calendar, description: "Schedule & events" },
   { name: "Tasks", href: "/app/tasks", icon: CheckSquare, description: "Task management" },
   { name: "Benchmarks", href: "/app/benchmarks", icon: TrendingUp, description: "Portfolio benchmarks" },
+  { name: "Billing", href: "/app/billing", icon: Receipt, description: "Invoice management" },
   { name: "Reports", href: "/app/reports", icon: BarChart3, description: "Analytics & reports" },
   { name: "Vault", href: "/app/vault", icon: FolderLock, description: "Document storage" },
   { name: "Compliance", href: "/app/compliance", icon: Shield, description: "Regulatory tracking" },
