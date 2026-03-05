@@ -349,6 +349,55 @@ export const ledgerTargetTypeEnum = pgEnum("ledger_target_type", [
 ]);
 
 // ============================================================================
+// Goals
+// ============================================================================
+
+/**
+ * Goal category — the type of financial objective
+ * - retirement:  Long-term retirement savings
+ * - education:   Tuition, college funds
+ * - realestate:  Property acquisition / portfolio expansion
+ * - emergency:   Liquid safety-net reserve
+ * - travel:      Vacation homes, travel funds
+ * - vehicle:     Car / boat / aircraft purchase
+ * - investment:  General investment growth targets
+ * - custom:      Any user-defined goal
+ */
+export const goalCategoryEnum = pgEnum("goal_category", [
+  "retirement",
+  "education",
+  "realestate",
+  "emergency",
+  "travel",
+  "vehicle",
+  "investment",
+  "custom",
+]);
+
+/**
+ * Goal status — tracks progress relative to plan
+ * - on_track:  Progressing as expected
+ * - ahead:     Ahead of schedule
+ * - behind:    Falling short of the target pace
+ * - completed: Target amount reached
+ */
+export const goalStatusEnum = pgEnum("goal_status", [
+  "on_track",
+  "ahead",
+  "behind",
+  "completed",
+]);
+
+/**
+ * Goal priority — relative importance of the goal
+ */
+export const goalPriorityEnum = pgEnum("goal_priority", [
+  "high",
+  "medium",
+  "low",
+]);
+
+// ============================================================================
 // Reports
 // ============================================================================
 

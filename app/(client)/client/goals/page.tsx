@@ -43,13 +43,16 @@ import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { cn, formatCurrency } from "@/lib/utils"
 import { useReducedMotion } from "@/lib/hooks/use-reduced-motion"
-import { useGoals } from "@/lib/hooks/crud/use-goals"
+import { useGoals, useCreateGoal } from "@/lib/hooks/crud/use-goals"
+import type { GoalRecord } from "@/lib/hooks/crud/use-goals"
 import { GoalFormDialog } from "@/components/forms/goal-form-dialog"
-import type { GoalCategory } from "@/lib/mock/types"
+import type { CreateGoalInput } from "@/lib/validations/goal.schema"
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Category → visual config mapping (replaces inline icon/color on mock objects)
 // ─────────────────────────────────────────────────────────────────────────────
+
+type GoalCategory = GoalRecord["category"]
 
 const categoryConfig: Record<GoalCategory, { icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>; color: string }> = {
   retirement: { icon: Shield, color: "#14b8a6" },
@@ -86,7 +89,8 @@ export default function ClientGoalsPage() {
   const reducedMotion = useReducedMotion()
 
   // Hook: replaces the inline goals array + manually computed totals
-  const { goals, addGoal, deleteGoal, stats } = useGoals()
+  const { goals, stats } = useGoals()
+  const createMutation = useCreateGoal()
 
   // Form dialog state for creating a new goal
   const [formOpen, setFormOpen] = React.useState(false)
@@ -283,7 +287,8 @@ export default function ClientGoalsPage() {
         mode="create"
         open={formOpen}
         onOpenChange={setFormOpen}
-        onSubmit={(data) => addGoal(data)}
+        onSubmit={(data) => createMutation.mutate(data as CreateGoalInput)}
+        isPending={createMutation.isPending}
       />
     </animated.div>
   )

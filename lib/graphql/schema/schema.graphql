@@ -29,6 +29,10 @@ type Query {
   tasks(clientId: ID, assignedTo: ID, status: TaskStatus, page: Int, limit: Int): TaskConnection!
   task(id: ID!): Task
 
+  # ── Goals ──
+  goals(clientId: ID, status: String, category: String, page: Int, limit: Int): GoalConnection!
+  goal(id: ID!): Goal
+
   # ── Assignments ──
   assignments(clientId: ID, assistantMemberId: ID): [Assignment!]!
 
@@ -89,6 +93,11 @@ type Mutation {
   createTask(input: CreateTaskInput!): Task!
   updateTask(id: ID!, input: UpdateTaskInput!): Task!
   deleteTask(id: ID!): Boolean!
+
+  # ── Goals ──
+  createGoal(input: CreateGoalInput!): Goal!
+  updateGoal(id: ID!, input: UpdateGoalInput!): Goal!
+  deleteGoal(id: ID!): Boolean!
 
   # ── Assignments ──
   createAssignment(input: CreateAssignmentInput!): Assignment!

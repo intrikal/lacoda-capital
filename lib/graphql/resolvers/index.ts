@@ -6,6 +6,7 @@ import { valuationResolvers } from "./valuation"
 import { documentResolvers } from "./document"
 import { documentRequestResolvers } from "./document-request"
 import { taskResolvers } from "./task"
+import { goalResolvers } from "./goal"
 import { assignmentResolvers } from "./assignment"
 import { ledgerEventResolvers } from "./ledger-event"
 import { reportResolvers } from "./report"
@@ -41,6 +42,7 @@ export const resolvers = mergeResolvers([
   documentResolvers,
   documentRequestResolvers,
   taskResolvers,
+  goalResolvers,
   assignmentResolvers,
   ledgerEventResolvers,
   reportResolvers,
