@@ -36,6 +36,13 @@
       "when": 1772674030119,
       "tag": "0004_great_silver_samurai",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1772675159457,
+      "tag": "0005_even_alice",
+      "breakpoints": true
     }
   ]
 }
