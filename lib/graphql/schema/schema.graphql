@@ -76,6 +76,10 @@ type Query {
   billingRecords(clientId: ID, status: String, page: Int, limit: Int): BillingRecordConnection!
   billingRecord(id: ID!): BillingRecord
 
+  # ── Tax Deductions ──
+  taxDeductions(clientId: ID, status: String, category: String, type: String, taxYear: String, page: Int, limit: Int): TaxDeductionConnection!
+  taxDeduction(id: ID!): TaxDeduction
+
   # ── Notifications ──
   notifications(unreadOnly: Boolean, page: Int, limit: Int): NotificationConnection!
 
@@ -181,6 +185,11 @@ type Mutation {
   createBillingRecord(input: CreateBillingRecordInput!): BillingRecord!
   updateBillingRecord(id: ID!, input: UpdateBillingRecordInput!): BillingRecord!
   deleteBillingRecord(id: ID!): Boolean!
+
+  # ── Tax Deductions ──
+  createTaxDeduction(input: CreateTaxDeductionInput!): TaxDeduction!
+  updateTaxDeduction(id: ID!, input: UpdateTaxDeductionInput!): TaxDeduction!
+  deleteTaxDeduction(id: ID!): Boolean!
 
   # ── Org Members ──
   inviteOrgMember(input: InviteOrgMemberInput!): OrgMember!

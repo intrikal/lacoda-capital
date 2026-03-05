@@ -42,6 +42,9 @@ export {
   premiumFrequencyEnum,
   benchmarkCategoryEnum,
   billingStatusEnum,
+  taxDeductionCategoryEnum,
+  taxDeductionTypeEnum,
+  taxDeductionStatusEnum,
 } from "./00_enums";
 
 // ============================================================================
@@ -241,3 +244,13 @@ export type {
   NewBillingRecord,
   BillingRecordMetadata,
 } from "./billing_records";
+
+// ============================================================================
+// Tax Deductions
+// ============================================================================
+export { taxDeductions, taxDeductionsRelations } from "./tax_deductions";
+export type {
+  TaxDeduction,
+  NewTaxDeduction,
+  TaxDeductionMetadata,
+} from "./tax_deductions";
