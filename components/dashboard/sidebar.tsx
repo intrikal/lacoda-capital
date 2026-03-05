@@ -20,6 +20,7 @@ import {
   MessageSquare,
   CheckSquare,
   LogOut,
+  Target,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -38,6 +39,7 @@ const mainNavigation = [
   { name: "Messages", href: "/app/messages", icon: MessageSquare, description: "Client & team chat" },
   { name: "Assets", href: "/app/assets", icon: Briefcase, description: "Asset tracking" },
   { name: "Finances", href: "/app/finances", icon: Wallet, description: "Financial overview" },
+  { name: "Goals", href: "/app/goals", icon: Target, description: "Financial goals" },
   { name: "Calendar", href: "/app/calendar", icon: Calendar, description: "Schedule & events" },
   { name: "Tasks", href: "/app/tasks", icon: CheckSquare, description: "Task management" },
   { name: "Reports", href: "/app/reports", icon: BarChart3, description: "Analytics & reports" },

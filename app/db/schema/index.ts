@@ -21,6 +21,10 @@ export {
   documentRequestStatusEnum,
   taskStatusEnum,
   taskPriorityEnum,
+  goalCategoryEnum,
+  goalStatusEnum,
+  goalPriorityEnum,
+  complianceControlStatusEnum,
   ledgerActionEnum,
   ledgerTargetTypeEnum,
   reportTypeEnum,
@@ -99,6 +103,12 @@ export type {
 // ============================================================================
 export { tasks, tasksRelations } from "./tasks";
 export type { Task, NewTask, TaskMetadata } from "./tasks";
+
+// ============================================================================
+// Goals
+// ============================================================================
+export { goals, goalsRelations } from "./goals";
+export type { Goal, NewGoal, GoalMetadata } from "./goals";
 
 // ============================================================================
 // Ledger Events (Audit Log)
