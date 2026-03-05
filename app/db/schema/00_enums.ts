@@ -416,6 +416,51 @@ export const benchmarkCategoryEnum = pgEnum("benchmark_category", [
 ]);
 
 // ============================================================================
+// Tax Deductions
+// ============================================================================
+
+/**
+ * Tax deduction category — the type of tax-deductible expense
+ */
+export const taxDeductionCategoryEnum = pgEnum("tax_deduction_category", [
+  "home_office",
+  "vehicle",
+  "travel",
+  "equipment",
+  "professional",
+  "education",
+  "healthcare",
+  "meals",
+  "utilities",
+  "charitable",
+  "retirement",
+  "taxes",
+  "other",
+]);
+
+/**
+ * Tax deduction type — personal vs business deduction
+ */
+export const taxDeductionTypeEnum = pgEnum("tax_deduction_type", [
+  "personal",
+  "business",
+]);
+
+/**
+ * Tax deduction status — tracking status of each deduction
+ * - eligible:       Qualifies but not yet claimed
+ * - pending_review: Submitted for advisor/CPA review
+ * - claimed:        Filed on tax return
+ * - ineligible:     Does not qualify
+ */
+export const taxDeductionStatusEnum = pgEnum("tax_deduction_status", [
+  "eligible",
+  "pending_review",
+  "claimed",
+  "ineligible",
+]);
+
+// ============================================================================
 // Billing
 // ============================================================================
 

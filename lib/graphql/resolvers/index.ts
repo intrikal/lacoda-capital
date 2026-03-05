@@ -19,6 +19,7 @@ import { dealResolvers } from "./deal"
 import { insurancePolicyResolvers } from "./insurance-policy"
 import { benchmarkResolvers } from "./benchmark"
 import { billingRecordResolvers } from "./billing-record"
+import { taxDeductionResolvers } from "./tax-deduction"
 import { orgResolvers } from "./org"
 
 // Custom scalar resolvers for DateTime and JSON
@@ -61,5 +62,6 @@ export const resolvers = mergeResolvers([
   insurancePolicyResolvers,
   benchmarkResolvers,
   billingRecordResolvers,
+  taxDeductionResolvers,
   orgResolvers,
 ])
