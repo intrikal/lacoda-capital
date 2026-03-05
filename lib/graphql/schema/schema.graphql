@@ -64,6 +64,10 @@ type Query {
   deals(clientId: ID, stage: DealStage, type: DealType, page: Int, limit: Int): DealConnection!
   deal(id: ID!): Deal
 
+  # ── Insurance Policies ──
+  insurancePolicies(clientId: ID, status: String, policyType: String, page: Int, limit: Int): InsurancePolicyConnection!
+  insurancePolicy(id: ID!): InsurancePolicy
+
   # ── Notifications ──
   notifications(unreadOnly: Boolean, page: Int, limit: Int): NotificationConnection!
 
@@ -154,6 +158,11 @@ type Mutation {
   createDeal(input: CreateDealInput!): Deal!
   updateDeal(id: ID!, input: UpdateDealInput!): Deal!
   deleteDeal(id: ID!): Boolean!
+
+  # ── Insurance Policies ──
+  createInsurancePolicy(input: CreateInsurancePolicyInput!): InsurancePolicy!
+  updateInsurancePolicy(id: ID!, input: UpdateInsurancePolicyInput!): InsurancePolicy!
+  deleteInsurancePolicy(id: ID!): Boolean!
 
   # ── Org Members ──
   inviteOrgMember(input: InviteOrgMemberInput!): OrgMember!

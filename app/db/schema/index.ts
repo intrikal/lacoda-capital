@@ -37,6 +37,9 @@ export {
   notificationTypeEnum,
   dealStageEnum,
   dealTypeEnum,
+  policyTypeEnum,
+  policyStatusEnum,
+  premiumFrequencyEnum,
 } from "./00_enums";
 
 // ============================================================================
@@ -209,3 +212,14 @@ export type {
 // ============================================================================
 export { deals, dealsRelations } from "./deals";
 export type { Deal as DealRecord, NewDeal } from "./deals";
+
+// ============================================================================
+// Insurance Policies
+// ============================================================================
+export { insurancePolicies, insurancePoliciesRelations } from "./insurance_policies";
+export type {
+  InsurancePolicy,
+  NewInsurancePolicy,
+  InsurancePolicyMetadata,
+  InsuranceAgent,
+} from "./insurance_policies";

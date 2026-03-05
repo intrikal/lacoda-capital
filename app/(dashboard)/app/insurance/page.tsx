@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useSpring, animated, config } from "@react-spring/web"
-import { format, differenceInDays, addDays } from "date-fns"
+import { format, differenceInDays } from "date-fns"
 import {
   Shield,
   Plus,
@@ -15,30 +15,26 @@ import {
   Users,
   FileText,
   Calendar,
-  DollarSign,
   AlertCircle,
   CheckCircle2,
-  Clock,
-  ChevronRight,
   MoreHorizontal,
   Download,
   Phone,
   Mail,
   Building2,
+  Pencil,
+  Trash2,
 } from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
-  DialogFooter,
 } from "@/components/ui/dialog"
 import {
   Select,
@@ -51,9 +47,19 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Label } from "@/components/ui/label"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { cn } from "@/lib/utils"
 import { formatCurrency } from "@/lib/utils"
 import { useReducedMotion } from "@/lib/hooks/use-reduced-motion"
@@ -61,6 +67,18 @@ import {
   AllocationChart,
   PerformanceChart,
 } from "@/components/dashboard/charts"
+import {
+  useInsurancePolicies,
+  useCreateInsurancePolicy,
+  useUpdateInsurancePolicy,
+  useDeleteInsurancePolicy,
+} from "@/lib/hooks/crud/use-insurance-policies"
+import type { InsurancePolicyRecord } from "@/lib/hooks/crud/use-insurance-policies"
+import { InsurancePolicyFormDialog } from "@/components/forms/insurance-policy-form-dialog"
+import type {
+  CreateInsurancePolicyInput,
+  UpdateInsurancePolicyInput,
+} from "@/lib/validations/insurance-policy.schema"
 
 // Policy type configurations
 const policyTypeConfig = {
@@ -133,211 +151,40 @@ const statusConfig = {
 
 type PolicyStatus = keyof typeof statusConfig
 
-interface InsurancePolicy {
-  id: string
-  name: string
-  type: PolicyType
-  status: PolicyStatus
-  provider: string
-  policyNumber: string
-  coverageAmount: number
-  deductible: number
-  premium: number
-  premiumFrequency: "monthly" | "quarterly" | "annual"
-  effectiveDate: string
-  expirationDate: string
-  coveredAssets?: string[]
-  beneficiaries?: string[]
-  agent?: {
-    name: string
-    phone: string
-    email: string
+/** Annualize a premium based on its frequency. */
+function annualizePremium(premium: number, frequency: string): number {
+  switch (frequency) {
+    case "monthly":
+      return premium * 12
+    case "quarterly":
+      return premium * 4
+    default:
+      return premium
   }
-  notes?: string
 }
 
-// Mock policies data
-const mockPolicies: InsurancePolicy[] = [
-  {
-    id: "1",
-    name: "Manhattan Penthouse - Homeowners",
-    type: "home",
-    status: "active",
-    provider: "Chubb",
-    policyNumber: "HO-2024-001234",
-    coverageAmount: 2500000,
-    deductible: 10000,
-    premium: 8500,
-    premiumFrequency: "annual",
-    effectiveDate: "2024-01-15",
-    expirationDate: "2025-01-15",
-    coveredAssets: ["432 Park Ave, Unit 78A"],
-    agent: {
-      name: "Sarah Mitchell",
-      phone: "(212) 555-0123",
-      email: "smitchell@chubb.com",
-    },
-    notes: "Includes art & jewelry rider up to $500K",
-  },
-  {
-    id: "2",
-    name: "Miami Beach Condo - Homeowners",
-    type: "home",
-    status: "active",
-    provider: "AIG",
-    policyNumber: "HO-2024-005678",
-    coverageAmount: 1200000,
-    deductible: 5000,
-    premium: 4200,
-    premiumFrequency: "annual",
-    effectiveDate: "2024-03-01",
-    expirationDate: "2025-03-01",
-    coveredAssets: ["1234 Ocean Dr, Unit 1502"],
-    agent: {
-      name: "Michael Torres",
-      phone: "(305) 555-0456",
-      email: "mtorres@aig.com",
-    },
-  },
-  {
-    id: "3",
-    name: "Personal Umbrella Policy",
-    type: "umbrella",
-    status: "active",
-    provider: "Chubb",
-    policyNumber: "UMB-2024-009876",
-    coverageAmount: 10000000,
-    deductible: 0,
-    premium: 3500,
-    premiumFrequency: "annual",
-    effectiveDate: "2024-01-01",
-    expirationDate: "2025-01-01",
-    notes: "$10M umbrella covering all personal liability",
-  },
-  {
-    id: "4",
-    name: "Term Life Insurance",
-    type: "life",
-    status: "active",
-    provider: "Northwestern Mutual",
-    policyNumber: "LIFE-2020-112233",
-    coverageAmount: 5000000,
-    deductible: 0,
-    premium: 425,
-    premiumFrequency: "monthly",
-    effectiveDate: "2020-06-01",
-    expirationDate: "2040-06-01",
-    beneficiaries: ["Sarah Chen (Spouse) - 50%", "Chen Family Trust - 50%"],
-    agent: {
-      name: "Robert Kim",
-      phone: "(212) 555-0789",
-      email: "rkim@northwesternmutual.com",
-    },
-  },
-  {
-    id: "5",
-    name: "Primary Vehicle - Tesla Model S",
-    type: "auto",
-    status: "expiring",
-    provider: "Progressive",
-    policyNumber: "AUTO-2024-334455",
-    coverageAmount: 500000,
-    deductible: 1000,
-    premium: 2400,
-    premiumFrequency: "annual",
-    effectiveDate: "2024-02-15",
-    expirationDate: addDays(new Date(), 25).toISOString().split("T")[0],
-    coveredAssets: ["2023 Tesla Model S Plaid"],
-    agent: {
-      name: "Jennifer Adams",
-      phone: "(800) 555-0111",
-      email: "jadams@progressive.com",
-    },
-  },
-  {
-    id: "6",
-    name: "Family Health Insurance",
-    type: "health",
-    status: "active",
-    provider: "UnitedHealthcare",
-    policyNumber: "HEALTH-2024-667788",
-    coverageAmount: 0, // Typically unlimited for health
-    deductible: 3000,
-    premium: 2800,
-    premiumFrequency: "monthly",
-    effectiveDate: "2024-01-01",
-    expirationDate: "2024-12-31",
-    beneficiaries: ["Alexander Chen", "Sarah Chen", "Michael Chen", "Emma Chen"],
-    notes: "PPO Plan - Family coverage",
-  },
-  {
-    id: "7",
-    name: "Business Liability - Tech Innovations",
-    type: "business",
-    status: "active",
-    provider: "Hartford",
-    policyNumber: "BIZ-2024-445566",
-    coverageAmount: 2000000,
-    deductible: 5000,
-    premium: 4800,
-    premiumFrequency: "annual",
-    effectiveDate: "2024-01-15",
-    expirationDate: "2025-01-15",
-    coveredAssets: ["Tech Innovations Inc"],
-    notes: "General liability + E&O coverage",
-  },
-  {
-    id: "8",
-    name: "Investment Property Portfolio",
-    type: "property",
-    status: "active",
-    provider: "Lloyd's of London",
-    policyNumber: "PROP-2024-778899",
-    coverageAmount: 3500000,
-    deductible: 25000,
-    premium: 12000,
-    premiumFrequency: "annual",
-    effectiveDate: "2024-04-01",
-    expirationDate: "2025-04-01",
-    coveredAssets: ["Coastal Properties LLC Assets"],
-  },
-]
+function PolicyCard({
+  policy,
+  onClick,
+  onEdit,
+  onDelete,
+  onStatusChange,
+}: {
+  policy: InsurancePolicyRecord
+  onClick: () => void
+  onEdit: () => void
+  onDelete: () => void
+  onStatusChange: (status: PolicyStatus) => void
+}) {
+  const typeConfig = policyTypeConfig[policy.policyType as PolicyType]
+  const status = statusConfig[policy.status as PolicyStatus]
+  const TypeIcon = typeConfig?.icon ?? Shield
+  const daysUntilExpiration = differenceInDays(
+    new Date(policy.expirationDate),
+    new Date()
+  )
 
-// Chart data
-const coverageByTypeData = [
-  { name: "Life", value: 5000000, color: "#ef4444" },
-  { name: "Property", value: 3500000, color: "#6366f1" },
-  { name: "Home", value: 3700000, color: "#3b82f6" },
-  { name: "Umbrella", value: 10000000, color: "#8b5cf6" },
-  { name: "Business", value: 2000000, color: "#06b6d4" },
-]
-
-const premiumTrendData = [
-  { month: "Jan", portfolio: 42000, benchmark: 45000 },
-  { month: "Feb", portfolio: 42000, benchmark: 45500 },
-  { month: "Mar", portfolio: 43500, benchmark: 46000 },
-  { month: "Apr", portfolio: 43500, benchmark: 46500 },
-  { month: "May", portfolio: 44000, benchmark: 47000 },
-  { month: "Jun", portfolio: 44000, benchmark: 47500 },
-  { month: "Jul", portfolio: 44500, benchmark: 48000 },
-  { month: "Aug", portfolio: 44500, benchmark: 48500 },
-  { month: "Sep", portfolio: 45000, benchmark: 49000 },
-  { month: "Oct", portfolio: 45000, benchmark: 49500 },
-  { month: "Nov", portfolio: 45500, benchmark: 50000 },
-  { month: "Dec", portfolio: 45500, benchmark: 50500 },
-]
-
-function PolicyCard({ policy, onClick }: { policy: InsurancePolicy; onClick: () => void }) {
-  const typeConfig = policyTypeConfig[policy.type]
-  const status = statusConfig[policy.status]
-  const TypeIcon = typeConfig.icon
-  const daysUntilExpiration = differenceInDays(new Date(policy.expirationDate), new Date())
-
-  const annualPremium = policy.premiumFrequency === "monthly"
-    ? policy.premium * 12
-    : policy.premiumFrequency === "quarterly"
-    ? policy.premium * 4
-    : policy.premium
+  const annual = annualizePremium(policy.premium, policy.premiumFrequency)
 
   return (
     <Card
@@ -347,11 +194,13 @@ function PolicyCard({ policy, onClick }: { policy: InsurancePolicy; onClick: () 
       <CardContent className="p-4">
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-3">
-            <div className={cn("p-2 rounded-lg", typeConfig.bg)}>
-              <TypeIcon className={cn("h-5 w-5", typeConfig.color)} />
+            <div className={cn("p-2 rounded-lg", typeConfig?.bg)}>
+              <TypeIcon className={cn("h-5 w-5", typeConfig?.color)} />
             </div>
             <div>
-              <p className="font-medium text-zinc-100 truncate max-w-[200px]">{policy.name}</p>
+              <p className="font-medium text-zinc-100 truncate max-w-[200px]">
+                {policy.name}
+              </p>
               <p className="text-xs text-zinc-500">{policy.provider}</p>
             </div>
           </div>
@@ -366,11 +215,32 @@ function PolicyCard({ policy, onClick }: { policy: InsurancePolicy; onClick: () 
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem>View Details</DropdownMenuItem>
-              <DropdownMenuItem>Download Policy</DropdownMenuItem>
-              <DropdownMenuItem>Contact Agent</DropdownMenuItem>
-              <DropdownMenuItem>File Claim</DropdownMenuItem>
+            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+              <DropdownMenuItem onClick={onEdit}>
+                <Pencil className="h-4 w-4 mr-2" />
+                Edit Policy
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => onStatusChange("active")}>
+                Mark Active
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onStatusChange("expiring")}>
+                Mark Expiring
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onStatusChange("expired")}>
+                Mark Expired
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onStatusChange("pending")}>
+                Mark Pending
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="text-red-400"
+                onClick={onDelete}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -379,13 +249,15 @@ function PolicyCard({ policy, onClick }: { policy: InsurancePolicy; onClick: () 
           <div>
             <p className="text-xs text-zinc-500">Coverage</p>
             <p className="text-lg font-semibold text-zinc-100">
-              {policy.coverageAmount > 0 ? formatCurrency(policy.coverageAmount) : "See Plan"}
+              {policy.coverageAmount > 0
+                ? formatCurrency(policy.coverageAmount)
+                : "See Plan"}
             </p>
           </div>
           <div>
             <p className="text-xs text-zinc-500">Annual Premium</p>
             <p className="text-lg font-semibold text-tiffany-500">
-              {formatCurrency(annualPremium)}
+              {formatCurrency(annual)}
             </p>
           </div>
         </div>
@@ -394,13 +266,16 @@ function PolicyCard({ policy, onClick }: { policy: InsurancePolicy; onClick: () 
           <div className="flex items-center gap-2 text-xs text-zinc-500">
             <Calendar className="h-3 w-3" />
             {daysUntilExpiration > 0 ? (
-              <span>Expires {format(new Date(policy.expirationDate), "MMM d, yyyy")}</span>
+              <span>
+                Expires{" "}
+                {format(new Date(policy.expirationDate), "MMM d, yyyy")}
+              </span>
             ) : (
               <span className="text-red-400">Expired</span>
             )}
           </div>
-          <Badge className={cn(status.bg, status.color, "border-0")}>
-            {status.label}
+          <Badge className={cn(status?.bg, status?.color, "border-0")}>
+            {status?.label}
           </Badge>
         </div>
 
@@ -422,33 +297,35 @@ function PolicyDetailDrawer({
   open,
   onClose,
 }: {
-  policy: InsurancePolicy | null
+  policy: InsurancePolicyRecord | null
   open: boolean
   onClose: () => void
 }) {
   if (!policy) return null
 
-  const typeConfig = policyTypeConfig[policy.type]
-  const status = statusConfig[policy.status]
-  const TypeIcon = typeConfig.icon
+  const typeConfig = policyTypeConfig[policy.policyType as PolicyType]
+  const status = statusConfig[policy.status as PolicyStatus]
+  const TypeIcon = typeConfig?.icon ?? Shield
 
-  const annualPremium = policy.premiumFrequency === "monthly"
-    ? policy.premium * 12
-    : policy.premiumFrequency === "quarterly"
-    ? policy.premium * 4
-    : policy.premium
+  const annual = annualizePremium(policy.premium, policy.premiumFrequency)
+
+  const coveredAssets = (policy.coveredAssets ?? []) as string[]
+  const beneficiaries = (policy.beneficiaries ?? []) as string[]
+  const agent = policy.agent as { name: string; phone: string; email: string } | null
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <div className="flex items-center gap-3">
-            <div className={cn("p-3 rounded-lg", typeConfig.bg)}>
-              <TypeIcon className={cn("h-6 w-6", typeConfig.color)} />
+            <div className={cn("p-3 rounded-lg", typeConfig?.bg)}>
+              <TypeIcon className={cn("h-6 w-6", typeConfig?.color)} />
             </div>
             <div>
               <DialogTitle className="text-lg">{policy.name}</DialogTitle>
-              <DialogDescription>{policy.provider} • {typeConfig.label}</DialogDescription>
+              <DialogDescription>
+                {policy.provider} • {typeConfig?.label}
+              </DialogDescription>
             </div>
           </div>
         </DialogHeader>
@@ -456,8 +333,8 @@ function PolicyDetailDrawer({
         <div className="space-y-6 mt-4">
           {/* Status & Policy Number */}
           <div className="flex items-center gap-3">
-            <Badge className={cn(status.bg, status.color, "border-0")}>
-              {status.label}
+            <Badge className={cn(status?.bg, status?.color, "border-0")}>
+              {status?.label}
             </Badge>
             <span className="text-sm text-zinc-400 font-mono">
               {policy.policyNumber}
@@ -469,7 +346,9 @@ function PolicyDetailDrawer({
             <div className="p-3 rounded-lg bg-zinc-800/50">
               <p className="text-xs text-zinc-500">Coverage</p>
               <p className="text-lg font-bold text-zinc-100 mt-1">
-                {policy.coverageAmount > 0 ? formatCurrency(policy.coverageAmount) : "See Plan"}
+                {policy.coverageAmount > 0
+                  ? formatCurrency(policy.coverageAmount)
+                  : "See Plan"}
               </p>
             </div>
             <div className="p-3 rounded-lg bg-zinc-800/50">
@@ -481,7 +360,7 @@ function PolicyDetailDrawer({
             <div className="p-3 rounded-lg bg-zinc-800/50">
               <p className="text-xs text-zinc-500">Premium/Year</p>
               <p className="text-lg font-bold text-tiffany-500 mt-1">
-                {formatCurrency(annualPremium)}
+                {formatCurrency(annual)}
               </p>
             </div>
           </div>
@@ -509,11 +388,11 @@ function PolicyDetailDrawer({
           </div>
 
           {/* Covered Assets */}
-          {policy.coveredAssets && policy.coveredAssets.length > 0 && (
+          {coveredAssets.length > 0 && (
             <div>
               <p className="text-sm text-zinc-400 mb-2">Covered Assets</p>
               <div className="space-y-2">
-                {policy.coveredAssets.map((asset, i) => (
+                {coveredAssets.map((asset, i) => (
                   <div
                     key={i}
                     className="flex items-center gap-2 p-2 rounded-lg bg-zinc-800/50 text-sm text-zinc-300"
@@ -527,11 +406,11 @@ function PolicyDetailDrawer({
           )}
 
           {/* Beneficiaries */}
-          {policy.beneficiaries && policy.beneficiaries.length > 0 && (
+          {beneficiaries.length > 0 && (
             <div>
               <p className="text-sm text-zinc-400 mb-2">Beneficiaries</p>
               <div className="space-y-2">
-                {policy.beneficiaries.map((beneficiary, i) => (
+                {beneficiaries.map((beneficiary, i) => (
                   <div
                     key={i}
                     className="flex items-center gap-2 text-sm text-zinc-300"
@@ -545,20 +424,20 @@ function PolicyDetailDrawer({
           )}
 
           {/* Agent */}
-          {policy.agent && (
+          {agent && (
             <div className="p-4 rounded-lg bg-zinc-800/50">
               <p className="text-sm text-zinc-400 mb-2">Insurance Agent</p>
-              <p className="font-medium text-zinc-100">{policy.agent.name}</p>
+              <p className="font-medium text-zinc-100">{agent.name}</p>
               <div className="flex items-center gap-4 mt-2 text-sm">
                 <a
-                  href={`tel:${policy.agent.phone}`}
+                  href={`tel:${agent.phone}`}
                   className="flex items-center gap-1 text-zinc-400 hover:text-tiffany-500 transition-colors"
                 >
                   <Phone className="h-3 w-3" />
-                  {policy.agent.phone}
+                  {agent.phone}
                 </a>
                 <a
-                  href={`mailto:${policy.agent.email}`}
+                  href={`mailto:${agent.email}`}
                   className="flex items-center gap-1 text-zinc-400 hover:text-tiffany-500 transition-colors"
                 >
                   <Mail className="h-3 w-3" />
@@ -598,28 +477,84 @@ function PolicyDetailDrawer({
 export default function InsurancePage() {
   const [searchQuery, setSearchQuery] = React.useState("")
   const [typeFilter, setTypeFilter] = React.useState<string>("all")
-  const [selectedPolicy, setSelectedPolicy] = React.useState<InsurancePolicy | null>(null)
-  const [addPolicyOpen, setAddPolicyOpen] = React.useState(false)
+  const [selectedPolicy, setSelectedPolicy] =
+    React.useState<InsurancePolicyRecord | null>(null)
+  const [dialogOpen, setDialogOpen] = React.useState(false)
+  const [editTarget, setEditTarget] =
+    React.useState<InsurancePolicyRecord | null>(null)
+  const [deleteTarget, setDeleteTarget] =
+    React.useState<InsurancePolicyRecord | null>(null)
   const reducedMotion = useReducedMotion()
 
-  const filteredPolicies = mockPolicies.filter((policy) => {
-    const matchesSearch = policy.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+  const { policies, isLoading, stats } = useInsurancePolicies()
+  const createMutation = useCreateInsurancePolicy()
+  const updateMutation = useUpdateInsurancePolicy()
+  const deleteMutation = useDeleteInsurancePolicy()
+
+  const filteredPolicies = policies.filter((policy) => {
+    const matchesSearch =
+      policy.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       policy.provider.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesType = typeFilter === "all" || policy.type === typeFilter
+    const matchesType =
+      typeFilter === "all" || policy.policyType === typeFilter
     return matchesSearch && matchesType
   })
 
-  const totalCoverage = mockPolicies.reduce((sum, p) => sum + p.coverageAmount, 0)
-  const totalAnnualPremium = mockPolicies.reduce((sum, p) => {
-    const annual = p.premiumFrequency === "monthly"
-      ? p.premium * 12
-      : p.premiumFrequency === "quarterly"
-      ? p.premium * 4
-      : p.premium
-    return sum + annual
-  }, 0)
-  const expiringPolicies = mockPolicies.filter(p => p.status === "expiring").length
-  const activePolicies = mockPolicies.filter(p => p.status === "active").length
+  // Compute chart data from real policies
+  const coverageByTypeData = React.useMemo(() => {
+    const byType: Record<string, number> = {}
+    for (const p of policies) {
+      const cfg = policyTypeConfig[p.policyType as PolicyType]
+      const label = cfg?.label ?? p.policyType
+      byType[label] = (byType[label] ?? 0) + p.coverageAmount
+    }
+    return Object.entries(byType)
+      .filter(([, value]) => value > 0)
+      .map(([name, value]) => {
+        const entry = Object.entries(policyTypeConfig).find(
+          ([, c]) => c.label === name
+        )
+        return {
+          name,
+          value,
+          color: entry ? entry[1].chartColor : "#6b7280",
+        }
+      })
+  }, [policies])
+
+  function handleCreate() {
+    setEditTarget(null)
+    setDialogOpen(true)
+  }
+
+  function handleEdit(policy: InsurancePolicyRecord) {
+    setEditTarget(policy)
+    setDialogOpen(true)
+  }
+
+  function handleFormSubmit(
+    data: CreateInsurancePolicyInput | UpdateInsurancePolicyInput
+  ) {
+    if (editTarget) {
+      updateMutation.mutate({
+        id: editTarget.id,
+        input: data as UpdateInsurancePolicyInput,
+      })
+    } else {
+      createMutation.mutate(data as CreateInsurancePolicyInput)
+    }
+  }
+
+  function handleStatusChange(id: string, status: PolicyStatus) {
+    updateMutation.mutate({ id, input: { status } })
+  }
+
+  function handleDelete() {
+    if (!deleteTarget) return
+    deleteMutation.mutate(deleteTarget.id, {
+      onSuccess: () => setDeleteTarget(null),
+    })
+  }
 
   const spring = useSpring({
     from: { opacity: 0, transform: "translateY(20px)" },
@@ -638,75 +573,10 @@ export default function InsurancePage() {
             Manage policies, coverage, and premium schedules
           </p>
         </div>
-        <Dialog open={addPolicyOpen} onOpenChange={setAddPolicyOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Policy
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add Insurance Policy</DialogTitle>
-              <DialogDescription>
-                Track a new insurance policy in your portfolio.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label>Policy Name</Label>
-                <Input placeholder="e.g., Primary Residence Homeowners" />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Policy Type</Label>
-                  <Select defaultValue="home">
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(policyTypeConfig).map(([key, config]) => (
-                        <SelectItem key={key} value={key}>{config.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Provider</Label>
-                  <Input placeholder="e.g., Chubb" />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Coverage Amount</Label>
-                  <Input type="number" placeholder="$0" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Premium</Label>
-                  <Input type="number" placeholder="$0" />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Effective Date</Label>
-                  <Input type="date" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Expiration Date</Label>
-                  <Input type="date" />
-                </div>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setAddPolicyOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={() => setAddPolicyOpen(false)}>
-                Add Policy
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <Button onClick={handleCreate}>
+          <Plus className="h-4 w-4 mr-2" />
+          Add Policy
+        </Button>
       </div>
 
       {/* Summary Stats */}
@@ -714,15 +584,19 @@ export default function InsurancePage() {
         <Card>
           <CardContent className="p-4">
             <p className="text-sm text-zinc-400">Total Policies</p>
-            <p className="text-2xl font-bold text-zinc-100 mt-1">{mockPolicies.length}</p>
-            <p className="text-xs text-zinc-500 mt-1">{activePolicies} active</p>
+            <p className="text-2xl font-bold text-zinc-100 mt-1">
+              {isLoading ? "—" : stats.total}
+            </p>
+            <p className="text-xs text-zinc-500 mt-1">
+              {stats.active} active
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <p className="text-sm text-zinc-400">Total Coverage</p>
             <p className="text-2xl font-bold text-tiffany-500 mt-1">
-              {formatCurrency(totalCoverage)}
+              {isLoading ? "—" : formatCurrency(stats.totalCoverage)}
             </p>
             <p className="text-xs text-zinc-500 mt-1">Across all policies</p>
           </CardContent>
@@ -731,39 +605,39 @@ export default function InsurancePage() {
           <CardContent className="p-4">
             <p className="text-sm text-zinc-400">Annual Premiums</p>
             <p className="text-2xl font-bold text-zinc-100 mt-1">
-              {formatCurrency(totalAnnualPremium)}
+              {isLoading ? "—" : formatCurrency(stats.totalAnnualPremium)}
             </p>
             <p className="text-xs text-zinc-500 mt-1">
-              ~{formatCurrency(totalAnnualPremium / 12)}/month
+              ~{formatCurrency(stats.totalAnnualPremium / 12)}/month
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <p className="text-sm text-zinc-400">Expiring Soon</p>
-            <p className={cn(
-              "text-2xl font-bold mt-1",
-              expiringPolicies > 0 ? "text-amber-400" : "text-emerald-400"
-            )}>
-              {expiringPolicies}
+            <p
+              className={cn(
+                "text-2xl font-bold mt-1",
+                stats.expiring > 0 ? "text-amber-400" : "text-emerald-400"
+              )}
+            >
+              {isLoading ? "—" : stats.expiring}
             </p>
-            <p className="text-xs text-zinc-500 mt-1">Next 30 days</p>
+            <p className="text-xs text-zinc-500 mt-1">Policies expiring</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Charts */}
-      <div className="grid lg:grid-cols-3 gap-6">
-        <AllocationChart
-          data={coverageByTypeData}
-          title="Coverage by Type"
-          description="Total coverage across policy categories"
-        />
-        <PerformanceChart
-          data={premiumTrendData}
-          className="lg:col-span-2"
-        />
-      </div>
+      {/* Charts — only show when there are policies with coverage data */}
+      {coverageByTypeData.length > 0 && (
+        <div className="grid lg:grid-cols-3 gap-6">
+          <AllocationChart
+            data={coverageByTypeData}
+            title="Coverage by Type"
+            description="Total coverage across policy categories"
+          />
+        </div>
+      )}
 
       {/* Filters */}
       <Card>
@@ -784,8 +658,10 @@ export default function InsurancePage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Types</SelectItem>
-                {Object.entries(policyTypeConfig).map(([key, config]) => (
-                  <SelectItem key={key} value={key}>{config.label}</SelectItem>
+                {Object.entries(policyTypeConfig).map(([key, cfg]) => (
+                  <SelectItem key={key} value={key}>
+                    {cfg.label}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -793,16 +669,67 @@ export default function InsurancePage() {
         </CardContent>
       </Card>
 
+      {/* Loading State */}
+      {isLoading && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[1, 2, 3].map((i) => (
+            <Card key={i}>
+              <CardContent className="p-4">
+                <div className="animate-pulse space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 bg-zinc-800 rounded-lg" />
+                    <div className="space-y-2 flex-1">
+                      <div className="h-4 bg-zinc-800 rounded w-3/4" />
+                      <div className="h-3 bg-zinc-800 rounded w-1/2" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="h-12 bg-zinc-800 rounded" />
+                    <div className="h-12 bg-zinc-800 rounded" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Empty State */}
+      {!isLoading && policies.length === 0 && (
+        <Card>
+          <CardContent className="p-12 text-center">
+            <Shield className="h-12 w-12 text-zinc-600 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-zinc-300 mb-2">
+              No insurance policies yet
+            </h3>
+            <p className="text-zinc-500 mb-4">
+              Add your first policy to start tracking coverage and premiums.
+            </p>
+            <Button onClick={handleCreate}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Policy
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Policies Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredPolicies.map((policy) => (
-          <PolicyCard
-            key={policy.id}
-            policy={policy}
-            onClick={() => setSelectedPolicy(policy)}
-          />
-        ))}
-      </div>
+      {!isLoading && filteredPolicies.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredPolicies.map((policy) => (
+            <PolicyCard
+              key={policy.id}
+              policy={policy}
+              onClick={() => setSelectedPolicy(policy)}
+              onEdit={() => handleEdit(policy)}
+              onDelete={() => setDeleteTarget(policy)}
+              onStatusChange={(status) =>
+                handleStatusChange(policy.id, status)
+              }
+            />
+          ))}
+        </div>
+      )}
 
       {/* Policy Detail Drawer */}
       <PolicyDetailDrawer
@@ -810,6 +737,43 @@ export default function InsurancePage() {
         open={!!selectedPolicy}
         onClose={() => setSelectedPolicy(null)}
       />
+
+      {/* Form Dialog */}
+      <InsurancePolicyFormDialog
+        mode={editTarget ? "edit" : "create"}
+        initialData={editTarget ?? undefined}
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        onSubmit={handleFormSubmit}
+        isPending={createMutation.isPending || updateMutation.isPending}
+      />
+
+      {/* Delete Confirmation */}
+      <AlertDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Policy</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete &ldquo;{deleteTarget?.name}
+              &rdquo;? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </animated.div>
   )
 }

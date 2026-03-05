@@ -398,6 +398,47 @@ export const goalPriorityEnum = pgEnum("goal_priority", [
 ]);
 
 // ============================================================================
+// Insurance Policies
+// ============================================================================
+
+/**
+ * Policy type — the category of insurance coverage
+ */
+export const policyTypeEnum = pgEnum("policy_type", [
+  "home",
+  "auto",
+  "life",
+  "umbrella",
+  "liability",
+  "health",
+  "business",
+  "property",
+]);
+
+/**
+ * Policy status — current state of the insurance policy
+ * - active:   Policy is in force
+ * - expiring: Policy is approaching its expiration date
+ * - expired:  Policy has lapsed
+ * - pending:  Policy application is in progress
+ */
+export const policyStatusEnum = pgEnum("policy_status", [
+  "active",
+  "expiring",
+  "expired",
+  "pending",
+]);
+
+/**
+ * Premium payment frequency
+ */
+export const premiumFrequencyEnum = pgEnum("premium_frequency", [
+  "monthly",
+  "quarterly",
+  "annual",
+]);
+
+// ============================================================================
 // Pipeline / Deals
 // ============================================================================
 

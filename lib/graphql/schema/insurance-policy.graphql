@@ -1,0 +1,72 @@
+type InsurancePolicy {
+  id: ID!
+  orgId: ID!
+  clientId: ID
+  name: String!
+  policyType: String!
+  status: String!
+  provider: String!
+  policyNumber: String!
+  coverageAmount: Float!
+  deductible: Float!
+  premium: Float!
+  premiumFrequency: String!
+  effectiveDate: String!
+  expirationDate: String!
+  coveredAssets: JSON
+  beneficiaries: JSON
+  agent: JSON
+  notes: String
+  metadata: JSON
+  createdAt: DateTime!
+  updatedAt: DateTime!
+
+  # Relations
+  client: Client
+}
+
+type InsurancePolicyConnection {
+  items: [InsurancePolicy!]!
+  totalCount: Int!
+  page: Int!
+  limit: Int!
+}
+
+input CreateInsurancePolicyInput {
+  clientId: ID
+  name: String!
+  policyType: String!
+  provider: String!
+  policyNumber: String!
+  coverageAmount: Float!
+  deductible: Float
+  premium: Float!
+  premiumFrequency: String!
+  effectiveDate: String!
+  expirationDate: String!
+  coveredAssets: JSON
+  beneficiaries: JSON
+  agent: JSON
+  notes: String
+  metadata: JSON
+}
+
+input UpdateInsurancePolicyInput {
+  clientId: ID
+  name: String
+  policyType: String
+  status: String
+  provider: String
+  policyNumber: String
+  coverageAmount: Float
+  deductible: Float
+  premium: Float
+  premiumFrequency: String
+  effectiveDate: String
+  expirationDate: String
+  coveredAssets: JSON
+  beneficiaries: JSON
+  agent: JSON
+  notes: String
+  metadata: JSON
+}
