@@ -56,6 +56,10 @@ type Query {
   integrations: [Integration!]!
   integration(id: ID!): Integration
 
+  # ── Calendar Events ──
+  calendarEvents(clientId: ID, type: String, dateFrom: String, dateTo: String, page: Int, limit: Int): CalendarEventConnection!
+  calendarEvent(id: ID!): CalendarEvent
+
   # ── Notifications ──
   notifications(unreadOnly: Boolean, page: Int, limit: Int): NotificationConnection!
 
@@ -132,6 +136,11 @@ type Mutation {
   createIntegration(input: CreateIntegrationInput!): Integration!
   updateIntegration(id: ID!, input: UpdateIntegrationInput!): Integration!
   deleteIntegration(id: ID!): Boolean!
+
+  # ── Calendar Events ──
+  createCalendarEvent(input: CreateCalendarEventInput!): CalendarEvent!
+  updateCalendarEvent(id: ID!, input: UpdateCalendarEventInput!): CalendarEvent!
+  deleteCalendarEvent(id: ID!): Boolean!
 
   # ── Notifications ──
   markNotificationRead(id: ID!): Notification!

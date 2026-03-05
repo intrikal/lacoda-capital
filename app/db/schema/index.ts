@@ -27,6 +27,7 @@ export {
   complianceControlStatusEnum,
   conversationTypeEnum,
   messageSenderTypeEnum,
+  calendarEventTypeEnum,
   ledgerActionEnum,
   ledgerTargetTypeEnum,
   reportTypeEnum,
@@ -180,6 +181,16 @@ export type {
   MessageMetadata,
   MessageAttachment,
 } from "./messages";
+
+// ============================================================================
+// Calendar Events
+// ============================================================================
+export { calendarEvents, calendarEventsRelations } from "./calendar_events";
+export type {
+  CalendarEvent as CalendarEventRecord,
+  NewCalendarEvent,
+  CalendarEventMetadata,
+} from "./calendar_events";
 
 // ============================================================================
 // Notifications

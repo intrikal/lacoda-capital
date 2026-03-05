@@ -480,6 +480,28 @@ export const messageSenderTypeEnum = pgEnum("message_sender_type", [
 ]);
 
 // ============================================================================
+// Calendar Events
+// ============================================================================
+
+/**
+ * Calendar event types
+ * - meeting: Client or team meetings
+ * - payment: Payment due dates
+ * - dividend: Dividend payout dates
+ * - deadline: Compliance or filing deadlines
+ * - document: Document review/signing dates
+ * - call: Scheduled phone calls
+ */
+export const calendarEventTypeEnum = pgEnum("calendar_event_type", [
+  "meeting",
+  "payment",
+  "dividend",
+  "deadline",
+  "document",
+  "call",
+]);
+
+// ============================================================================
 // Notifications
 // ============================================================================
 
