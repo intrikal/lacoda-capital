@@ -292,6 +292,18 @@ export const taskPriorityEnum = pgEnum("task_priority", [
 // ============================================================================
 
 /**
+ * Compliance control status
+ * - needs_attention: No approved evidence exists (default state for new controls)
+ * - in_progress: Evidence has been submitted and is pending review
+ * - compliant: At least one approved, non-expired evidence record exists
+ */
+export const complianceControlStatusEnum = pgEnum("compliance_control_status", [
+  "needs_attention",
+  "in_progress",
+  "compliant",
+]);
+
+/**
  * Ledger event actions - append-only audit log
  * These capture all significant system events for compliance
  */

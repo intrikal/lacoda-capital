@@ -6,6 +6,7 @@ type ComplianceControl {
   description: String
   category: String
   isActive: Boolean!
+  status: String!
   frequency: String
   requiredDocumentTypes: [String!]!
   metadata: JSON
@@ -58,6 +59,7 @@ input UpdateComplianceControlInput {
   description: String
   category: String
   isActive: Boolean
+  status: String
   frequency: String
   requiredDocumentTypes: [String!]
   metadata: JSON

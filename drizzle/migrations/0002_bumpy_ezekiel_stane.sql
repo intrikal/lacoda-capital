@@ -1,0 +1,2 @@
+CREATE TYPE "public"."compliance_control_status" AS ENUM('needs_attention', 'in_progress', 'compliant');--> statement-breakpoint
+ALTER TABLE "compliance_controls" ADD COLUMN "status" "compliance_control_status" DEFAULT 'needs_attention' NOT NULL;

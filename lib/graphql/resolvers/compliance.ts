@@ -53,6 +53,7 @@ export const complianceResolvers = {
         .values({
           ...parsed,
           orgId: session.orgId,
+          status: "needs_attention",
           requiredDocumentTypes: parsed.requiredDocumentTypes ?? [],
           metadata: parsed.metadata ?? {},
         })
