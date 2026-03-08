@@ -67,6 +67,11 @@ const secondaryNavigation: NavItem[] = [
   { name: "Help", href: "/app/help", icon: HelpCircle, description: "Guides & support" },
 ]
 
+const navGroups: { label: string; items: NavItem[] }[] = [
+  { label: "", items: mainNavigation },
+  { label: "Account", items: secondaryNavigation },
+]
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Sidebar
 // ─────────────────────────────────────────────────────────────────────────────
