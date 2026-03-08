@@ -1,16 +1,13 @@
 /**
- * billing.service.ts
+ * @deprecated This mock service has been replaced by the GraphQL backend.
+ * Billing data now flows through:
+ *   Apollo Client → GET_BILLING_RECORDS → billingRecordResolvers → PostgreSQL
  *
- * Service layer for client billing — advisory fee invoices, fee structure,
- * and annual billing summaries. This is a read-only service for clients;
- * fee changes are managed exclusively by advisors.
+ * See: lib/graphql/resolvers/billing-record.ts
+ * See: lib/hooks/crud/use-billing-records.ts (advisor CRUD)
+ * See: lib/hooks/crud/use-client-billing.ts  (client read-only)
  *
- * Architecture position:
- *   Client page → useClientBilling hook → billingService → (mock data today, Drizzle tomorrow)
- *
- * tRPC swap path:
- *   `trpc.client.billing.history.useQuery()`
- *   `trpc.client.billing.summary.useQuery()`
+ * This file is kept temporarily for reference and can be safely deleted.
  */
 
 import { mockBillingHistory } from "@/lib/mock/data"

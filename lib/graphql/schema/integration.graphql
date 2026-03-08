@@ -1,0 +1,59 @@
+enum IntegrationProvider {
+  plaid
+  yodlee
+  quickbooks
+  xero
+  salesforce
+  hubspot
+  google_drive
+  dropbox
+  docusign
+  other
+}
+
+enum IntegrationStatus {
+  connected
+  disconnected
+  error
+  pending
+}
+
+type Integration {
+  id: ID!
+  orgId: ID!
+  provider: IntegrationProvider!
+  name: String!
+  status: IntegrationStatus!
+  statusMessage: String
+  externalAccountId: String
+  externalItemId: String
+  lastSyncAt: DateTime
+  lastSyncStatus: String
+  syncErrorMessage: String
+  settings: JSON
+  connectedBy: ID
+  connectedAt: DateTime
+  createdAt: DateTime!
+  updatedAt: DateTime!
+
+  # Relations
+  connectedByUser: User
+}
+
+input CreateIntegrationInput {
+  provider: IntegrationProvider!
+  name: String!
+  status: IntegrationStatus
+  externalAccountId: String
+  externalItemId: String
+  settings: JSON
+}
+
+input UpdateIntegrationInput {
+  name: String
+  status: IntegrationStatus
+  statusMessage: String
+  externalAccountId: String
+  externalItemId: String
+  settings: JSON
+}

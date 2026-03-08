@@ -1,22 +1,28 @@
 /**
- * @file app/(client)/client/calendar/page.tsx
+ * ============================================================================
+ * FILE: app/(client)/client/calendar/page.tsx
+ * ============================================================================
  *
- * Client portal — Calendar page.
+ * WHAT THIS FILE IS:
+ *   Client portal calendar page. Displays a monthly calendar grid with
+ *   event indicators, upcoming events sidebar, and a quick schedule dialog.
  *
- * Data source: `useCalendarEvents` hook from `@/lib/hooks/crud/use-calendar-events`
- * The hook returns events with ISO date strings. This page converts each
- * `event.date` string to a `Date` object via `eventsWithDates` (memoized) so
- * all downstream date-fns helpers (`isSameDay`, `format`, etc.) continue to
- * work exactly as before.
+ * ARCHITECTURE:
+ *   ┌────────────────────────────────────────────────────────────────────┐
+ *   │ ClientCalendarPage                                                │
+ *   │   ├── useCalendarEvents()          → fetches all events           │
+ *   │   ├── useCreateCalendarEvent()     → creates a new event          │
+ *   │         ↓                                                          │
+ *   │ Apollo Client (useQuery / useMutation)                             │
+ *   │         ↓                                                          │
+ *   │ POST /api/graphql                                                  │
+ *   │         ↓                                                          │
+ *   │ calendarEventResolvers → Drizzle ORM → PostgreSQL                 │
+ *   └────────────────────────────────────────────────────────────────────┘
  *
- * Interactive wiring:
- *   - Both "Schedule Meeting" buttons open `scheduleOpen` dialog.
- *   - Submitting the dialog calls `addEvent({ ... })` on the hook.
- *
- * Everything else — calendar grid, event legend, upcoming list, selected-date
- * detail panel — is unchanged from the original mock-data version.
+ * CONSUMERS:
+ *   This page is rendered at /client/calendar for client portal users.
  */
-
 "use client"
 
 import * as React from "react"
@@ -50,7 +56,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { cn, formatCurrency } from "@/lib/utils"
 import { useReducedMotion } from "@/lib/hooks/use-reduced-motion"
-import { useCalendarEvents } from "@/lib/hooks/crud/use-calendar-events"
+import { useCalendarEvents, useCreateCalendarEvent } from "@/lib/hooks/crud/use-calendar-events"
+import type { CalendarEventType } from "@/lib/hooks/crud/use-calendar-events"
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Display config (static, not data)
@@ -84,8 +91,9 @@ export default function ClientCalendarPage() {
   const [newTitle, setNewTitle] = React.useState("")
   const [newDate, setNewDate] = React.useState("")
 
-  // ── Hook ───────────────────────────────────────────────────────────────────
-  const { events, addEvent } = useCalendarEvents()
+  // ── Hooks ──────────────────────────────────────────────────────────────────
+  const { events } = useCalendarEvents()
+  const { mutate: createEvent } = useCreateCalendarEvent()
 
   // Convert ISO date strings → Date objects once per render cycle
   const eventsWithDates = React.useMemo(
@@ -127,11 +135,10 @@ export default function ClientCalendarPage() {
   // ── Schedule meeting submit ────────────────────────────────────────────────
   function handleScheduleSubmit() {
     if (!newTitle.trim() || !newDate) return
-    addEvent({
+    createEvent({
       title: newTitle.trim(),
       date: newDate,
       type: "meeting",
-      time: "",
     })
     setNewTitle("")
     setNewDate("")

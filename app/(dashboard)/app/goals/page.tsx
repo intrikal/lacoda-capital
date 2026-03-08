@@ -2,13 +2,12 @@
 
 import * as React from "react"
 import { useSpring, animated, config } from "@react-spring/web"
-import { format, differenceInMonths, addYears } from "date-fns"
+import { format, differenceInMonths } from "date-fns"
 import {
   Target,
   Plus,
   TrendingUp,
   Calendar,
-  DollarSign,
   Home,
   GraduationCap,
   Umbrella,
@@ -17,27 +16,44 @@ import {
   Heart,
   Briefcase,
   CheckCircle2,
-  Clock,
   AlertCircle,
-  ChevronRight,
   ArrowUpRight,
+  MoreHorizontal,
+  Pencil,
+  Trash2,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { cn } from "@/lib/utils"
 import { formatCurrency } from "@/lib/utils"
 import { useReducedMotion } from "@/lib/hooks/use-reduced-motion"
-import { useGoals } from "@/lib/hooks/crud/use-goals"
+import { useGoals, useCreateGoal, useUpdateGoal, useDeleteGoal } from "@/lib/hooks/crud/use-goals"
+import type { GoalRecord } from "@/lib/hooks/crud/use-goals"
 import { GoalFormDialog } from "@/components/forms/goal-form-dialog"
-import type { FinancialGoal } from "@/lib/mock/types"
-import {
-  PerformanceChart,
-  GoalProgress,
-} from "@/components/dashboard/charts"
+import type { CreateGoalInput, UpdateGoalInput } from "@/lib/validations/goal.schema"
+import { PerformanceChart } from "@/components/dashboard/charts"
 
-// Goal categories
+// ─── CATEGORY CONFIG ──────────────────────────────────────────────────────────
+
 const goalCategoryConfig = {
   retirement: {
     label: "Retirement",
@@ -95,9 +111,22 @@ const goalCategoryConfig = {
     bg: "bg-zinc-400/10",
     chartColor: "#71717a",
   },
+} as const
+
+const statusConfig = {
+  on_track: { label: "On Track",  color: "text-tiffany-500", bg: "bg-tiffany-500/10",  icon: CheckCircle2 },
+  ahead:    { label: "Ahead",     color: "text-emerald-400", bg: "bg-emerald-400/10",  icon: ArrowUpRight },
+  behind:   { label: "Behind",    color: "text-amber-400",   bg: "bg-amber-400/10",    icon: AlertCircle },
+  completed:{ label: "Completed", color: "text-blue-400",    bg: "bg-blue-400/10",     icon: CheckCircle2 },
 }
 
-// Wealth projection data (display-only)
+const priorityConfig = {
+  high:   { label: "High",   color: "text-red-400" },
+  medium: { label: "Medium", color: "text-amber-400" },
+  low:    { label: "Low",    color: "text-zinc-400" },
+}
+
+// Wealth projection data (display-only chart)
 const wealthProjectionData = [
   { month: "2024", portfolio: 3850000, benchmark: 3500000 },
   { month: "2026", portfolio: 4850000, benchmark: 4200000 },
@@ -110,41 +139,38 @@ const wealthProjectionData = [
   { month: "2040", portfolio: 21500000, benchmark: 15800000 },
 ]
 
-const statusConfig = {
-  on_track: { label: "On Track", color: "text-tiffany-500", bg: "bg-tiffany-500/10", icon: CheckCircle2 },
-  ahead: { label: "Ahead", color: "text-emerald-400", bg: "bg-emerald-400/10", icon: ArrowUpRight },
-  behind: { label: "Behind", color: "text-amber-400", bg: "bg-amber-400/10", icon: AlertCircle },
-  completed: { label: "Completed", color: "text-blue-400", bg: "bg-blue-400/10", icon: CheckCircle2 },
+// ─── GOAL CARD ────────────────────────────────────────────────────────────────
+
+interface GoalCardProps {
+  goal: GoalRecord
+  onEdit: (goal: GoalRecord) => void
+  onDelete: (goal: GoalRecord) => void
+  onStatusChange: (id: string, status: GoalRecord["status"]) => void
 }
 
-const priorityConfig = {
-  high: { label: "High", color: "text-red-400" },
-  medium: { label: "Medium", color: "text-amber-400" },
-  low: { label: "Low", color: "text-zinc-400" },
-}
-
-function GoalCard({ goal }: { goal: FinancialGoal }) {
-  const categoryConfig = goalCategoryConfig[goal.category]
-  const status = statusConfig[goal.status]
-  const priority = priorityConfig[goal.priority]
-  const CategoryIcon = categoryConfig.icon
+function GoalCard({ goal, onEdit, onDelete, onStatusChange }: GoalCardProps) {
+  const catConfig = goalCategoryConfig[goal.category] ?? goalCategoryConfig.custom
+  const status = statusConfig[goal.status] ?? statusConfig.on_track
+  const priority = priorityConfig[goal.priority] ?? priorityConfig.medium
+  const CategoryIcon = catConfig.icon
   const StatusIcon = status.icon
 
-  const progress = Math.min((goal.currentAmount / goal.targetAmount) * 100, 100)
-  const remaining = goal.targetAmount - goal.currentAmount
-  const monthsToTarget = differenceInMonths(new Date(goal.targetDate), new Date())
+  const progress = Math.min(
+    goal.targetAmount > 0 ? (goal.currentAmount / goal.targetAmount) * 100 : 0,
+    100
+  )
 
   return (
     <Card className="hover:border-zinc-700 transition-colors">
       <CardContent className="p-4">
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-3">
-            <div className={cn("p-2 rounded-lg", categoryConfig.bg)}>
-              <CategoryIcon className={cn("h-5 w-5", categoryConfig.color)} />
+            <div className={cn("p-2 rounded-lg", catConfig.bg)}>
+              <CategoryIcon className={cn("h-5 w-5", catConfig.color)} />
             </div>
             <div>
               <p className="font-medium text-zinc-100">{goal.name}</p>
-              <p className="text-xs text-zinc-500">{categoryConfig.label}</p>
+              <p className="text-xs text-zinc-500">{catConfig.label}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -152,10 +178,54 @@ function GoalCard({ goal }: { goal: FinancialGoal }) {
               <StatusIcon className="h-3 w-3 mr-1" />
               {status.label}
             </Badge>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-7 w-7">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="bg-zinc-900 border-zinc-800">
+                <DropdownMenuItem onClick={() => onEdit(goal)}>
+                  <Pencil className="h-4 w-4 mr-2" /> Edit
+                </DropdownMenuItem>
+                <DropdownMenuSeparator className="bg-zinc-800" />
+                {goal.status !== "on_track" && (
+                  <DropdownMenuItem onClick={() => onStatusChange(goal.id, "on_track")}>
+                    <CheckCircle2 className="h-4 w-4 mr-2 text-tiffany-500" />
+                    Mark On Track
+                  </DropdownMenuItem>
+                )}
+                {goal.status !== "ahead" && (
+                  <DropdownMenuItem onClick={() => onStatusChange(goal.id, "ahead")}>
+                    <ArrowUpRight className="h-4 w-4 mr-2 text-emerald-400" />
+                    Mark Ahead
+                  </DropdownMenuItem>
+                )}
+                {goal.status !== "behind" && (
+                  <DropdownMenuItem onClick={() => onStatusChange(goal.id, "behind")}>
+                    <AlertCircle className="h-4 w-4 mr-2 text-amber-400" />
+                    Mark Behind
+                  </DropdownMenuItem>
+                )}
+                {goal.status !== "completed" && (
+                  <DropdownMenuItem onClick={() => onStatusChange(goal.id, "completed")}>
+                    <CheckCircle2 className="h-4 w-4 mr-2 text-blue-400" />
+                    Mark Completed
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuSeparator className="bg-zinc-800" />
+                <DropdownMenuItem
+                  className="text-rose-400 focus:text-rose-400"
+                  onClick={() => onDelete(goal)}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" /> Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 
-        {/* Progress */}
+        {/* Progress bar */}
         <div className="space-y-2 mb-4">
           <div className="flex justify-between text-sm">
             <span className="text-zinc-400">Progress</span>
@@ -164,10 +234,7 @@ function GoalCard({ goal }: { goal: FinancialGoal }) {
           <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
             <div
               className="h-full rounded-full transition-all"
-              style={{
-                width: `${progress}%`,
-                backgroundColor: categoryConfig.chartColor,
-              }}
+              style={{ width: `${progress}%`, backgroundColor: catConfig.chartColor }}
             />
           </div>
         </div>
@@ -204,13 +271,37 @@ function GoalCard({ goal }: { goal: FinancialGoal }) {
   )
 }
 
-export default function GoalsPage() {
-  const { goals, addGoal, stats } = useGoals()
-  const [addGoalOpen, setAddGoalOpen] = React.useState(false)
-  const reducedMotion = useReducedMotion()
+// ─── EMPTY STATE ──────────────────────────────────────────────────────────────
 
-  const goalsOnTrack = goals.filter(g => g.status === "on_track" || g.status === "ahead").length
-  const goalsBehind = goals.filter(g => g.status === "behind").length
+function EmptyState({ onAdd }: { onAdd: () => void }) {
+  return (
+    <div className="text-center py-16">
+      <Target className="h-12 w-12 text-zinc-600 mx-auto mb-4" />
+      <p className="text-zinc-400 font-medium mb-1">No goals yet</p>
+      <p className="text-zinc-500 text-sm mb-6">
+        Create your first financial goal to start tracking progress.
+      </p>
+      <Button onClick={onAdd}>
+        <Plus className="h-4 w-4 mr-2" />
+        Add Goal
+      </Button>
+    </div>
+  )
+}
+
+// ─── PAGE ─────────────────────────────────────────────────────────────────────
+
+export default function GoalsPage() {
+  const { goals, isLoading, stats } = useGoals()
+  const createMutation = useCreateGoal()
+  const updateMutation = useUpdateGoal()
+  const deleteMutation = useDeleteGoal()
+
+  const [dialogOpen, setDialogOpen] = React.useState(false)
+  const [editTarget, setEditTarget] = React.useState<GoalRecord | null>(null)
+  const [deleteTarget, setDeleteTarget] = React.useState<GoalRecord | null>(null)
+
+  const reducedMotion = useReducedMotion()
 
   const spring = useSpring({
     from: { opacity: 0, transform: "translateY(20px)" },
@@ -219,6 +310,33 @@ export default function GoalsPage() {
     immediate: reducedMotion,
   })
 
+  function handleCreate() {
+    setEditTarget(null)
+    setDialogOpen(true)
+  }
+
+  function handleEdit(goal: GoalRecord) {
+    setEditTarget(goal)
+    setDialogOpen(true)
+  }
+
+  function handleFormSubmit(data: CreateGoalInput | UpdateGoalInput) {
+    if (editTarget) {
+      updateMutation.mutate({ id: editTarget.id, input: data as UpdateGoalInput })
+    } else {
+      createMutation.mutate(data as CreateGoalInput)
+    }
+  }
+
+  function handleStatusChange(id: string, status: GoalRecord["status"]) {
+    updateMutation.mutate({ id, input: { status } })
+  }
+
+  const goalsOnTrack = goals.filter(
+    (g) => g.status === "on_track" || g.status === "ahead"
+  ).length
+  const goalsBehind = goals.filter((g) => g.status === "behind").length
+
   return (
     <animated.div style={spring} className="space-y-6">
       {/* Header */}
@@ -226,10 +344,10 @@ export default function GoalsPage() {
         <div>
           <h1 className="text-2xl font-bold text-zinc-100">Financial Goals</h1>
           <p className="text-zinc-400 mt-1">
-            Track progress toward your wealth targets and milestones
+            Track progress toward wealth targets and milestones
           </p>
         </div>
-        <Button onClick={() => setAddGoalOpen(true)}>
+        <Button onClick={handleCreate}>
           <Plus className="h-4 w-4 mr-2" />
           Add Goal
         </Button>
@@ -256,7 +374,8 @@ export default function GoalsPage() {
                 />
               </div>
               <p className="text-sm text-zinc-400">
-                {stats.overallProgress.toFixed(1)}% complete across {stats.total} goals
+                {stats.overallProgress.toFixed(1)}% complete across {stats.total} goal
+                {stats.total !== 1 ? "s" : ""}
               </p>
             </div>
 
@@ -285,6 +404,11 @@ export default function GoalsPage() {
                   {goalsBehind} need{goalsBehind === 1 ? "s" : ""} attention
                 </p>
               )}
+              {stats.completed > 0 && (
+                <p className="text-xs text-blue-400 mt-1">
+                  {stats.completed} completed
+                </p>
+              )}
             </div>
           </div>
         </CardContent>
@@ -293,12 +417,10 @@ export default function GoalsPage() {
       {/* Wealth Projection */}
       <Card>
         <CardHeader>
-          <div>
-            <CardTitle className="text-base">Wealth Projection</CardTitle>
-            <CardDescription>
-              Projected portfolio growth based on current trajectory
-            </CardDescription>
-          </div>
+          <CardTitle className="text-base">Wealth Projection</CardTitle>
+          <CardDescription>
+            Projected portfolio growth based on current trajectory
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <PerformanceChart data={wealthProjectionData} />
@@ -306,79 +428,131 @@ export default function GoalsPage() {
       </Card>
 
       {/* Goals Tabs */}
-      <Tabs defaultValue="all" className="w-full">
-        <TabsList>
-          <TabsTrigger value="all">All Goals ({goals.length})</TabsTrigger>
-          <TabsTrigger value="high">High Priority ({goals.filter(g => g.priority === "high").length})</TabsTrigger>
-          <TabsTrigger value="retirement">Retirement</TabsTrigger>
-          <TabsTrigger value="investment">Investment</TabsTrigger>
-        </TabsList>
+      {isLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Card key={i} className="h-48 animate-pulse bg-zinc-800/50" />
+          ))}
+        </div>
+      ) : goals.length === 0 ? (
+        <Card>
+          <CardContent className="p-0">
+            <EmptyState onAdd={handleCreate} />
+          </CardContent>
+        </Card>
+      ) : (
+        <Tabs defaultValue="all" className="w-full">
+          <TabsList>
+            <TabsTrigger value="all">All ({goals.length})</TabsTrigger>
+            <TabsTrigger value="high">
+              High Priority ({goals.filter((g) => g.priority === "high").length})
+            </TabsTrigger>
+            <TabsTrigger value="retirement">Retirement</TabsTrigger>
+            <TabsTrigger value="investment">Investment</TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="all" className="mt-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {goals.map((goal) => (
-              <GoalCard key={goal.id} goal={goal} />
-            ))}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="high" className="mt-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {goals
-              .filter((g) => g.priority === "high")
-              .map((goal) => (
-                <GoalCard key={goal.id} goal={goal} />
-              ))}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="retirement" className="mt-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {goals
-              .filter((g) => g.category === "retirement")
-              .map((goal) => (
-                <GoalCard key={goal.id} goal={goal} />
-              ))}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="investment" className="mt-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {goals
-              .filter((g) => g.category === "investment" || g.category === "realestate")
-              .map((goal) => (
-                <GoalCard key={goal.id} goal={goal} />
-              ))}
-          </div>
-        </TabsContent>
-      </Tabs>
+          {(
+            [
+              { value: "all", filter: () => true },
+              { value: "high", filter: (g: GoalRecord) => g.priority === "high" },
+              { value: "retirement", filter: (g: GoalRecord) => g.category === "retirement" },
+              {
+                value: "investment",
+                filter: (g: GoalRecord) =>
+                  g.category === "investment" || g.category === "realestate",
+              },
+            ] as { value: string; filter: (g: GoalRecord) => boolean }[]
+          ).map(({ value, filter }) => (
+            <TabsContent key={value} value={value} className="mt-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {goals.filter(filter).map((goal) => (
+                  <GoalCard
+                    key={goal.id}
+                    goal={goal}
+                    onEdit={handleEdit}
+                    onDelete={setDeleteTarget}
+                    onStatusChange={handleStatusChange}
+                  />
+                ))}
+                {goals.filter(filter).length === 0 && (
+                  <p className="text-zinc-500 text-sm col-span-3 py-8 text-center">
+                    No goals in this view.
+                  </p>
+                )}
+              </div>
+            </TabsContent>
+          ))}
+        </Tabs>
+      )}
 
       {/* Insights */}
-      <Card className="border-tiffany-500/20 bg-tiffany-500/5">
-        <CardContent className="p-4">
-          <div className="flex items-start gap-3">
-            <div className="p-2 rounded-lg bg-tiffany-500/10">
-              <TrendingUp className="h-5 w-5 text-tiffany-500" />
+      {goals.length > 0 && (
+        <Card className="border-tiffany-500/20 bg-tiffany-500/5">
+          <CardContent className="p-4">
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-lg bg-tiffany-500/10">
+                <TrendingUp className="h-5 w-5 text-tiffany-500" />
+              </div>
+              <div>
+                <p className="font-medium text-zinc-100">Progress Summary</p>
+                <p className="text-sm text-zinc-400 mt-1">
+                  At your current contribution rate of{" "}
+                  {formatCurrency(stats.totalMonthlyContribution)}/month, you have{" "}
+                  {goalsOnTrack} of {stats.total} goals on track or ahead of schedule.
+                  {stats.behind > 0 &&
+                    ` ${stats.behind} goal${stats.behind !== 1 ? "s" : ""} need attention — consider increasing contributions.`}
+                </p>
+              </div>
             </div>
-            <div>
-              <p className="font-medium text-zinc-100">Progress Summary</p>
-              <p className="text-sm text-zinc-400 mt-1">
-                At your current contribution rate of {formatCurrency(stats.totalMonthlyContribution)}/month,
-                you're projected to reach your retirement goal by 2038 - 2 years ahead of schedule.
-                Consider increasing your education fund contributions by $500/month to stay on track
-                for your children's college timeline.
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
+      {/* Create / Edit Dialog */}
       <GoalFormDialog
-        mode="create"
-        open={addGoalOpen}
-        onOpenChange={setAddGoalOpen}
-        onSubmit={(data) => addGoal(data)}
+        mode={editTarget ? "edit" : "create"}
+        initialData={editTarget ?? undefined}
+        open={dialogOpen}
+        onOpenChange={(open) => {
+          setDialogOpen(open)
+          if (!open) setEditTarget(null)
+        }}
+        onSubmit={handleFormSubmit}
+        isPending={createMutation.isPending || updateMutation.isPending}
       />
+
+      {/* Delete Confirmation */}
+      <AlertDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}
+      >
+        <AlertDialogContent className="bg-zinc-900 border-zinc-800">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Goal</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete &quot;{deleteTarget?.name}&quot;?
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-zinc-800 border-zinc-700 hover:bg-zinc-700">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-rose-600 hover:bg-rose-700 text-white"
+              onClick={() => {
+                if (deleteTarget) {
+                  deleteMutation.mutate(deleteTarget.id, {
+                    onSuccess: () => setDeleteTarget(null),
+                  })
+                }
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </animated.div>
   )
 }

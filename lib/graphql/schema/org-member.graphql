@@ -1,0 +1,39 @@
+enum OrgMemberRole {
+  admin
+  assistant
+  client
+}
+
+type OrgMember {
+  id: ID!
+  orgId: ID!
+  userId: ID!
+  role: OrgMemberRole!
+  clientId: ID
+  createdAt: DateTime!
+  updatedAt: DateTime!
+
+  # Relations
+  org: Org!
+  user: User!
+  client: Client
+  assignmentsAsAssistant: [Assignment!]!
+}
+
+type OrgMemberConnection {
+  items: [OrgMember!]!
+  totalCount: Int!
+  page: Int!
+  limit: Int!
+}
+
+input InviteOrgMemberInput {
+  email: String!
+  role: OrgMemberRole!
+  clientId: ID
+}
+
+input UpdateOrgMemberRoleInput {
+  role: OrgMemberRole!
+  clientId: ID
+}

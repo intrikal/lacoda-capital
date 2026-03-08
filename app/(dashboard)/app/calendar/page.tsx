@@ -1,3 +1,28 @@
+/**
+ * ============================================================================
+ * FILE: app/(dashboard)/app/calendar/page.tsx
+ * ============================================================================
+ *
+ * WHAT THIS FILE IS:
+ *   Advisor-facing calendar page with monthly grid, event details,
+ *   summary stats, and upcoming events sidebar.
+ *
+ * ARCHITECTURE:
+ *   ┌────────────────────────────────────────────────────────────────────┐
+ *   │ CalendarPage                                                      │
+ *   │   ├── useCalendarEvents()          → fetches all events           │
+ *   │   ├── useCreateCalendarEvent()     → creates a new event          │
+ *   │         ↓                                                          │
+ *   │ Apollo Client (useQuery / useMutation)                             │
+ *   │         ↓                                                          │
+ *   │ POST /api/graphql                                                  │
+ *   │         ↓                                                          │
+ *   │ calendarEventResolvers → Drizzle ORM → PostgreSQL                 │
+ *   └────────────────────────────────────────────────────────────────────┘
+ *
+ * CONSUMERS:
+ *   This page is rendered at /app/calendar for advisors/admins.
+ */
 "use client"
 
 import * as React from "react"
@@ -25,9 +50,9 @@ import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { formatCurrency } from "@/lib/utils"
 import { useReducedMotion } from "@/lib/hooks/use-reduced-motion"
-import { useCalendarEvents } from "@/lib/hooks/crud/use-calendar-events"
+import { useCalendarEvents, useCreateCalendarEvent } from "@/lib/hooks/crud/use-calendar-events"
 import { EventFormDialog } from "@/components/forms/event-form-dialog"
-import type { CalendarEventType } from "@/lib/mock/types"
+import type { CalendarEventType, CalendarEventRecord } from "@/lib/hooks/crud/use-calendar-events"
 
 // Event types and their configurations
 const eventTypeConfig = {
@@ -80,12 +105,12 @@ interface CalendarEventWithDate {
   title: string
   type: CalendarEventType
   date: Date
-  time?: string
-  endTime?: string
-  location?: string
-  amount?: number
-  description?: string
-  attendees?: string[]
+  time?: string | null
+  endTime?: string | null
+  location?: string | null
+  amount?: number | null
+  description?: string | null
+  attendees?: string[] | null
   reminder?: boolean
 }
 
@@ -142,13 +167,14 @@ function EventCard({ event }: { event: CalendarEventWithDate }) {
 }
 
 export default function CalendarPage() {
-  const { events, addEvent } = useCalendarEvents()
+  const { events } = useCalendarEvents()
+  const { mutate: createEvent, isPending } = useCreateCalendarEvent()
   const [currentDate, setCurrentDate] = React.useState(new Date())
   const [selectedDate, setSelectedDate] = React.useState<Date | null>(new Date())
   const [addEventOpen, setAddEventOpen] = React.useState(false)
   const reducedMotion = useReducedMotion()
 
-  // Convert ISO date strings from service layer to Date objects for calendar rendering
+  // Convert ISO date strings from API to Date objects for calendar rendering
   const eventsWithDates: CalendarEventWithDate[] = React.useMemo(
     () => events.map((e) => ({ ...e, date: new Date(e.date) })),
     [events]
@@ -430,7 +456,8 @@ export default function CalendarPage() {
         initialData={selectedDate ? { date: format(selectedDate, "yyyy-MM-dd") } : undefined}
         open={addEventOpen}
         onOpenChange={setAddEventOpen}
-        onSubmit={(data) => addEvent(data)}
+        onSubmit={(data) => createEvent(data)}
+        isPending={isPending}
       />
     </animated.div>
   )

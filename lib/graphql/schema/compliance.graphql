@@ -1,0 +1,76 @@
+type ComplianceControl {
+  id: ID!
+  orgId: ID!
+  code: String!
+  name: String!
+  description: String
+  category: String
+  isActive: Boolean!
+  status: String!
+  frequency: String
+  requiredDocumentTypes: [String!]!
+  metadata: JSON
+  createdAt: DateTime!
+  updatedAt: DateTime!
+
+  # Relations
+  evidence: [ComplianceEvidence!]!
+}
+
+type ComplianceEvidence {
+  id: ID!
+  controlId: ID!
+  documentId: ID!
+  clientId: ID!
+  status: String!
+  validFrom: DateTime
+  validUntil: DateTime
+  reviewedBy: ID
+  reviewedAt: DateTime
+  reviewNotes: String
+  createdAt: DateTime!
+  updatedAt: DateTime!
+
+  # Relations
+  control: ComplianceControl!
+  document: Document!
+  reviewer: User
+}
+
+type ComplianceControlConnection {
+  items: [ComplianceControl!]!
+  totalCount: Int!
+  page: Int!
+  limit: Int!
+}
+
+input CreateComplianceControlInput {
+  code: String!
+  name: String!
+  description: String
+  category: String
+  frequency: String
+  requiredDocumentTypes: [String!]
+  metadata: JSON
+}
+
+input UpdateComplianceControlInput {
+  name: String
+  description: String
+  category: String
+  isActive: Boolean
+  status: String
+  frequency: String
+  requiredDocumentTypes: [String!]
+  metadata: JSON
+}
+
+input CreateComplianceEvidenceInput {
+  controlId: ID!
+  documentId: ID!
+  clientId: ID!
+  status: String
+  validFrom: DateTime
+  validUntil: DateTime
+  reviewNotes: String
+}

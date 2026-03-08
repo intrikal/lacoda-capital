@@ -1,0 +1,58 @@
+enum EntityType {
+  personal
+  llc
+  trust
+  corporation
+  partnership
+  foundation
+}
+
+type Entity {
+  id: ID!
+  clientId: ID!
+  name: String!
+  entityType: EntityType!
+  jurisdiction: String
+  formationDate: DateTime
+  taxId: String
+  metadata: JSON
+  createdAt: DateTime!
+  updatedAt: DateTime!
+
+  # Relations
+  client: Client!
+  assets: [Asset!]!
+  documents: [Document!]!
+  documentRequests: [DocumentRequest!]!
+  tasks: [Task!]!
+
+  # Computed
+  assetCount: Int!
+  totalValue: Float!
+}
+
+type EntityConnection {
+  items: [Entity!]!
+  totalCount: Int!
+  page: Int!
+  limit: Int!
+}
+
+input CreateEntityInput {
+  clientId: ID!
+  name: String!
+  entityType: EntityType!
+  jurisdiction: String
+  formationDate: DateTime
+  taxId: String
+  metadata: JSON
+}
+
+input UpdateEntityInput {
+  name: String
+  entityType: EntityType
+  jurisdiction: String
+  formationDate: DateTime
+  taxId: String
+  metadata: JSON
+}

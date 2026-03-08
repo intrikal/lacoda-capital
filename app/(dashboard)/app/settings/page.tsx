@@ -1,19 +1,42 @@
+/**
+ * ============================================================================
+ * FILE: app/(dashboard)/app/settings/page.tsx
+ * ============================================================================
+ *
+ * WHAT THIS FILE IS:
+ *   Advisor-facing settings page with tabs for Profile, Team, Security,
+ *   and Notifications preferences.
+ *
+ * ARCHITECTURE:
+ *   ┌────────────────────────────────────────────────────────────────────┐
+ *   │ SettingsPage                                                      │
+ *   │   ├── useCurrentMember()          → current user's org membership │
+ *   │   ├── useOrgMembers()             → fetches team member list      │
+ *   │   ├── useInviteOrgMember()        → invites by email              │
+ *   │   ├── useUpdateOrgMemberRole()    → changes a member's role       │
+ *   │   ├── useRemoveOrgMember()        → removes a member              │
+ *   │         ↓                                                          │
+ *   │ Apollo Client (useQuery / useMutation)                             │
+ *   │         ↓                                                          │
+ *   │ POST /api/graphql                                                  │
+ *   │         ↓                                                          │
+ *   │ orgResolvers → Drizzle ORM → PostgreSQL                           │
+ *   └────────────────────────────────────────────────────────────────────┘
+ *
+ * CONSUMERS:
+ *   This page is rendered at /app/settings for advisors/admins.
+ */
 "use client"
 
 import * as React from "react"
 import { useSpring, animated, config } from "@react-spring/web"
-import { format } from "date-fns"
 import {
   User,
   Users,
   Shield,
   Bell,
-  Palette,
   Key,
-  Mail,
   Smartphone,
-  CheckCircle2,
-  AlertCircle,
   Plus,
   MoreHorizontal,
 } from "lucide-react"
@@ -38,29 +61,173 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
-import { mockUsers } from "@/lib/mock/data"
 import { useReducedMotion } from "@/lib/hooks/use-reduced-motion"
+import {
+  useOrgMembers,
+  useCurrentMember,
+  useInviteOrgMember,
+  useUpdateOrgMemberRole,
+  useRemoveOrgMember,
+} from "@/lib/hooks/crud/use-org-members"
+import type { OrgMemberRole, OrgMemberRecord } from "@/lib/hooks/crud/use-org-members"
 
-const roleLabels = {
-  owner: "Owner",
-  admin: "Administrator",
-  analyst: "Analyst",
-  viewer: "Viewer",
-  auditor: "Auditor",
+// ─── ROLE DISPLAY CONFIG ─────────────────────────────────────────────────────
+
+const roleLabels: Record<OrgMemberRole, string> = {
+  admin: "Admin",
+  assistant: "Assistant",
+  client: "Client",
 }
 
-const roleBadgeVariants = {
-  owner: "primary" as const,
-  admin: "secondary" as const,
-  analyst: "default" as const,
-  viewer: "outline" as const,
-  auditor: "info" as const,
+const roleBadgeVariants: Record<OrgMemberRole, "primary" | "secondary" | "default"> = {
+  admin: "primary",
+  assistant: "secondary",
+  client: "default",
 }
+
+// ─── INVITE DIALOG ───────────────────────────────────────────────────────────
+
+interface InviteDialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onSubmit: (email: string, role: OrgMemberRole) => void
+  isPending: boolean
+}
+
+function InviteDialog({ open, onOpenChange, onSubmit, isPending }: InviteDialogProps) {
+  const [email, setEmail] = React.useState("")
+  const [role, setRole] = React.useState<OrgMemberRole>("assistant")
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!email.trim()) return
+    onSubmit(email.trim(), role)
+    setEmail("")
+    setRole("assistant")
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Invite Team Member</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label>Email Address</Label>
+            <Input
+              type="email"
+              placeholder="colleague@company.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Role</Label>
+            <Select value={role} onValueChange={(v) => setRole(v as OrgMemberRole)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="admin">Admin</SelectItem>
+                <SelectItem value="assistant">Assistant</SelectItem>
+                <SelectItem value="client">Client</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isPending}>
+              {isPending ? "Inviting..." : "Send Invite"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ─── MEMBER ROW ──────────────────────────────────────────────────────────────
+
+interface MemberRowProps {
+  member: OrgMemberRecord
+  isCurrentUser: boolean
+  onUpdateRole: (id: string, role: OrgMemberRole) => void
+  onRemove: (id: string) => void
+}
+
+function MemberRow({ member, isCurrentUser, onUpdateRole, onRemove }: MemberRowProps) {
+  const displayName = member.user.fullName || member.user.email
+
+  return (
+    <div className="flex items-center justify-between p-4 rounded-lg border border-zinc-800">
+      <div className="flex items-center gap-3">
+        <Avatar fallback={displayName} />
+        <div>
+          <p className="font-medium text-zinc-100">
+            {displayName}
+            {isCurrentUser && (
+              <span className="text-xs text-zinc-500 ml-2">(you)</span>
+            )}
+          </p>
+          <p className="text-sm text-zinc-500">{member.user.email}</p>
+        </div>
+      </div>
+      <div className="flex items-center gap-3">
+        <Badge variant={roleBadgeVariants[member.role]}>
+          {roleLabels[member.role]}
+        </Badge>
+        {!isCurrentUser && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {(["admin", "assistant", "client"] as OrgMemberRole[])
+                .filter((r) => r !== member.role)
+                .map((r) => (
+                  <DropdownMenuItem key={r} onClick={() => onUpdateRole(member.id, r)}>
+                    Change to {roleLabels[r]}
+                  </DropdownMenuItem>
+                ))}
+              <DropdownMenuItem
+                className="text-red-400"
+                onClick={() => onRemove(member.id)}
+              >
+                Remove
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─── PAGE COMPONENT ──────────────────────────────────────────────────────────
 
 export default function SettingsPage() {
   const reducedMotion = useReducedMotion()
-  const currentUser = mockUsers[0]
+  const { member: currentMember } = useCurrentMember()
+  const { members } = useOrgMembers()
+  const { mutate: inviteMember, isPending: invitePending } = useInviteOrgMember()
+  const { mutate: updateRole } = useUpdateOrgMemberRole()
+  const { mutate: removeMember } = useRemoveOrgMember()
+
+  const [inviteOpen, setInviteOpen] = React.useState(false)
 
   const spring = useSpring({
     from: { opacity: 0, transform: "translateY(20px)" },
@@ -68,6 +235,22 @@ export default function SettingsPage() {
     config: config.gentle,
     immediate: reducedMotion,
   })
+
+  const handleInvite = async (email: string, role: OrgMemberRole) => {
+    await inviteMember({ email, role })
+    setInviteOpen(false)
+  }
+
+  const handleUpdateRole = (id: string, role: OrgMemberRole) => {
+    updateRole(id, { role })
+  }
+
+  const handleRemove = (id: string) => {
+    removeMember(id)
+  }
+
+  const displayName = currentMember?.user?.fullName || ""
+  const [firstName = "", lastName = ""] = displayName.split(" ")
 
   return (
     <animated.div style={spring} className="space-y-6">
@@ -110,7 +293,7 @@ export default function SettingsPage() {
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="flex items-center gap-4">
-                <Avatar fallback={currentUser.name} size="lg" />
+                <Avatar fallback={displayName || "User"} size="lg" />
                 <div>
                   <Button variant="outline" size="sm">
                     Change Photo
@@ -124,20 +307,20 @@ export default function SettingsPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>First Name</Label>
-                  <Input defaultValue="Sarah" />
+                  <Input defaultValue={firstName} />
                 </div>
                 <div className="space-y-2">
                   <Label>Last Name</Label>
-                  <Input defaultValue="Chen" />
+                  <Input defaultValue={lastName} />
                 </div>
                 <div className="space-y-2">
                   <Label>Email</Label>
-                  <Input defaultValue={currentUser.email} type="email" />
+                  <Input defaultValue={currentMember?.user?.email ?? ""} type="email" />
                 </div>
                 <div className="space-y-2">
                   <Label>Role</Label>
                   <Input
-                    value={roleLabels[currentUser.role]}
+                    value={currentMember ? roleLabels[currentMember.role] : ""}
                     disabled
                     className="bg-zinc-800"
                   />
@@ -217,62 +400,29 @@ export default function SettingsPage() {
                   Manage your organization&apos;s team and permissions.
                 </CardDescription>
               </div>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Invite Member
-              </Button>
+              {currentMember?.role === "admin" && (
+                <Button onClick={() => setInviteOpen(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Invite Member
+                </Button>
+              )}
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {mockUsers.map((user) => (
-                  <div
-                    key={user.id}
-                    className="flex items-center justify-between p-4 rounded-lg border border-zinc-800"
-                  >
-                    <div className="flex items-center gap-3">
-                      <Avatar fallback={user.name} />
-                      <div>
-                        <p className="font-medium text-zinc-100">{user.name}</p>
-                        <p className="text-sm text-zinc-500">{user.email}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Badge variant={roleBadgeVariants[user.role]}>
-                        {roleLabels[user.role]}
-                      </Badge>
-                      {user.mfaEnabled ? (
-                        <Badge variant="success" className="gap-1">
-                          <CheckCircle2 className="h-3 w-3" />
-                          MFA
-                        </Badge>
-                      ) : (
-                        <Badge variant="warning" className="gap-1">
-                          <AlertCircle className="h-3 w-3" />
-                          No MFA
-                        </Badge>
-                      )}
-                      <Badge
-                        variant={user.status === "active" ? "success" : "default"}
-                      >
-                        {user.status === "active" ? "Active" : "Pending"}
-                      </Badge>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem>Edit Role</DropdownMenuItem>
-                          <DropdownMenuItem>Resend Invite</DropdownMenuItem>
-                          <DropdownMenuItem className="text-red-400">
-                            Remove
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </div>
+                {members.map((member) => (
+                  <MemberRow
+                    key={member.id}
+                    member={member}
+                    isCurrentUser={member.id === currentMember?.id}
+                    onUpdateRole={handleUpdateRole}
+                    onRemove={handleRemove}
+                  />
                 ))}
+                {members.length === 0 && (
+                  <p className="text-sm text-zinc-500 text-center py-8">
+                    No team members found.
+                  </p>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -419,6 +569,14 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Invite Member Dialog */}
+      <InviteDialog
+        open={inviteOpen}
+        onOpenChange={setInviteOpen}
+        onSubmit={handleInvite}
+        isPending={invitePending}
+      />
     </animated.div>
   )
 }

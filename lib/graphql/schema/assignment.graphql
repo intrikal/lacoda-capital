@@ -1,0 +1,18 @@
+type Assignment {
+  id: ID!
+  assistantMemberId: ID!
+  clientId: ID!
+  notes: String
+  createdAt: DateTime!
+  updatedAt: DateTime!
+
+  # Relations
+  assistant: OrgMember!
+  client: Client!
+}
+
+input CreateAssignmentInput {
+  assistantMemberId: ID!
+  clientId: ID!
+  notes: String
+}
