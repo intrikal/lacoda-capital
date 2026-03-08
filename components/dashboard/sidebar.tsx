@@ -36,7 +36,14 @@ import {
 import { Logo } from "@/components/marketing/logo"
 import { logoutAction } from "@/lib/actions/auth.actions"
 
-const mainNavigation = [
+type NavItem = {
+  name: string
+  href: string
+  icon: React.ElementType
+  description: string
+}
+
+const mainNavigation: NavItem[] = [
   { name: "Overview", href: "/app", icon: LayoutDashboard, description: "Dashboard home" },
   { name: "Pipeline", href: "/app/pipeline", icon: GitBranch, description: "Deal flow" },
   { name: "Clients", href: "/app/clients", icon: Users, description: "Client management" },
@@ -133,10 +140,10 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                         : "text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-100"
                     )}
                   >
-                    <item.icon className={cn(
+                    {React.createElement(item.icon, { className: cn(
                       "h-[18px] w-[18px] shrink-0 transition-colors",
                       active ? "text-tiffany-500" : "text-zinc-500 group-hover:text-zinc-300"
-                    )} />
+                    ) })}
                     {!collapsed && <span className="truncate">{item.name}</span>}
                   </Link>
                 )
@@ -183,10 +190,10 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                     : "text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-100"
                 )}
               >
-                <item.icon className={cn(
+                {React.createElement(item.icon, { className: cn(
                   "h-[18px] w-[18px] shrink-0 transition-colors",
                   active ? "text-tiffany-500" : "text-zinc-500 group-hover:text-zinc-300"
-                )} />
+                ) })}
                 {!collapsed && <span>{item.name}</span>}
               </Link>
             )
