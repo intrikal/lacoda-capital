@@ -8,6 +8,76 @@
       "when": 1770336112057,
       "tag": "0000_pink_chronomancer",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1772659773668,
+      "tag": "0001_furry_giant_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1772671181122,
+      "tag": "0002_bumpy_ezekiel_stane",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1772672449963,
+      "tag": "0003_ordinary_shiver_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1772674030119,
+      "tag": "0004_great_silver_samurai",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1772675159457,
+      "tag": "0005_even_alice",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1772679414086,
+      "tag": "0006_unknown_sersi",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1772680629148,
+      "tag": "0007_uneven_maestro",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1772681581887,
+      "tag": "0008_mixed_mongu",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1772683115029,
+      "tag": "0009_sturdy_silver_sable",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1772684210857,
+      "tag": "0010_eager_ink",
+      "breakpoints": true
     }
   ]
 }

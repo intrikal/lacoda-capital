@@ -14,6 +14,10 @@ import {
   PiggyBank,
   Lightbulb,
   Puzzle,
+  Loader2,
+  AlertCircle,
+  Trash2,
+  type LucideIcon,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -39,14 +43,14 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 import { formatCurrency, formatDate } from "@/lib/utils"
-import { assetClassConfig } from "@/lib/mock/data"
-import { useAssets } from "@/lib/hooks/crud/use-assets"
+import { useAssets, useCreateAsset, useUpdateAsset, useDeleteAsset } from "@/lib/hooks/crud/use-assets"
+import { useEntities } from "@/lib/hooks/crud/use-entities"
 import { AssetFormDialog } from "@/components/forms/asset-form-dialog"
-import type { Asset, AssetClass } from "@/lib/mock/types"
-import type { CreateAssetInput } from "@/lib/hooks/crud/use-assets"
+import type { CreateAssetInput } from "@/lib/validations/asset.schema"
 import { ContentCard, StatCard, PageHeader, Tabs } from "@/components/dashboard/content-card"
 import {
   AllocationChart,
@@ -54,7 +58,23 @@ import {
   PerformanceChart as PerformanceLineChart,
 } from "@/components/dashboard/charts"
 
-const assetIcons = {
+const assetClassConfig: Record<string, { label: string; color: string }> = {
+  real_estate: { label: "Real Estate", color: "#0d9488" },
+  equities: { label: "Equities", color: "#0891b2" },
+  private_equity: { label: "Private Equity", color: "#22d3d1" },
+  cash: { label: "Cash", color: "#5eead4" },
+  fixed_income: { label: "Fixed Income", color: "#06b6d4" },
+  crypto: { label: "Crypto", color: "#8b5cf6" },
+  intellectual_property: { label: "IP", color: "#14b8a6" },
+  venture_capital: { label: "Venture Capital", color: "#f59e0b" },
+  hedge_funds: { label: "Hedge Funds", color: "#ec4899" },
+  commodities: { label: "Commodities", color: "#f97316" },
+  collectibles: { label: "Collectibles", color: "#a855f7" },
+  insurance: { label: "Insurance", color: "#10b981" },
+  other: { label: "Other", color: "#6b7280" },
+}
+
+const assetIcons: Record<string, LucideIcon> = {
   real_estate: Building2,
   equities: TrendingUp,
   private_equity: Briefcase,
@@ -62,14 +82,19 @@ const assetIcons = {
   fixed_income: PiggyBank,
   crypto: Banknote,
   intellectual_property: Lightbulb,
-  alternatives: Puzzle,
+  venture_capital: Briefcase,
+  hedge_funds: TrendingUp,
+  commodities: PiggyBank,
+  collectibles: Puzzle,
+  insurance: PiggyBank,
+  other: Puzzle,
 }
 
-const statusConfig = {
+const statusConfig: Record<string, { label: string; color: string; bg: string }> = {
   active: { label: "Active", color: "text-emerald-400", bg: "bg-emerald-500/10" },
   pending: { label: "Pending", color: "text-amber-400", bg: "bg-amber-500/10" },
   sold: { label: "Sold", color: "text-zinc-400", bg: "bg-zinc-500/10" },
-  under_review: { label: "Under Review", color: "text-blue-400", bg: "bg-blue-500/10" },
+  transferred: { label: "Transferred", color: "text-blue-400", bg: "bg-blue-500/10" },
 }
 
 const assetAllocationData = [
@@ -105,23 +130,44 @@ const assetPerformanceData = [
   { month: "Dec", portfolio: 19.6, benchmark: 13.2 },
 ]
 
+interface AssetRecord {
+  id: string
+  entityId: string
+  name: string
+  description: string | null
+  assetClass: string
+  status: string
+  acquisitionDate: string | null
+  acquisitionCost: number | null
+  currency: string
+  currentValue: number | null
+  valuedAt: string | null
+  externalId: string | null
+  createdAt: string
+  updatedAt: string
+}
+
 function AssetDetailDrawer({
   asset,
   open,
   onClose,
   onEdit,
+  onDelete,
 }: {
-  asset: Asset | null
+  asset: AssetRecord | null
   open: boolean
   onClose: () => void
-  onEdit: (asset: Asset) => void
+  onEdit: (asset: AssetRecord) => void
+  onDelete: (asset: AssetRecord) => void
 }) {
   if (!asset) return null
 
-  const classConfig = assetClassConfig[asset.class]
-  const Icon = assetIcons[asset.class]
-  const status = statusConfig[asset.status]
-  const change = ((asset.value - asset.previousValue) / asset.previousValue) * 100
+  const classConfig = assetClassConfig[asset.assetClass] ?? { label: asset.assetClass, color: "#6b7280" }
+  const Icon = assetIcons[asset.assetClass] ?? Puzzle
+  const status = statusConfig[asset.status] ?? { label: asset.status, color: "text-zinc-400", bg: "bg-zinc-500/10" }
+  const gain = asset.currentValue && asset.acquisitionCost
+    ? ((asset.currentValue - asset.acquisitionCost) / asset.acquisitionCost) * 100
+    : null
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -146,18 +192,20 @@ function AssetDetailDrawer({
             <div className="p-4 rounded-lg bg-zinc-800/50">
               <p className="text-sm text-zinc-400">Current Value</p>
               <p className="text-2xl font-bold text-zinc-100 mt-1">
-                {formatCurrency(asset.value)}
+                {asset.currentValue != null ? formatCurrency(asset.currentValue) : "N/A"}
               </p>
-              <p className={cn("text-sm mt-1", change >= 0 ? "text-emerald-400" : "text-rose-400")}>
-                {change >= 0 ? "+" : ""}{change.toFixed(1)}% vs previous
-              </p>
+              {gain != null && (
+                <p className={cn("text-sm mt-1", gain >= 0 ? "text-emerald-400" : "text-rose-400")}>
+                  {gain >= 0 ? "+" : ""}{gain.toFixed(1)}% vs cost basis
+                </p>
+              )}
             </div>
             <div className="p-4 rounded-lg bg-zinc-800/50">
-              <p className="text-sm text-zinc-400">Risk Score</p>
-              <p className="text-2xl font-bold text-zinc-100 mt-1">{asset.riskScore}</p>
-              <p className="text-sm text-zinc-500 mt-1">
-                {asset.riskScore < 30 ? "Low" : asset.riskScore < 60 ? "Medium" : "High"} risk
+              <p className="text-sm text-zinc-400">Acquisition Cost</p>
+              <p className="text-2xl font-bold text-zinc-100 mt-1">
+                {asset.acquisitionCost != null ? formatCurrency(asset.acquisitionCost) : "N/A"}
               </p>
+              <p className="text-sm text-zinc-500 mt-1">{asset.currency}</p>
             </div>
           </div>
 
@@ -166,39 +214,78 @@ function AssetDetailDrawer({
               <span className="text-zinc-400">Status</span>
               <Badge className={cn(status.color, status.bg)}>{status.label}</Badge>
             </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-zinc-400">Acquisition Date</span>
-              <span className="text-zinc-100">{formatDate(new Date(asset.acquisitionDate))}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-zinc-400">Last Valuation</span>
-              <span className="text-zinc-100">{formatDate(new Date(asset.lastValuationDate))}</span>
-            </div>
-            {asset.location && (
+            {asset.acquisitionDate && (
               <div className="flex justify-between text-sm">
-                <span className="text-zinc-400">Location</span>
-                <span className="text-zinc-100">{asset.location}</span>
+                <span className="text-zinc-400">Acquisition Date</span>
+                <span className="text-zinc-100">{formatDate(new Date(asset.acquisitionDate))}</span>
+              </div>
+            )}
+            {asset.valuedAt && (
+              <div className="flex justify-between text-sm">
+                <span className="text-zinc-400">Last Valued</span>
+                <span className="text-zinc-100">{formatDate(new Date(asset.valuedAt))}</span>
+              </div>
+            )}
+            {asset.externalId && (
+              <div className="flex justify-between text-sm">
+                <span className="text-zinc-400">External ID</span>
+                <span className="text-zinc-100">{asset.externalId}</span>
               </div>
             )}
           </div>
 
-          <div>
-            <p className="text-sm text-zinc-400 mb-2">Description</p>
-            <p className="text-sm text-zinc-300">{asset.description}</p>
-          </div>
-
-          {asset.notes && (
+          {asset.description && (
             <div>
-              <p className="text-sm text-zinc-400 mb-2">Notes</p>
-              <p className="text-sm text-zinc-300">{asset.notes}</p>
+              <p className="text-sm text-zinc-400 mb-2">Description</p>
+              <p className="text-sm text-zinc-300">{asset.description}</p>
             </div>
           )}
 
           <div className="flex gap-2">
             <Button className="flex-1" onClick={() => { onEdit(asset); onClose(); }}>Edit Asset</Button>
-            <Button variant="outline" className="flex-1">View Documents</Button>
+            <Button
+              variant="outline"
+              className="text-rose-400 hover:text-rose-300 hover:bg-rose-500/10"
+              onClick={() => { onDelete(asset); onClose(); }}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
           </div>
         </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function DeleteAssetDialog({
+  asset,
+  open,
+  onOpenChange,
+  onConfirm,
+  isPending,
+}: {
+  asset: AssetRecord | null
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onConfirm: () => void
+  isPending: boolean
+}) {
+  if (!asset) return null
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="bg-zinc-900 border-zinc-800">
+        <DialogHeader>
+          <DialogTitle>Delete Asset</DialogTitle>
+          <DialogDescription>
+            Are you sure you want to delete &quot;{asset.name}&quot;? This action cannot be undone.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button variant="destructive" onClick={onConfirm} disabled={isPending}>
+            {isPending ? "Deleting..." : "Delete"}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )
@@ -207,33 +294,35 @@ function AssetDetailDrawer({
 type TabId = "all" | "real_estate" | "equities" | "private_equity" | "fixed_income"
 
 export default function AssetsPage() {
-  const { assets, addAsset, updateAsset, deleteAsset, stats } = useAssets()
-
   const [searchQuery, setSearchQuery] = React.useState("")
   const [activeTab, setActiveTab] = React.useState<TabId>("all")
   const [statusFilter, setStatusFilter] = React.useState<string>("all")
-  const [selectedAsset, setSelectedAsset] = React.useState<Asset | null>(null)
+
+  const { assets, isLoading, isError, stats } = useAssets({
+    search: searchQuery || undefined,
+    assetClass: activeTab !== "all" ? activeTab : undefined,
+    status: statusFilter !== "all" ? statusFilter : undefined,
+  })
+  const { entities } = useEntities()
+  const createAsset = useCreateAsset()
+  const updateAsset = useUpdateAsset()
+  const deleteAsset = useDeleteAsset()
+
+  const [selectedAsset, setSelectedAsset] = React.useState<AssetRecord | null>(null)
   const [formOpen, setFormOpen] = React.useState(false)
   const [formMode, setFormMode] = React.useState<"create" | "edit">("create")
-  const [editingAsset, setEditingAsset] = React.useState<Asset | undefined>(undefined)
+  const [editingAsset, setEditingAsset] = React.useState<AssetRecord | undefined>(undefined)
+  const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
+  const [deletingAsset, setDeletingAsset] = React.useState<AssetRecord | null>(null)
 
-  const filteredAssets = assets.filter((asset) => {
-    const matchesSearch =
-      asset.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      asset.description.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesTab = activeTab === "all" || asset.class === activeTab
-    const matchesStatus = statusFilter === "all" || asset.status === statusFilter
-    return matchesSearch && matchesTab && matchesStatus
-  })
-
-  const totalValue = filteredAssets.reduce((sum, a) => sum + a.value, 0)
+  const totalValue = assets.reduce((sum: number, a: AssetRecord) => sum + (a.currentValue ?? 0), 0)
 
   const tabs = [
-    { id: "all", label: "All Assets", count: assets.length },
-    { id: "real_estate", label: "Real Estate", count: assets.filter(a => a.class === "real_estate").length },
-    { id: "equities", label: "Equities", count: assets.filter(a => a.class === "equities").length },
-    { id: "private_equity", label: "Private Equity", count: assets.filter(a => a.class === "private_equity").length },
-    { id: "fixed_income", label: "Fixed Income", count: assets.filter(a => a.class === "fixed_income").length },
+    { id: "all", label: "All Assets", count: stats.total },
+    { id: "real_estate", label: "Real Estate" },
+    { id: "equities", label: "Equities" },
+    { id: "private_equity", label: "Private Equity" },
+    { id: "fixed_income", label: "Fixed Income" },
   ]
 
   function handleAddAsset() {
@@ -242,17 +331,49 @@ export default function AssetsPage() {
     setFormOpen(true)
   }
 
-  function handleEditAsset(asset: Asset) {
+  function handleEditAsset(asset: AssetRecord) {
     setFormMode("edit")
     setEditingAsset(asset)
     setFormOpen(true)
+  }
+
+  function handleDeleteAsset(asset: AssetRecord) {
+    setDeletingAsset(asset)
+    setDeleteDialogOpen(true)
+  }
+
+  function confirmDelete() {
+    if (!deletingAsset) return
+    deleteAsset.mutate(deletingAsset.id, {
+      onSuccess: () => {
+        setDeleteDialogOpen(false)
+        setDeletingAsset(null)
+      },
+    })
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <Loader2 className="h-8 w-8 animate-spin text-zinc-500" />
+      </div>
+    )
+  }
+
+  if (isError) {
+    return (
+      <div className="flex flex-col items-center justify-center h-96 gap-2">
+        <AlertCircle className="h-8 w-8 text-rose-400" />
+        <p className="text-zinc-400">Failed to load assets</p>
+      </div>
+    )
   }
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Assets"
-        description={`${filteredAssets.length} holdings totaling ${formatCurrency(totalValue)}`}
+        description={`${assets.length} holdings totaling ${formatCurrency(totalValue)}`}
         actions={
           <>
             <Button variant="outline" size="sm">
@@ -267,12 +388,11 @@ export default function AssetsPage() {
         }
       />
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
         <StatCard
           label="Total Value"
           value={formatCurrency(stats.totalValue)}
           icon={<Briefcase className="h-4 w-4 text-tiffany-500" />}
-          trend={{ value: `${stats.avgChange >= 0 ? "+" : ""}${stats.avgChange.toFixed(1)}% overall`, positive: stats.avgChange >= 0 }}
         />
         <StatCard
           label="Active Holdings"
@@ -281,16 +401,10 @@ export default function AssetsPage() {
           icon={<TrendingUp className="h-4 w-4 text-emerald-400" />}
         />
         <StatCard
-          label="Real Estate"
-          value={formatCurrency(assets.filter(a => a.class === "real_estate").reduce((s, a) => s + a.value, 0))}
-          subtext={`${assets.filter(a => a.class === "real_estate").length} properties`}
+          label="Total Assets"
+          value={stats.total}
+          subtext="Across all classes"
           icon={<Building2 className="h-4 w-4 text-tiffany-500" />}
-        />
-        <StatCard
-          label="Avg Risk Score"
-          value={stats.avgRiskScore.toFixed(0)}
-          subtext="Moderate risk"
-          icon={<PiggyBank className="h-4 w-4 text-amber-400" />}
         />
       </div>
 
@@ -345,67 +459,61 @@ export default function AssetsPage() {
               <TableHead>Asset</TableHead>
               <TableHead>Class</TableHead>
               <TableHead className="text-right">Value</TableHead>
-              <TableHead className="text-right">Change</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead className="text-right">Risk</TableHead>
               <TableHead></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredAssets.map((asset) => {
-              const classConfig = assetClassConfig[asset.class]
-              const Icon = assetIcons[asset.class]
-              const status = statusConfig[asset.status]
-              const change = ((asset.value - asset.previousValue) / asset.previousValue) * 100
+            {assets.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center text-zinc-500 py-12">
+                  No assets found. Add your first asset to get started.
+                </TableCell>
+              </TableRow>
+            ) : (
+              assets.map((asset: AssetRecord) => {
+                const classConfig = assetClassConfig[asset.assetClass] ?? { label: asset.assetClass, color: "#6b7280" }
+                const Icon = assetIcons[asset.assetClass] ?? Puzzle
+                const status = statusConfig[asset.status] ?? { label: asset.status, color: "text-zinc-400", bg: "bg-zinc-500/10" }
 
-              return (
-                <TableRow
-                  key={asset.id}
-                  className="cursor-pointer border-zinc-800/60 hover:bg-zinc-800/30"
-                  onClick={() => setSelectedAsset(asset)}
-                >
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="p-2 rounded-lg"
-                        style={{ backgroundColor: `${classConfig.color}20` }}
-                      >
-                        <Icon className="h-4 w-4" style={{ color: classConfig.color }} />
+                return (
+                  <TableRow
+                    key={asset.id}
+                    className="cursor-pointer border-zinc-800/60 hover:bg-zinc-800/30"
+                    onClick={() => setSelectedAsset(asset)}
+                  >
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="p-2 rounded-lg"
+                          style={{ backgroundColor: `${classConfig.color}20` }}
+                        >
+                          <Icon className="h-4 w-4" style={{ color: classConfig.color }} />
+                        </div>
+                        <div>
+                          <p className="font-medium text-zinc-100">{asset.name}</p>
+                          {asset.description && (
+                            <p className="text-xs text-zinc-500 truncate max-w-[200px]">{asset.description}</p>
+                          )}
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-medium text-zinc-100">{asset.name}</p>
-                        {asset.location && (
-                          <p className="text-xs text-zinc-500">{asset.location}</p>
-                        )}
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <span className="text-sm text-zinc-400">{classConfig.label}</span>
-                  </TableCell>
-                  <TableCell className="text-right font-medium text-zinc-100">
-                    {formatCurrency(asset.value)}
-                  </TableCell>
-                  <TableCell className={cn("text-right font-medium", change >= 0 ? "text-emerald-400" : "text-rose-400")}>
-                    {change >= 0 ? "+" : ""}{change.toFixed(1)}%
-                  </TableCell>
-                  <TableCell>
-                    <Badge className={cn("text-xs", status.color, status.bg)}>{status.label}</Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <span className={cn(
-                      "text-sm font-medium",
-                      asset.riskScore < 30 ? "text-emerald-400" : asset.riskScore < 60 ? "text-amber-400" : "text-rose-400"
-                    )}>
-                      {asset.riskScore}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <ChevronRight className="h-4 w-4 text-zinc-500" />
-                  </TableCell>
-                </TableRow>
-              )
-            })}
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-sm text-zinc-400">{classConfig.label}</span>
+                    </TableCell>
+                    <TableCell className="text-right font-medium text-zinc-100">
+                      {asset.currentValue != null ? formatCurrency(asset.currentValue) : "N/A"}
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={cn("text-xs", status.color, status.bg)}>{status.label}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <ChevronRight className="h-4 w-4 text-zinc-500" />
+                    </TableCell>
+                  </TableRow>
+                )
+              })
+            )}
           </TableBody>
         </Table>
       </ContentCard>
@@ -415,6 +523,7 @@ export default function AssetsPage() {
         open={!!selectedAsset}
         onClose={() => setSelectedAsset(null)}
         onEdit={handleEditAsset}
+        onDelete={handleDeleteAsset}
       />
 
       <AssetFormDialog
@@ -422,13 +531,24 @@ export default function AssetsPage() {
         initialData={editingAsset}
         open={formOpen}
         onOpenChange={setFormOpen}
-        onSubmit={(data) => {
+        onSubmit={(data: CreateAssetInput) => {
           if (formMode === "create") {
-            addAsset(data)
+            createAsset.mutate(data)
           } else if (editingAsset) {
-            updateAsset(editingAsset.id, data)
+            const { entityId: _entityId, ...input } = data
+            updateAsset.mutate({ id: editingAsset.id, input })
           }
         }}
+        isPending={createAsset.isPending || updateAsset.isPending}
+        entities={entities.map((e: { id: string; name: string }) => ({ id: e.id, name: e.name }))}
+      />
+
+      <DeleteAssetDialog
+        asset={deletingAsset}
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        onConfirm={confirmDelete}
+        isPending={deleteAsset.isPending}
       />
     </div>
   )

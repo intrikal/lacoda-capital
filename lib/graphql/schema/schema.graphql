@@ -1,0 +1,198 @@
+scalar DateTime
+scalar JSON
+
+type Query {
+  # ── Clients ──
+  clients(page: Int, limit: Int, search: String, status: ClientStatus): ClientConnection!
+  client(id: ID!): Client
+
+  # ── Entities ──
+  entities(clientId: ID, page: Int, limit: Int): EntityConnection!
+  entity(id: ID!): Entity
+
+  # ── Assets ──
+  assets(entityId: ID, page: Int, limit: Int): AssetConnection!
+  asset(id: ID!): Asset
+
+  # ── Valuations ──
+  valuations(assetId: ID!, page: Int, limit: Int): ValuationConnection!
+
+  # ── Documents ──
+  documents(clientId: ID, entityId: ID, assetId: ID, page: Int, limit: Int): DocumentConnection!
+  document(id: ID!): Document
+
+  # ── Document Requests ──
+  documentRequests(clientId: ID, status: DocumentRequestStatus, page: Int, limit: Int): DocumentRequestConnection!
+  documentRequest(id: ID!): DocumentRequest
+
+  # ── Tasks ──
+  tasks(clientId: ID, assignedTo: ID, status: TaskStatus, page: Int, limit: Int): TaskConnection!
+  task(id: ID!): Task
+
+  # ── Goals ──
+  goals(clientId: ID, status: String, category: String, page: Int, limit: Int): GoalConnection!
+  goal(id: ID!): Goal
+
+  # ── Messages ──
+  conversations(type: String, clientId: ID, page: Int, limit: Int): ConversationConnection!
+  conversation(id: ID!): Conversation
+  messages(conversationId: ID!, page: Int, limit: Int): MessageConnection!
+
+  # ── Assignments ──
+  assignments(clientId: ID, assistantMemberId: ID): [Assignment!]!
+
+  # ── Ledger Events ──
+  ledgerEvents(targetType: LedgerTargetType, targetId: ID, page: Int, limit: Int): LedgerEventConnection!
+
+  # ── Reports ──
+  reports(clientId: ID, reportType: ReportType, page: Int, limit: Int): ReportConnection!
+  report(id: ID!): Report
+
+  # ── Compliance ──
+  complianceControls(category: String, isActive: Boolean, page: Int, limit: Int): ComplianceControlConnection!
+  complianceControl(id: ID!): ComplianceControl
+
+  # ── Integrations ──
+  integrations: [Integration!]!
+  integration(id: ID!): Integration
+
+  # ── Calendar Events ──
+  calendarEvents(clientId: ID, type: String, dateFrom: String, dateTo: String, page: Int, limit: Int): CalendarEventConnection!
+  calendarEvent(id: ID!): CalendarEvent
+
+  # ── Deals (Pipeline) ──
+  deals(clientId: ID, stage: DealStage, type: DealType, page: Int, limit: Int): DealConnection!
+  deal(id: ID!): Deal
+
+  # ── Insurance Policies ──
+  insurancePolicies(clientId: ID, status: String, policyType: String, page: Int, limit: Int): InsurancePolicyConnection!
+  insurancePolicy(id: ID!): InsurancePolicy
+
+  # ── Benchmarks ──
+  benchmarks(clientId: ID, category: String, page: Int, limit: Int): BenchmarkConnection!
+  benchmark(id: ID!): Benchmark
+
+  # ── Billing Records ──
+  billingRecords(clientId: ID, status: String, page: Int, limit: Int): BillingRecordConnection!
+  billingRecord(id: ID!): BillingRecord
+
+  # ── Tax Deductions ──
+  taxDeductions(clientId: ID, status: String, category: String, type: String, taxYear: String, page: Int, limit: Int): TaxDeductionConnection!
+  taxDeduction(id: ID!): TaxDeduction
+
+  # ── Notifications ──
+  notifications(unreadOnly: Boolean, page: Int, limit: Int): NotificationConnection!
+
+  # ── Org & Users ──
+  me: OrgMember
+  org: Org
+  orgMembers(page: Int, limit: Int): OrgMemberConnection!
+}
+
+type Mutation {
+  # ── Clients ──
+  createClient(input: CreateClientInput!): Client!
+  updateClient(id: ID!, input: UpdateClientInput!): Client!
+  deleteClient(id: ID!): Boolean!
+
+  # ── Entities ──
+  createEntity(input: CreateEntityInput!): Entity!
+  updateEntity(id: ID!, input: UpdateEntityInput!): Entity!
+  deleteEntity(id: ID!): Boolean!
+
+  # ── Assets ──
+  createAsset(input: CreateAssetInput!): Asset!
+  updateAsset(id: ID!, input: UpdateAssetInput!): Asset!
+  deleteAsset(id: ID!): Boolean!
+
+  # ── Valuations ──
+  createValuation(input: CreateValuationInput!): Valuation!
+
+  # ── Documents ──
+  createDocument(input: CreateDocumentInput!): Document!
+  updateDocument(id: ID!, input: UpdateDocumentInput!): Document!
+  deleteDocument(id: ID!): Boolean!
+
+  # ── Document Requests ──
+  createDocumentRequest(input: CreateDocumentRequestInput!): DocumentRequest!
+  updateDocumentRequest(id: ID!, input: UpdateDocumentRequestInput!): DocumentRequest!
+  deleteDocumentRequest(id: ID!): Boolean!
+
+  # ── Tasks ──
+  createTask(input: CreateTaskInput!): Task!
+  updateTask(id: ID!, input: UpdateTaskInput!): Task!
+  deleteTask(id: ID!): Boolean!
+
+  # ── Goals ──
+  createGoal(input: CreateGoalInput!): Goal!
+  updateGoal(id: ID!, input: UpdateGoalInput!): Goal!
+  deleteGoal(id: ID!): Boolean!
+
+  # ── Messages ──
+  createConversation(input: CreateConversationInput!): Conversation!
+  sendMessage(input: SendMessageInput!): Message!
+  markConversationRead(id: ID!): Conversation!
+  deleteConversation(id: ID!): Boolean!
+
+  # ── Assignments ──
+  createAssignment(input: CreateAssignmentInput!): Assignment!
+  deleteAssignment(id: ID!): Boolean!
+
+  # ── Ledger Events ──
+  createLedgerEvent(input: CreateLedgerEventInput!): LedgerEvent!
+
+  # ── Reports ──
+  createReport(input: CreateReportInput!): Report!
+  updateReport(id: ID!, input: UpdateReportInput!): Report!
+  deleteReport(id: ID!): Boolean!
+
+  # ── Compliance ──
+  createComplianceControl(input: CreateComplianceControlInput!): ComplianceControl!
+  updateComplianceControl(id: ID!, input: UpdateComplianceControlInput!): ComplianceControl!
+  deleteComplianceControl(id: ID!): Boolean!
+  createComplianceEvidence(input: CreateComplianceEvidenceInput!): ComplianceEvidence!
+
+  # ── Integrations ──
+  createIntegration(input: CreateIntegrationInput!): Integration!
+  updateIntegration(id: ID!, input: UpdateIntegrationInput!): Integration!
+  deleteIntegration(id: ID!): Boolean!
+
+  # ── Calendar Events ──
+  createCalendarEvent(input: CreateCalendarEventInput!): CalendarEvent!
+  updateCalendarEvent(id: ID!, input: UpdateCalendarEventInput!): CalendarEvent!
+  deleteCalendarEvent(id: ID!): Boolean!
+
+  # ── Notifications ──
+  markNotificationRead(id: ID!): Notification!
+  markAllNotificationsRead: Boolean!
+
+  # ── Deals (Pipeline) ──
+  createDeal(input: CreateDealInput!): Deal!
+  updateDeal(id: ID!, input: UpdateDealInput!): Deal!
+  deleteDeal(id: ID!): Boolean!
+
+  # ── Insurance Policies ──
+  createInsurancePolicy(input: CreateInsurancePolicyInput!): InsurancePolicy!
+  updateInsurancePolicy(id: ID!, input: UpdateInsurancePolicyInput!): InsurancePolicy!
+  deleteInsurancePolicy(id: ID!): Boolean!
+
+  # ── Benchmarks ──
+  createBenchmark(input: CreateBenchmarkInput!): Benchmark!
+  updateBenchmark(id: ID!, input: UpdateBenchmarkInput!): Benchmark!
+  deleteBenchmark(id: ID!): Boolean!
+
+  # ── Billing Records ──
+  createBillingRecord(input: CreateBillingRecordInput!): BillingRecord!
+  updateBillingRecord(id: ID!, input: UpdateBillingRecordInput!): BillingRecord!
+  deleteBillingRecord(id: ID!): Boolean!
+
+  # ── Tax Deductions ──
+  createTaxDeduction(input: CreateTaxDeductionInput!): TaxDeduction!
+  updateTaxDeduction(id: ID!, input: UpdateTaxDeductionInput!): TaxDeduction!
+  deleteTaxDeduction(id: ID!): Boolean!
+
+  # ── Org Members ──
+  inviteOrgMember(input: InviteOrgMemberInput!): OrgMember!
+  updateOrgMemberRole(id: ID!, input: UpdateOrgMemberRoleInput!): OrgMember!
+  removeOrgMember(id: ID!): Boolean!
+}

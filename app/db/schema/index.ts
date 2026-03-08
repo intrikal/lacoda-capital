@@ -21,6 +21,13 @@ export {
   documentRequestStatusEnum,
   taskStatusEnum,
   taskPriorityEnum,
+  goalCategoryEnum,
+  goalStatusEnum,
+  goalPriorityEnum,
+  complianceControlStatusEnum,
+  conversationTypeEnum,
+  messageSenderTypeEnum,
+  calendarEventTypeEnum,
   ledgerActionEnum,
   ledgerTargetTypeEnum,
   reportTypeEnum,
@@ -28,6 +35,16 @@ export {
   integrationStatusEnum,
   integrationProviderEnum,
   notificationTypeEnum,
+  dealStageEnum,
+  dealTypeEnum,
+  policyTypeEnum,
+  policyStatusEnum,
+  premiumFrequencyEnum,
+  benchmarkCategoryEnum,
+  billingStatusEnum,
+  taxDeductionCategoryEnum,
+  taxDeductionTypeEnum,
+  taxDeductionStatusEnum,
 } from "./00_enums";
 
 // ============================================================================
@@ -101,6 +118,12 @@ export { tasks, tasksRelations } from "./tasks";
 export type { Task, NewTask, TaskMetadata } from "./tasks";
 
 // ============================================================================
+// Goals
+// ============================================================================
+export { goals, goalsRelations } from "./goals";
+export type { Goal, NewGoal, GoalMetadata } from "./goals";
+
+// ============================================================================
 // Ledger Events (Audit Log)
 // ============================================================================
 export { ledgerEvents, ledgerEventsRelations } from "./ledger_events";
@@ -151,6 +174,35 @@ export type {
 } from "./integrations";
 
 // ============================================================================
+// Messages
+// ============================================================================
+export {
+  conversations,
+  messages,
+  conversationsRelations,
+  messagesRelations,
+} from "./messages";
+export type {
+  Conversation,
+  NewConversation,
+  Message,
+  NewMessage,
+  ConversationMetadata,
+  MessageMetadata,
+  MessageAttachment,
+} from "./messages";
+
+// ============================================================================
+// Calendar Events
+// ============================================================================
+export { calendarEvents, calendarEventsRelations } from "./calendar_events";
+export type {
+  CalendarEvent as CalendarEventRecord,
+  NewCalendarEvent,
+  CalendarEventMetadata,
+} from "./calendar_events";
+
+// ============================================================================
 // Notifications
 // ============================================================================
 export { notifications, notificationsRelations } from "./notifications";
@@ -159,3 +211,46 @@ export type {
   NewNotification,
   NotificationPayload,
 } from "./notifications";
+
+// ============================================================================
+// Deals (Pipeline)
+// ============================================================================
+export { deals, dealsRelations } from "./deals";
+export type { Deal as DealRecord, NewDeal } from "./deals";
+
+// ============================================================================
+// Insurance Policies
+// ============================================================================
+export { insurancePolicies, insurancePoliciesRelations } from "./insurance_policies";
+export type {
+  InsurancePolicy,
+  NewInsurancePolicy,
+  InsurancePolicyMetadata,
+  InsuranceAgent,
+} from "./insurance_policies";
+
+// ============================================================================
+// Benchmarks
+// ============================================================================
+export { benchmarks, benchmarksRelations } from "./benchmarks";
+export type { Benchmark, NewBenchmark, BenchmarkMetadata } from "./benchmarks";
+
+// ============================================================================
+// Billing Records
+// ============================================================================
+export { billingRecords, billingRecordsRelations } from "./billing_records";
+export type {
+  BillingRecord,
+  NewBillingRecord,
+  BillingRecordMetadata,
+} from "./billing_records";
+
+// ============================================================================
+// Tax Deductions
+// ============================================================================
+export { taxDeductions, taxDeductionsRelations } from "./tax_deductions";
+export type {
+  TaxDeduction,
+  NewTaxDeduction,
+  TaxDeductionMetadata,
+} from "./tax_deductions";

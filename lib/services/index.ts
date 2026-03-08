@@ -26,7 +26,6 @@
 
 export * from "./dashboard.service"
 export * from "./clients.service"
-export * from "./assets.service"
 export * from "./pipeline.service"
 export * from "./documents.service"
 export * from "./reports.service"

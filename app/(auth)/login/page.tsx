@@ -2,24 +2,13 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useSearchParams } from "next/navigation"
 import { Eye, EyeOff, Mail, Lock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Logo } from "@/components/marketing/logo"
-import { createClient } from "@/utils/supabase/client"
-
-// Keep in sync with app/auth/callback/route.ts
-const PLATFORM_ADMINS = ["alvinwquach@gmail.com", "binarydecisions1111@gmail.com"]
-const ADVISORS: string[] = []
-const ALLOWED_EMAILS = [...PLATFORM_ADMINS, ...ADVISORS]
-
-const AUTH_ERROR_MESSAGES: Record<string, string> = {
-  unauthorized: "Access restricted. This platform is currently invite-only.",
-  auth_error: "Authentication failed. Please try again.",
-  missing_code: "Invalid sign-in link. Please request a new one.",
-}
+import { loginAction, getOAuthUrlAction, demoLoginAction } from "@/lib/actions/auth.actions"
 
 // Social login icons
 function GoogleIcon({ className }: { className?: string }) {
@@ -44,15 +33,19 @@ function MicrosoftIcon({ className }: { className?: string }) {
   )
 }
 
-function LoginContent() {
-  const router = useRouter()
+function LoginForm() {
   const searchParams = useSearchParams()
+  const next = searchParams.get("next") ?? undefined
+  const authError = searchParams.get("error")
+
   const [email, setEmail] = React.useState("")
   const [password, setPassword] = React.useState("")
   const [showPassword, setShowPassword] = React.useState(false)
   const [isLoading, setIsLoading] = React.useState(false)
   const [error, setError] = React.useState(
-    AUTH_ERROR_MESSAGES[searchParams.get("error") ?? ""] ?? ""
+    authError === "auth_failed" ? "Authentication failed. Please try again." :
+    authError === "link_expired" ? "This link has expired. Please request a new one." :
+    ""
   )
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -60,41 +53,35 @@ function LoginContent() {
     setError("")
     setIsLoading(true)
 
-    const supabase = createClient()
-    const { data, error: authError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
-
-    if (authError) {
-      setError(authError.message)
+    const result = await loginAction(email, password, next)
+    // If we reach here, the action returned an error (redirect throws, not returns)
+    if ("error" in result) {
+      setError(result.error)
       setIsLoading(false)
-      return
     }
+  }
 
-    const user = data.user
-    if (!user || !ALLOWED_EMAILS.includes(user.email ?? "")) {
-      await supabase.auth.signOut()
-      setError(AUTH_ERROR_MESSAGES.unauthorized)
-      setIsLoading(false)
-      return
+  const [demoLoading, setDemoLoading] = React.useState<"admin" | "client" | null>(null)
+
+  const handleDemoLogin = async (view: "admin" | "client") => {
+    setDemoLoading(view)
+    setError("")
+    const result = await demoLoginAction(view)
+    if ("error" in result) {
+      setError(result.error)
+      setDemoLoading(null)
     }
-
-    // Everyone goes through the onboarding walkthrough on their first sign-in
-    const onboardingComplete = user.user_metadata?.onboarding_completed
-    router.push(onboardingComplete ? "/app" : "/onboarding")
   }
 
   const handleSocialLogin = async (provider: "google" | "azure") => {
     setIsLoading(true)
-    const supabase = createClient()
-    await supabase.auth.signInWithOAuth({
-      provider,
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-      },
-    })
-    // OAuth redirects the browser — no further handling needed here
+    const result = await getOAuthUrlAction(provider)
+    if ("error" in result) {
+      setError(result.error)
+      setIsLoading(false)
+      return
+    }
+    window.location.href = result.url
   }
 
   return (
@@ -150,7 +137,7 @@ function LoginContent() {
                     />
                   </svg>
                 </div>
-                <span>SOC 2 Type II certified</span>
+                <span>Audit trail on every action</span>
               </div>
             </div>
           </div>
@@ -296,6 +283,44 @@ function LoginContent() {
               </Button>
             </form>
 
+            {/* Demo Access */}
+            <div className="mt-8 rounded-lg border border-dashed border-zinc-700 p-4">
+              <p className="text-xs font-medium text-zinc-400 text-center mb-3">
+                Demo Access
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-10 bg-zinc-900/50 border-zinc-700 hover:bg-zinc-800 hover:border-zinc-600 text-sm"
+                  onClick={() => handleDemoLogin("admin")}
+                  disabled={demoLoading !== null || isLoading}
+                >
+                  {demoLoading === "admin" ? (
+                    <div className="w-4 h-4 border-2 border-zinc-500/20 border-t-zinc-400 rounded-full animate-spin" />
+                  ) : (
+                    "Admin Dashboard"
+                  )}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-10 bg-zinc-900/50 border-zinc-700 hover:bg-zinc-800 hover:border-zinc-600 text-sm"
+                  onClick={() => handleDemoLogin("client")}
+                  disabled={demoLoading !== null || isLoading}
+                >
+                  {demoLoading === "client" ? (
+                    <div className="w-4 h-4 border-2 border-zinc-500/20 border-t-zinc-400 rounded-full animate-spin" />
+                  ) : (
+                    "Client Portal"
+                  )}
+                </Button>
+              </div>
+              <p className="text-[10px] text-zinc-600 text-center mt-2">
+                Demo mode — this does not affect the actual database. This is the demo view.
+              </p>
+            </div>
+
             <p className="mt-8 text-center text-xs text-zinc-500">
               By signing in, you agree to our{" "}
               <Link
@@ -321,14 +346,8 @@ function LoginContent() {
 
 export default function LoginPage() {
   return (
-    <React.Suspense
-      fallback={
-        <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
-          <div className="w-8 h-8 border-2 border-tiffany-500/20 border-t-tiffany-500 rounded-full animate-spin" />
-        </div>
-      }
-    >
-      <LoginContent />
+    <React.Suspense>
+      <LoginForm />
     </React.Suspense>
   )
 }

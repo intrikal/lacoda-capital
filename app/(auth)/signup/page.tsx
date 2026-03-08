@@ -2,7 +2,6 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import { Eye, EyeOff, Mail, Lock, User, Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -10,12 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { cn } from "@/lib/utils"
 import { Logo } from "@/components/marketing/logo"
-import { createClient } from "@/utils/supabase/client"
-
-// Keep in sync with app/auth/callback/route.ts
-const PLATFORM_ADMINS = ["alvinwquach@gmail.com", "binarydecisions1111@gmail.com"]
-const ADVISORS: string[] = []
-const ALLOWED_EMAILS = [...PLATFORM_ADMINS, ...ADVISORS]
+import { signupAction, getOAuthUrlAction } from "@/lib/actions/auth.actions"
 
 // Password strength checker
 function getPasswordStrength(password: string): {
@@ -60,7 +54,6 @@ function MicrosoftIcon({ className }: { className?: string }) {
 }
 
 export default function SignUpPage() {
-  const router = useRouter()
   const [formData, setFormData] = React.useState({
     fullName: "",
     email: "",
@@ -112,53 +105,34 @@ export default function SignUpPage() {
 
     if (!validateForm()) return
 
-    // Access gate — block non-allowed emails before calling Supabase
-    if (!ALLOWED_EMAILS.includes(formData.email)) {
-      setErrors({ email: "Access restricted. Only authorized users can create an account." })
-      return
-    }
-
     setIsLoading(true)
 
-    const supabase = createClient()
-    const { data, error: authError } = await supabase.auth.signUp({
-      email: formData.email,
-      password: formData.password,
-      options: {
-        data: { full_name: formData.fullName },
-        // After email confirmation, Supabase redirects here to exchange the code.
-        // The callback handles admin vs advisor routing automatically.
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-      },
-    })
+    const result = await signupAction(formData.email, formData.password, formData.fullName)
 
-    if (authError) {
-      setErrors({ submit: authError.message })
+    if ("error" in result) {
+      setErrors({ form: result.error })
       setIsLoading(false)
       return
     }
 
-    // If email confirmation is disabled in Supabase, session is returned immediately.
-    // Everyone goes through the onboarding walkthrough on first sign-in.
-    if (data.session) {
-      router.push("/onboarding")
+    if (result.emailConfirmationRequired) {
+      setEmailSent(true)
+      setIsLoading(false)
       return
     }
 
-    // Otherwise show the "check your email" screen
-    setEmailSent(true)
+    // No email confirmation required — redirect was handled server-side
   }
 
   const handleSocialSignup = async (provider: "google" | "azure") => {
     setIsLoading(true)
-    const supabase = createClient()
-    await supabase.auth.signInWithOAuth({
-      provider,
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-      },
-    })
-    // OAuth redirects the browser — no further handling needed here
+    const result = await getOAuthUrlAction(provider)
+    if ("error" in result) {
+      setErrors({ form: result.error })
+      setIsLoading(false)
+      return
+    }
+    window.location.href = result.url
   }
 
   const updateField = (field: string, value: string) => {
@@ -254,6 +228,15 @@ export default function SignUpPage() {
 
         <div className="flex-1 flex items-center justify-center p-6 lg:p-12">
           <div className="w-full max-w-md">
+            {emailSent && (
+              <div className="mb-6 p-4 rounded-lg bg-tiffany-500/10 border border-tiffany-500/20">
+                <p className="text-tiffany-400 font-medium mb-1">Check your email</p>
+                <p className="text-zinc-400 text-sm">
+                  We sent a confirmation link to <span className="text-zinc-200">{formData.email}</span>.
+                  Click it to activate your account.
+                </p>
+              </div>
+            )}
             <div className="mb-8">
               <h1 className="text-2xl font-bold text-zinc-100 mb-2">
                 Create your account
@@ -307,6 +290,11 @@ export default function SignUpPage() {
 
             {/* Signup Form */}
             <form onSubmit={handleSubmit} className="space-y-5">
+              {errors.form && (
+                <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+                  {errors.form}
+                </div>
+              )}
               <div className="space-y-2">
                 <Label htmlFor="fullName">Full name</Label>
                 <div className="relative">

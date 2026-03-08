@@ -1,3 +1,26 @@
+/**
+ * ============================================================================
+ * FILE: components/forms/event-form-dialog.tsx
+ * ============================================================================
+ *
+ * WHAT THIS FILE IS:
+ *   Shared dialog for creating and editing calendar events.
+ *   Used by both the dashboard and client calendar pages.
+ *
+ * FIELDS:
+ *   title       — Event name (required)
+ *   type        — Event type enum: meeting | payment | dividend | deadline | document | call
+ *   date        — Date string "YYYY-MM-DD" (required)
+ *   time        — Optional start time
+ *   endTime     — Optional end time
+ *   location    — Optional venue/location
+ *   amount      — Optional dollar amount (shown for payment/dividend types)
+ *   description — Optional event details
+ *
+ * CONSUMERS:
+ *   - app/(dashboard)/app/calendar/page.tsx
+ *   - app/(client)/client/calendar/page.tsx
+ */
 "use client"
 
 import * as React from "react"
@@ -19,8 +42,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import type { CalendarEvent, CalendarEventType } from "@/lib/mock/types"
-import type { CreateCalendarEventInput } from "@/lib/hooks/crud/use-calendar-events"
+import type { CalendarEventType, CalendarEventRecord } from "@/lib/hooks/crud/use-calendar-events"
+import type { CreateCalendarEventInput } from "@/lib/validations/calendar-event.schema"
 
 const eventTypes: { value: CalendarEventType; label: string }[] = [
   { value: "meeting", label: "Meeting" },
@@ -33,10 +56,11 @@ const eventTypes: { value: CalendarEventType; label: string }[] = [
 
 interface EventFormDialogProps {
   mode: "create" | "edit"
-  initialData?: Partial<CalendarEvent>
+  initialData?: Partial<CalendarEventRecord>
   open: boolean
   onOpenChange: (open: boolean) => void
   onSubmit: (data: CreateCalendarEventInput) => void
+  isPending?: boolean
 }
 
 export function EventFormDialog({
@@ -45,6 +69,7 @@ export function EventFormDialog({
   open,
   onOpenChange,
   onSubmit,
+  isPending,
 }: EventFormDialogProps) {
   const [title, setTitle] = React.useState("")
   const [type, setType] = React.useState<CalendarEventType>("meeting")
@@ -58,7 +83,7 @@ export function EventFormDialog({
   React.useEffect(() => {
     if (open) {
       setTitle(initialData?.title ?? "")
-      setType(initialData?.type ?? "meeting")
+      setType((initialData?.type as CalendarEventType) ?? "meeting")
       setDate(initialData?.date ?? "")
       setTime(initialData?.time ?? "")
       setEndTime(initialData?.endTime ?? "")
@@ -171,7 +196,7 @@ export function EventFormDialog({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleSubmit}>
+          <Button onClick={handleSubmit} disabled={isPending}>
             {mode === "create" ? "Add Event" : "Save Changes"}
           </Button>
         </DialogFooter>

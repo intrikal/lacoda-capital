@@ -1,3 +1,47 @@
+/**
+ * ============================================================================
+ * FILE: /app/(dashboard)/app/reports/page.tsx
+ * ============================================================================
+ *
+ * WHAT THIS FILE IS:
+ *   The advisor-facing Reports dashboard. Displays a list of generated reports
+ *   with CRUD operations (create, edit, delete) backed by the GraphQL API,
+ *   plus a static Benchmarks tab for portfolio comparison analytics.
+ *
+ * ARCHITECTURE:
+ *   This page follows the same pattern as the Document Vault page:
+ *
+ *   ┌─────────────────────────────────────────────────────────────────┐
+ *   │ ReportsPage (this file)                                         │
+ *   │   ├── useReports()       → fetch report list from DB            │
+ *   │   ├── useCreateReport()  → insert new report                    │
+ *   │   ├── useUpdateReport()  → edit report metadata/status          │
+ *   │   ├── useDeleteReport()  → remove report (admin only)           │
+ *   │   ├── ReportFormDialog   → create/edit modal form               │
+ *   │   └── AlertDialog        → delete confirmation                  │
+ *   │         ↓                                                       │
+ *   │ Apollo Client → POST /api/graphql → resolvers → PostgreSQL      │
+ *   └─────────────────────────────────────────────────────────────────┘
+ *
+ * TWO TABS:
+ *   1. Reports — CRUD list of reports from the database
+ *   2. Benchmarks — Static portfolio comparison charts (mock data, not yet wired)
+ *
+ * DB ENUMS (app/db/schema/00_enums.ts):
+ *   reportType: portfolio_summary | asset_allocation | performance |
+ *               tax_summary | compliance | client_statement | custom
+ *   status:     draft | published | archived
+ *
+ * CONSUMERS: Rendered at /app/reports for admin/assistant users.
+ *
+ * RELATED FILES:
+ *   - lib/hooks/crud/use-reports.ts              — data hooks
+ *   - components/forms/report-form-dialog.tsx     — form dialog
+ *   - lib/graphql/operations/report.ts            — GraphQL operations
+ *   - lib/graphql/resolvers/report.ts             — server-side resolvers
+ *   - app/(dashboard)/app/vault/page.tsx          — same pattern for documents
+ */
+
 "use client"
 
 import * as React from "react"
@@ -6,11 +50,9 @@ import { format } from "date-fns"
 import {
   Plus,
   FileText,
-  Download,
-  Eye,
   Clock,
   CheckCircle2,
-  AlertCircle,
+  Archive,
   MoreHorizontal,
   Calendar,
   BarChart3,
@@ -18,15 +60,13 @@ import {
   Receipt,
   FileSpreadsheet,
   TrendingUp,
-  TrendingDown,
   Target,
   Zap,
-  ArrowUpRight,
-  ArrowDownRight,
+  PieChart,
+  Users,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Table,
@@ -37,48 +77,67 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogFooter,
-} from "@/components/ui/dialog"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Label } from "@/components/ui/label"
-import { Input } from "@/components/ui/input"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { cn } from "@/lib/utils"
-import { formatCurrency } from "@/lib/utils"
 import { useReducedMotion } from "@/lib/hooks/use-reduced-motion"
-import { useReports } from "@/lib/hooks/crud/use-reports"
-import type { Report } from "@/lib/mock/types"
+import {
+  useReports,
+  useCreateReport,
+  useUpdateReport,
+  useDeleteReport,
+} from "@/lib/hooks/crud/use-reports"
+import type { ReportRecord } from "@/lib/hooks/crud/use-reports"
+import { ReportFormDialog } from "@/components/forms/report-form-dialog"
 import {
   AllocationChart,
   PerformanceChart,
   InvestmentReturnsChart,
   ROIChart,
-  pieColors,
 } from "@/components/dashboard/charts"
 
+// ─── REPORT TYPE CONFIGURATION ──────────────────────────────────────────────
+//
+// Maps DB enum values to display labels, icons, and colors.
+// Used for the "Quick Generate" cards and the report list.
+
 const reportTypeConfig = {
-  portfolio: {
-    label: "Portfolio",
+  portfolio_summary: {
+    label: "Portfolio Summary",
     icon: BarChart3,
     color: "text-tiffany-500",
     bg: "bg-tiffany-500/10",
+  },
+  asset_allocation: {
+    label: "Asset Allocation",
+    icon: PieChart,
+    color: "text-cyan-400",
+    bg: "bg-cyan-400/10",
+  },
+  performance: {
+    label: "Performance",
+    icon: TrendingUp,
+    color: "text-emerald-400",
+    bg: "bg-emerald-400/10",
+  },
+  tax_summary: {
+    label: "Tax Summary",
+    icon: Receipt,
+    color: "text-amber-400",
+    bg: "bg-amber-400/10",
   },
   compliance: {
     label: "Compliance",
@@ -86,17 +145,11 @@ const reportTypeConfig = {
     color: "text-blue-400",
     bg: "bg-blue-400/10",
   },
-  tax: {
-    label: "Tax",
-    icon: Receipt,
-    color: "text-amber-400",
-    bg: "bg-amber-400/10",
-  },
-  performance: {
-    label: "Performance",
-    icon: BarChart3,
-    color: "text-emerald-400",
-    bg: "bg-emerald-400/10",
+  client_statement: {
+    label: "Client Statement",
+    icon: Users,
+    color: "text-rose-400",
+    bg: "bg-rose-400/10",
   },
   custom: {
     label: "Custom",
@@ -106,25 +159,34 @@ const reportTypeConfig = {
   },
 }
 
+// ─── STATUS CONFIGURATION ───────────────────────────────────────────────────
+//
+// Maps DB status enum to display labels and icons.
+
 const statusConfig = {
-  ready: {
-    label: "Ready",
-    icon: CheckCircle2,
-    color: "text-emerald-400",
-  },
-  generating: {
-    label: "Generating",
+  draft: {
+    label: "Draft",
     icon: Clock,
     color: "text-amber-400",
   },
-  failed: {
-    label: "Failed",
-    icon: AlertCircle,
-    color: "text-red-400",
+  published: {
+    label: "Published",
+    icon: CheckCircle2,
+    color: "text-emerald-400",
+  },
+  archived: {
+    label: "Archived",
+    icon: Archive,
+    color: "text-zinc-500",
   },
 }
 
-// Report analytics data
+// ─── BENCHMARK DATA (STATIC) ───────────────────────────────────────────────
+//
+// The Benchmarks tab uses static/mock data for portfolio comparison charts.
+// This is intentionally not wired to the DB — benchmark data would come
+// from an external market data provider in a production implementation.
+
 const reportsByTypeData = [
   { name: "Portfolio", value: 24, color: "#14b8a6" },
   { name: "Performance", value: 18, color: "#10b981" },
@@ -150,7 +212,6 @@ const quarterlyReportData = [
   { period: "Q1 2024", return: 22 },
 ]
 
-// Benchmark Data
 const portfolioVsBenchmarkData = [
   { month: "Jan", portfolio: 0, benchmark: 0 },
   { month: "Feb", portfolio: 2.4, benchmark: 1.8 },
@@ -200,15 +261,25 @@ const benchmarkMetrics = [
   { name: "MSCI EAFE", ytdReturn: 6.2, portfolioYtd: 19.6, alpha: 13.4, beta: 0.58, sharpe: 1.65 },
 ]
 
+// ─── PAGE COMPONENT ─────────────────────────────────────────────────────────
+
 export default function ReportsPage() {
-  const { reports, addReport, deleteReport } = useReports()
-  const [generateOpen, setGenerateOpen] = React.useState(false)
-  const [reportType, setReportType] = React.useState<Report["type"]>("portfolio")
-  const [reportName, setReportName] = React.useState("")
+  // ── Data hooks ──────────────────────────────────────────────────────────
+  // These hooks connect to the GraphQL API via Apollo Client.
+  // See lib/hooks/crud/use-reports.ts for implementation details.
+  const { reports, isLoading, stats } = useReports()
+  const createMutation = useCreateReport()
+  const updateMutation = useUpdateReport()
+  const deleteMutation = useDeleteReport()
+
+  // ── UI state ────────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = React.useState("reports")
-  const [selectedBenchmark, setSelectedBenchmark] = React.useState("sp500")
+  const [createOpen, setCreateOpen] = React.useState(false)
+  const [editTarget, setEditTarget] = React.useState<ReportRecord | null>(null)
+  const [deleteTarget, setDeleteTarget] = React.useState<string | null>(null)
   const reducedMotion = useReducedMotion()
 
+  // ── Animation ───────────────────────────────────────────────────────────
   const spring = useSpring({
     from: { opacity: 0, transform: "translateY(20px)" },
     to: { opacity: 1, transform: "translateY(0px)" },
@@ -216,9 +287,28 @@ export default function ReportsPage() {
     immediate: reducedMotion,
   })
 
+  // ── Handlers ────────────────────────────────────────────────────────────
+
+  /**
+   * Quick Generate — creates a report with just the type pre-selected.
+   * Opens the create dialog with the reportType pre-filled.
+   */
+  function handleQuickGenerate(reportType: ReportRecord["reportType"]) {
+    setEditTarget({ reportType } as ReportRecord)
+    setCreateOpen(true)
+  }
+
+  /** Confirm delete — calls the deleteReport mutation. */
+  function handleDeleteConfirm() {
+    if (!deleteTarget) return
+    deleteMutation.mutate(deleteTarget, {
+      onSuccess: () => setDeleteTarget(null),
+    })
+  }
+
   return (
     <animated.div style={spring} className="space-y-6">
-      {/* Header */}
+      {/* ── Header ─────────────────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-zinc-100">Reports</h1>
@@ -226,271 +316,294 @@ export default function ReportsPage() {
             Generate reports and analyze portfolio benchmarks
           </p>
         </div>
-        <Dialog open={generateOpen} onOpenChange={setGenerateOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Generate Report
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Generate New Report</DialogTitle>
-              <DialogDescription>
-                Create a new report from your portfolio data.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label>Report Type</Label>
-                <Select value={reportType} onValueChange={(v) => setReportType(v as Report["type"])}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="portfolio">Portfolio Summary</SelectItem>
-                    <SelectItem value="performance">Performance Report</SelectItem>
-                    <SelectItem value="compliance">Compliance Report</SelectItem>
-                    <SelectItem value="tax">Tax Preparation</SelectItem>
-                    <SelectItem value="custom">Custom Report</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Report Name</Label>
-                <Input
-                  placeholder="e.g., Q1 2024 Portfolio Summary"
-                  value={reportName}
-                  onChange={(e) => setReportName(e.target.value)}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Start Date</Label>
-                  <Input type="date" />
-                </div>
-                <div className="space-y-2">
-                  <Label>End Date</Label>
-                  <Input type="date" />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Include Sections</Label>
-                <div className="grid grid-cols-2 gap-2">
-                  {[
-                    "Asset Summary",
-                    "Performance Charts",
-                    "Risk Analysis",
-                    "Document Status",
-                  ].map((section) => (
-                    <label
-                      key={section}
-                      className="flex items-center gap-2 text-sm text-zinc-400 cursor-pointer"
-                    >
-                      <input
-                        type="checkbox"
-                        defaultChecked
-                        className="rounded border-zinc-700"
-                      />
-                      {section}
-                    </label>
-                  ))}
-                </div>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setGenerateOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={() => {
-                if (reportName.trim()) {
-                  addReport({
-                    name: reportName.trim(),
-                    type: reportType,
-                    period: "Custom",
-                    generatedBy: "Current User",
-                  })
-                }
-                setGenerateOpen(false)
-                setReportName("")
-                setReportType("portfolio")
-              }}>
-                Generate Report
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <Button onClick={() => { setEditTarget(null); setCreateOpen(true) }}>
+          <Plus className="h-4 w-4 mr-2" />
+          Generate Report
+        </Button>
       </div>
 
-      {/* Tabs */}
+      {/* ── Create / Edit Dialog ───────────────────────────────────────── */}
+      <ReportFormDialog
+        mode={createOpen ? "create" : "edit"}
+        open={createOpen || !!editTarget}
+        initialData={
+          createOpen
+            ? (editTarget ? { reportType: editTarget.reportType } : undefined)
+            : (editTarget ?? undefined)
+        }
+        onOpenChange={(o) => {
+          if (!o) {
+            setCreateOpen(false)
+            setEditTarget(null)
+          }
+        }}
+        onSubmit={(data) => {
+          if (createOpen) {
+            // Create mode: call createReport mutation
+            createMutation.mutate({
+              name: data.name!,
+              reportType: (data as { reportType?: string }).reportType as ReportRecord["reportType"] ?? "custom",
+              description: data.description,
+              parameters: data.parameters,
+            })
+          } else if (editTarget) {
+            // Edit mode: call updateReport mutation
+            updateMutation.mutate({ id: editTarget.id, input: data })
+          }
+        }}
+        isPending={createMutation.isPending || updateMutation.isPending}
+      />
+
+      {/* ── Delete Confirmation ────────────────────────────────────────── */}
+      <AlertDialog
+        open={!!deleteTarget}
+        onOpenChange={(o) => { if (!o) setDeleteTarget(null) }}
+      >
+        <AlertDialogContent className="bg-zinc-900 border-zinc-800">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Report</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete this report and all its versions.
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {deleteMutation.isPending ? "Deleting…" : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ── Tabs ───────────────────────────────────────────────────────── */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="reports">Reports</TabsTrigger>
           <TabsTrigger value="benchmarks">Benchmarks</TabsTrigger>
         </TabsList>
 
-        {/* Reports Tab */}
+        {/* ══════════════════════════════════════════════════════════════ */}
+        {/* REPORTS TAB — Live data from the database                     */}
+        {/* ══════════════════════════════════════════════════════════════ */}
         <TabsContent value="reports" className="mt-6 space-y-6">
-          {/* Report Templates */}
+          {/* Quick Generate Cards */}
           <div>
             <h2 className="text-lg font-semibold text-zinc-100 mb-4">
               Quick Generate
             </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {Object.entries(reportTypeConfig).map(([key, config]) => (
-            <Card
-              key={key}
-              className="cursor-pointer hover:border-zinc-700 transition-colors group"
-            >
-              <CardContent className="p-4 flex items-center gap-3">
-                <div className={cn("p-2 rounded-lg", config.bg)}>
-                  <config.icon className={cn("h-5 w-5", config.color)} />
-                </div>
-                <div>
-                  <p className="font-medium text-zinc-100">{config.label}</p>
-                  <p className="text-xs text-zinc-500">Generate now</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {Object.entries(reportTypeConfig)
+                .slice(0, 4)
+                .map(([key, cfg]) => {
+                  const Icon = cfg.icon
+                  return (
+                <Card
+                  key={key}
+                  className="cursor-pointer hover:border-zinc-700 transition-colors group"
+                  onClick={() => handleQuickGenerate(key as ReportRecord["reportType"])}
+                >
+                  <CardContent className="p-4 flex items-center gap-3">
+                    <div className={cn("p-2 rounded-lg", cfg.bg)}>
+                      <Icon className={cn("h-5 w-5", cfg.color)} />
+                    </div>
+                    <div>
+                      <p className="font-medium text-zinc-100">{cfg.label}</p>
+                      <p className="text-xs text-zinc-500">Generate now</p>
+                    </div>
+                  </CardContent>
+                </Card>
+                  )
+              })}
+            </div>
+          </div>
+
+          {/* Report Analytics Charts */}
+          <div className="grid lg:grid-cols-3 gap-6">
+            <AllocationChart
+              data={reportsByTypeData}
+              title="Reports by Type"
+              description="Distribution of generated reports"
+            />
+            <PerformanceChart
+              data={reportActivityData}
+              className="lg:col-span-2"
+            />
+          </div>
+
+          {/* Quarterly Performance + Stats */}
+          <div className="grid lg:grid-cols-2 gap-6">
+            <InvestmentReturnsChart data={quarterlyReportData} />
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Report Statistics</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-4 rounded-lg bg-zinc-800/50">
+                    <p className="text-sm text-zinc-400">Total Reports</p>
+                    <p className="text-2xl font-bold text-zinc-100 mt-1">
+                      {stats.total}
+                    </p>
+                  </div>
+                  <div className="p-4 rounded-lg bg-zinc-800/50">
+                    <p className="text-sm text-zinc-400">Published</p>
+                    <p className="text-2xl font-bold text-emerald-400 mt-1">
+                      {stats.published}
+                    </p>
+                  </div>
+                  <div className="p-4 rounded-lg bg-zinc-800/50">
+                    <p className="text-sm text-zinc-400">Drafts</p>
+                    <p className="text-2xl font-bold text-amber-400 mt-1">
+                      {stats.draft}
+                    </p>
+                  </div>
+                  <div className="p-4 rounded-lg bg-zinc-800/50">
+                    <p className="text-sm text-zinc-400">Archived</p>
+                    <p className="text-2xl font-bold text-zinc-500 mt-1">
+                      {stats.archived}
+                    </p>
+                  </div>
                 </div>
               </CardContent>
             </Card>
-          ))}
-        </div>
-      </div>
+          </div>
 
-      {/* Report Analytics */}
-      <div className="grid lg:grid-cols-3 gap-6">
-        <AllocationChart
-          data={reportsByTypeData}
-          title="Reports by Type"
-          description="Distribution of generated reports"
-        />
-        <PerformanceChart
-          data={reportActivityData}
-          className="lg:col-span-2"
-        />
-      </div>
+          {/* Recent Reports List */}
+          <div>
+            <h2 className="text-lg font-semibold text-zinc-100 mb-4">
+              Recent Reports
+            </h2>
 
-      {/* Quarterly Performance Summary */}
-      <div className="grid lg:grid-cols-2 gap-6">
-        <InvestmentReturnsChart data={quarterlyReportData} />
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Report Statistics</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="p-4 rounded-lg bg-zinc-800/50">
-                <p className="text-sm text-zinc-400">Total Reports</p>
-                <p className="text-2xl font-bold text-zinc-100 mt-1">68</p>
-                <p className="text-xs text-emerald-400 mt-1">+12 this month</p>
-              </div>
-              <div className="p-4 rounded-lg bg-zinc-800/50">
-                <p className="text-sm text-zinc-400">Avg Generation Time</p>
-                <p className="text-2xl font-bold text-zinc-100 mt-1">2.4s</p>
-                <p className="text-xs text-tiffany-500 mt-1">-0.3s from last month</p>
-              </div>
-              <div className="p-4 rounded-lg bg-zinc-800/50">
-                <p className="text-sm text-zinc-400">Report Downloads</p>
-                <p className="text-2xl font-bold text-zinc-100 mt-1">142</p>
-                <p className="text-xs text-zinc-500 mt-1">Last 30 days</p>
-              </div>
-              <div className="p-4 rounded-lg bg-zinc-800/50">
-                <p className="text-sm text-zinc-400">Scheduled Reports</p>
-                <p className="text-2xl font-bold text-zinc-100 mt-1">5</p>
-                <p className="text-xs text-zinc-500 mt-1">Active schedules</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Recent Reports */}
-      <div>
-        <h2 className="text-lg font-semibold text-zinc-100 mb-4">
-          Recent Reports
-        </h2>
-        <div className="space-y-4">
-          {reports.map((report) => {
-            const typeConfig =
-              reportTypeConfig[report.type as keyof typeof reportTypeConfig]
-            const status = statusConfig[report.status]
-
-            return (
-              <Card key={report.id} className="hover:border-zinc-700 transition-colors">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className={cn("p-2 rounded-lg", typeConfig.bg)}>
-                        <typeConfig.icon
-                          className={cn("h-5 w-5", typeConfig.color)}
-                        />
-                      </div>
-                      <div>
-                        <p className="font-medium text-zinc-100">{report.name}</p>
-                        <div className="flex items-center gap-3 mt-1 text-sm text-zinc-500">
-                          <span className="flex items-center gap-1">
-                            <Calendar className="h-3 w-3" />
-                            {report.period}
-                          </span>
-                          <span>
-                            Generated{" "}
-                            {format(new Date(report.generatedAt), "MMM d, yyyy")}
-                          </span>
-                          <span>by {report.generatedBy}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-1.5">
-                        <status.icon
-                          className={cn("h-4 w-4", status.color)}
-                        />
-                        <span className={cn("text-sm", status.color)}>
-                          {status.label}
-                        </span>
-                      </div>
-
-                      {report.status === "ready" && (
-                        <div className="flex items-center gap-2">
-                          <Button variant="outline" size="sm">
-                            <Eye className="h-4 w-4 mr-1" />
-                            View
-                          </Button>
-                          <Button variant="outline" size="sm">
-                            <Download className="h-4 w-4 mr-1" />
-                            Download
-                          </Button>
-                        </div>
-                      )}
-
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem>Regenerate</DropdownMenuItem>
-                          <DropdownMenuItem>Share</DropdownMenuItem>
-                          <DropdownMenuItem
-                            className="text-red-400"
-                            onClick={() => deleteReport(report.id)}
-                          >
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </div>
+            {isLoading ? (
+              <Card>
+                <CardContent className="p-8 text-center text-zinc-500">
+                  Loading reports…
                 </CardContent>
               </Card>
-            )
-          })}
-        </div>
-      </div>
+            ) : reports.length === 0 ? (
+              <Card>
+                <CardContent className="p-8 text-center text-zinc-500">
+                  <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p>No reports yet. Click &quot;Generate Report&quot; to create one.</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-4">
+                {reports.map((report) => {
+                  const typeConfig = reportTypeConfig[report.reportType]
+                  const status = statusConfig[report.status]
+
+                  return (
+                    <Card key={report.id} className="hover:border-zinc-700 transition-colors">
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-4">
+                            <div className={cn("p-2 rounded-lg", typeConfig.bg)}>
+                              <typeConfig.icon
+                                className={cn("h-5 w-5", typeConfig.color)}
+                              />
+                            </div>
+                            <div>
+                              <p className="font-medium text-zinc-100">
+                                {report.name}
+                              </p>
+                              <div className="flex items-center gap-3 mt-1 text-sm text-zinc-500">
+                                <span className="flex items-center gap-1">
+                                  <Calendar className="h-3 w-3" />
+                                  {typeConfig.label}
+                                </span>
+                                <span>
+                                  Created{" "}
+                                  {format(new Date(report.createdAt), "MMM d, yyyy")}
+                                </span>
+                                {report.description && (
+                                  <span className="truncate max-w-[200px]">
+                                    {report.description}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-3">
+                            {/* Status badge */}
+                            <div className="flex items-center gap-1.5">
+                              <status.icon
+                                className={cn("h-4 w-4", status.color)}
+                              />
+                              <span className={cn("text-sm", status.color)}>
+                                {status.label}
+                              </span>
+                            </div>
+
+                            {/* Actions dropdown */}
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    setEditTarget(report)
+                                    setCreateOpen(false)
+                                  }}
+                                >
+                                  Edit
+                                </DropdownMenuItem>
+                                {report.status === "draft" && (
+                                  <DropdownMenuItem
+                                    onClick={() =>
+                                      updateMutation.mutate({
+                                        id: report.id,
+                                        input: { status: "published" },
+                                      })
+                                    }
+                                  >
+                                    Publish
+                                  </DropdownMenuItem>
+                                )}
+                                {report.status === "published" && (
+                                  <DropdownMenuItem
+                                    onClick={() =>
+                                      updateMutation.mutate({
+                                        id: report.id,
+                                        input: { status: "archived" },
+                                      })
+                                    }
+                                  >
+                                    Archive
+                                  </DropdownMenuItem>
+                                )}
+                                <DropdownMenuItem
+                                  className="text-red-400"
+                                  onClick={() => setDeleteTarget(report.id)}
+                                >
+                                  Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )
+                })}
+              </div>
+            )}
+          </div>
         </TabsContent>
 
-        {/* Benchmarks Tab */}
+        {/* ══════════════════════════════════════════════════════════════ */}
+        {/* BENCHMARKS TAB — Static portfolio comparison data             */}
+        {/* This tab uses hardcoded data for portfolio vs. index charts.  */}
+        {/* In production, this would pull from a market data API.        */}
+        {/* ══════════════════════════════════════════════════════════════ */}
         <TabsContent value="benchmarks" className="mt-6 space-y-6">
           {/* Benchmark Summary Metrics */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

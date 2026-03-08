@@ -1,0 +1,68 @@
+# ============================================================================
+# Calendar Event GraphQL Type Definitions
+# ============================================================================
+#
+# A CalendarEvent is a scheduled entry — meetings, payment due dates,
+# dividend payouts, deadlines, document signings, or calls.
+#
+# Event types: meeting | payment | dividend | deadline | document | call
+#
+# Fields like amount are only relevant for payment/dividend types.
+# Attendees is a JSON array of names (e.g., ["John Smith", "Jane Doe"]).
+
+type CalendarEvent {
+  id: ID!
+  orgId: ID!
+  clientId: ID
+  title: String!
+  type: String!
+  date: String!
+  time: String
+  endTime: String
+  location: String
+  amount: Float
+  description: String
+  attendees: [String!]
+  reminder: Boolean!
+  metadata: JSON
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  client: Client
+}
+
+type CalendarEventConnection {
+  items: [CalendarEvent!]!
+  totalCount: Int!
+  page: Int!
+  limit: Int!
+}
+
+input CreateCalendarEventInput {
+  clientId: ID
+  title: String!
+  type: String!
+  date: String!
+  time: String
+  endTime: String
+  location: String
+  amount: Float
+  description: String
+  attendees: [String!]
+  reminder: Boolean
+  metadata: JSON
+}
+
+input UpdateCalendarEventInput {
+  clientId: ID
+  title: String
+  type: String
+  date: String
+  time: String
+  endTime: String
+  location: String
+  amount: Float
+  description: String
+  attendees: [String!]
+  reminder: Boolean
+  metadata: JSON
+}

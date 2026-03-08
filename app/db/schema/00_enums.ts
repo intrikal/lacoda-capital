@@ -292,6 +292,18 @@ export const taskPriorityEnum = pgEnum("task_priority", [
 // ============================================================================
 
 /**
+ * Compliance control status
+ * - needs_attention: No approved evidence exists (default state for new controls)
+ * - in_progress: Evidence has been submitted and is pending review
+ * - compliant: At least one approved, non-expired evidence record exists
+ */
+export const complianceControlStatusEnum = pgEnum("compliance_control_status", [
+  "needs_attention",
+  "in_progress",
+  "compliant",
+]);
+
+/**
  * Ledger event actions - append-only audit log
  * These capture all significant system events for compliance
  */
@@ -334,6 +346,201 @@ export const ledgerTargetTypeEnum = pgEnum("ledger_target_type", [
   "document",
   "task",
   "report",
+]);
+
+// ============================================================================
+// Goals
+// ============================================================================
+
+/**
+ * Goal category — the type of financial objective
+ * - retirement:  Long-term retirement savings
+ * - education:   Tuition, college funds
+ * - realestate:  Property acquisition / portfolio expansion
+ * - emergency:   Liquid safety-net reserve
+ * - travel:      Vacation homes, travel funds
+ * - vehicle:     Car / boat / aircraft purchase
+ * - investment:  General investment growth targets
+ * - custom:      Any user-defined goal
+ */
+export const goalCategoryEnum = pgEnum("goal_category", [
+  "retirement",
+  "education",
+  "realestate",
+  "emergency",
+  "travel",
+  "vehicle",
+  "investment",
+  "custom",
+]);
+
+/**
+ * Goal status — tracks progress relative to plan
+ * - on_track:  Progressing as expected
+ * - ahead:     Ahead of schedule
+ * - behind:    Falling short of the target pace
+ * - completed: Target amount reached
+ */
+export const goalStatusEnum = pgEnum("goal_status", [
+  "on_track",
+  "ahead",
+  "behind",
+  "completed",
+]);
+
+/**
+ * Goal priority — relative importance of the goal
+ */
+export const goalPriorityEnum = pgEnum("goal_priority", [
+  "high",
+  "medium",
+  "low",
+]);
+
+// ============================================================================
+// Benchmarks
+// ============================================================================
+
+/**
+ * Benchmark category — the type of market reference point
+ * - index:       Major market index (S&P 500, NASDAQ, Russell 2000)
+ * - etf:         Exchange-traded fund used as benchmark
+ * - mutual_fund: Mutual fund used as benchmark
+ * - custom:      Custom or composite benchmark
+ */
+export const benchmarkCategoryEnum = pgEnum("benchmark_category", [
+  "index",
+  "etf",
+  "mutual_fund",
+  "custom",
+]);
+
+// ============================================================================
+// Tax Deductions
+// ============================================================================
+
+/**
+ * Tax deduction category — the type of tax-deductible expense
+ */
+export const taxDeductionCategoryEnum = pgEnum("tax_deduction_category", [
+  "home_office",
+  "vehicle",
+  "travel",
+  "equipment",
+  "professional",
+  "education",
+  "healthcare",
+  "meals",
+  "utilities",
+  "charitable",
+  "retirement",
+  "taxes",
+  "other",
+]);
+
+/**
+ * Tax deduction type — personal vs business deduction
+ */
+export const taxDeductionTypeEnum = pgEnum("tax_deduction_type", [
+  "personal",
+  "business",
+]);
+
+/**
+ * Tax deduction status — tracking status of each deduction
+ * - eligible:       Qualifies but not yet claimed
+ * - pending_review: Submitted for advisor/CPA review
+ * - claimed:        Filed on tax return
+ * - ineligible:     Does not qualify
+ */
+export const taxDeductionStatusEnum = pgEnum("tax_deduction_status", [
+  "eligible",
+  "pending_review",
+  "claimed",
+  "ineligible",
+]);
+
+// ============================================================================
+// Billing
+// ============================================================================
+
+/**
+ * Billing record status — the payment lifecycle of an advisory fee invoice
+ * - paid:     Invoice has been settled
+ * - upcoming: Invoice generated but not yet due
+ * - due:      Invoice is past its due date and awaiting payment
+ */
+export const billingStatusEnum = pgEnum("billing_status", [
+  "paid",
+  "upcoming",
+  "due",
+]);
+
+// ============================================================================
+// Insurance Policies
+// ============================================================================
+
+/**
+ * Policy type — the category of insurance coverage
+ */
+export const policyTypeEnum = pgEnum("policy_type", [
+  "home",
+  "auto",
+  "life",
+  "umbrella",
+  "liability",
+  "health",
+  "business",
+  "property",
+]);
+
+/**
+ * Policy status — current state of the insurance policy
+ * - active:   Policy is in force
+ * - expiring: Policy is approaching its expiration date
+ * - expired:  Policy has lapsed
+ * - pending:  Policy application is in progress
+ */
+export const policyStatusEnum = pgEnum("policy_status", [
+  "active",
+  "expiring",
+  "expired",
+  "pending",
+]);
+
+/**
+ * Premium payment frequency
+ */
+export const premiumFrequencyEnum = pgEnum("premium_frequency", [
+  "monthly",
+  "quarterly",
+  "annual",
+]);
+
+// ============================================================================
+// Pipeline / Deals
+// ============================================================================
+
+/**
+ * Deal pipeline stage — tracks a deal through the investment lifecycle
+ */
+export const dealStageEnum = pgEnum("deal_stage", [
+  "prospecting",
+  "due_diligence",
+  "negotiation",
+  "closed",
+  "active",
+  "exit_planning",
+]);
+
+/**
+ * Deal type — the asset class category of the deal
+ */
+export const dealTypeEnum = pgEnum("deal_type", [
+  "real_estate",
+  "private_equity",
+  "venture_capital",
+  "fixed_income",
 ]);
 
 // ============================================================================
@@ -390,6 +597,54 @@ export const integrationProviderEnum = pgEnum("integration_provider", [
   "dropbox",
   "docusign",
   "other",
+]);
+
+// ============================================================================
+// Messages
+// ============================================================================
+
+/**
+ * Conversation type — determines the kind of messaging thread
+ * - client: Conversation with a client (visible in client portal)
+ * - team:   Internal team conversation (advisors / assistants only)
+ */
+export const conversationTypeEnum = pgEnum("conversation_type", [
+  "client",
+  "team",
+]);
+
+/**
+ * Message sender type — who sent the message
+ * - advisor: Sent by an advisor/admin
+ * - client:  Sent by a client
+ * - team:    Sent by a team member in an internal thread
+ */
+export const messageSenderTypeEnum = pgEnum("message_sender_type", [
+  "advisor",
+  "client",
+  "team",
+]);
+
+// ============================================================================
+// Calendar Events
+// ============================================================================
+
+/**
+ * Calendar event types
+ * - meeting: Client or team meetings
+ * - payment: Payment due dates
+ * - dividend: Dividend payout dates
+ * - deadline: Compliance or filing deadlines
+ * - document: Document review/signing dates
+ * - call: Scheduled phone calls
+ */
+export const calendarEventTypeEnum = pgEnum("calendar_event_type", [
+  "meeting",
+  "payment",
+  "dividend",
+  "deadline",
+  "document",
+  "call",
 ]);
 
 // ============================================================================

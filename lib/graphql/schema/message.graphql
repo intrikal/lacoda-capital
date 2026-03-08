@@ -1,0 +1,59 @@
+type Conversation {
+  id: ID!
+  orgId: ID!
+  name: String!
+  type: String!
+  clientId: ID
+  lastMessage: String
+  lastMessageAt: DateTime
+  unreadCount: Int!
+  metadata: JSON
+  createdAt: DateTime!
+  updatedAt: DateTime!
+
+  # Relations
+  client: Client
+  messages: [Message!]!
+}
+
+type Message {
+  id: ID!
+  conversationId: ID!
+  senderId: ID
+  senderType: String!
+  content: String!
+  read: Boolean!
+  metadata: JSON
+  createdAt: DateTime!
+
+  # Relations
+  sender: User
+}
+
+type ConversationConnection {
+  items: [Conversation!]!
+  totalCount: Int!
+  page: Int!
+  limit: Int!
+}
+
+type MessageConnection {
+  items: [Message!]!
+  totalCount: Int!
+  page: Int!
+  limit: Int!
+}
+
+input CreateConversationInput {
+  name: String!
+  type: String!
+  clientId: ID
+  metadata: JSON
+}
+
+input SendMessageInput {
+  conversationId: ID!
+  content: String!
+  senderType: String
+  metadata: JSON
+}

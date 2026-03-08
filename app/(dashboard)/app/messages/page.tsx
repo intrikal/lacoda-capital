@@ -1,3 +1,41 @@
+/**
+ * ============================================================================
+ * FILE: app/(dashboard)/app/messages/page.tsx
+ * ============================================================================
+ *
+ * WHAT THIS FILE IS:
+ *   Advisor-facing messaging page. Displays a two-pane layout with a
+ *   conversations sidebar (left) and a chat area (right).
+ *
+ * ARCHITECTURE:
+ *   ┌────────────────────────────────────────────────────────────────────┐
+ *   │ MessagesPage                                                      │
+ *   │   ├── useConversations()          → sidebar conversation list     │
+ *   │   ├── useConversationMessages()   → chat messages for selected    │
+ *   │   ├── useSendMessage()            → sends a new message           │
+ *   │   └── useMarkConversationRead()   → resets unread on selection    │
+ *   │         ↓                                                          │
+ *   │ Apollo Client (useQuery / useMutation)                             │
+ *   │         ↓                                                          │
+ *   │ POST /api/graphql                                                  │
+ *   │         ↓                                                          │
+ *   │ messageResolvers → Drizzle ORM → PostgreSQL                       │
+ *   └────────────────────────────────────────────────────────────────────┘
+ *
+ * DISPLAY PROPERTY DERIVATION:
+ *   The DB does not store display-only fields like avatar or avatarColor.
+ *   These are derived client-side:
+ *     avatar      — initials from conversation name (e.g., "John Smith" → "JS")
+ *     avatarColor — deterministic Tailwind class from name hash
+ *
+ * DATA FLOW:
+ *   useConversationMessages(selectedId) is a reactive Apollo query —
+ *   it re-fetches automatically when selectedId changes. No imperative
+ *   `loadMessages()` call is needed.
+ *
+ * CONSUMERS:
+ *   This page is rendered at /app/messages for advisors/admins.
+ */
 "use client"
 
 import * as React from "react"
@@ -32,12 +70,41 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 import { PageHeader, StatCard } from "@/components/dashboard/content-card"
-import { useMessages } from "@/lib/hooks/crud/use-messages"
-import type { Conversation, Message } from "@/lib/mock/types"
+import {
+  useConversations,
+  useConversationMessages,
+  useSendMessage,
+  useMarkConversationRead,
+} from "@/lib/hooks/crud/use-messages"
+import type { ConversationRecord, MessageRecord } from "@/lib/hooks/crud/use-messages"
 
 // ============================================================================
 // HELPERS
 // ============================================================================
+
+/** Deterministic avatar color from name — cycles through a palette. */
+const AVATAR_COLORS = [
+  "bg-tiffany-500/20 text-tiffany-400",
+  "bg-blue-500/20 text-blue-400",
+  "bg-emerald-500/20 text-emerald-400",
+  "bg-amber-500/20 text-amber-400",
+  "bg-rose-500/20 text-rose-400",
+  "bg-purple-500/20 text-purple-400",
+  "bg-cyan-500/20 text-cyan-400",
+  "bg-orange-500/20 text-orange-400",
+]
+
+function getAvatarInitials(name: string): string {
+  const parts = name.trim().split(/\s+/)
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase()
+  return name.slice(0, 2).toUpperCase()
+}
+
+function getAvatarColor(name: string): string {
+  let hash = 0
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash)
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length]
+}
 
 function formatMessageDate(dateString: string) {
   const date = new Date(dateString)
@@ -46,7 +113,8 @@ function formatMessageDate(dateString: string) {
   return format(date, "MMM d, yyyy")
 }
 
-function formatConversationTime(dateString: string) {
+function formatConversationTime(dateString: string | null) {
+  if (!dateString) return ""
   const date = new Date(dateString)
   if (isToday(date)) return format(date, "h:mm a")
   if (isYesterday(date)) return "Yesterday"
@@ -58,12 +126,15 @@ function formatConversationTime(dateString: string) {
 // ============================================================================
 
 interface ConversationItemProps {
-  conversation: Conversation
+  conversation: ConversationRecord
   isSelected: boolean
   onClick: () => void
 }
 
 function ConversationItem({ conversation, isSelected, onClick }: ConversationItemProps) {
+  const avatar = getAvatarInitials(conversation.name)
+  const avatarColor = getAvatarColor(conversation.name)
+
   return (
     <button
       onClick={onClick}
@@ -73,17 +144,14 @@ function ConversationItem({ conversation, isSelected, onClick }: ConversationIte
       )}
     >
       <div className="relative shrink-0">
-        <div className={cn("h-10 w-10 rounded-full flex items-center justify-center", conversation.avatarColor)}>
-          <span className="text-sm font-semibold">{conversation.avatar}</span>
+        <div className={cn("h-10 w-10 rounded-full flex items-center justify-center", avatarColor)}>
+          <span className="text-sm font-semibold">{avatar}</span>
         </div>
-        {conversation.online && (
-          <div className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-emerald-400 border-2 border-zinc-900" />
-        )}
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
-            <p className={cn("text-sm font-medium truncate", conversation.unread > 0 ? "text-zinc-100" : "text-zinc-300")}>
+            <p className={cn("text-sm font-medium truncate", conversation.unreadCount > 0 ? "text-zinc-100" : "text-zinc-300")}>
               {conversation.name}
             </p>
             {conversation.type === "team" && (
@@ -91,19 +159,16 @@ function ConversationItem({ conversation, isSelected, onClick }: ConversationIte
             )}
           </div>
           <span className="text-xs text-zinc-500 shrink-0">
-            {formatConversationTime(conversation.timestamp)}
+            {formatConversationTime(conversation.lastMessageAt)}
           </span>
         </div>
-        {conversation.aum && (
-          <p className="text-xs text-tiffany-500 mt-0.5">{conversation.aum} AUM</p>
-        )}
-        <p className={cn("text-sm truncate mt-1", conversation.unread > 0 ? "text-zinc-300" : "text-zinc-500")}>
+        <p className={cn("text-sm truncate mt-1", conversation.unreadCount > 0 ? "text-zinc-300" : "text-zinc-500")}>
           {conversation.lastMessage}
         </p>
       </div>
-      {conversation.unread > 0 && (
+      {conversation.unreadCount > 0 && (
         <div className="h-5 min-w-[20px] rounded-full bg-tiffany-500 flex items-center justify-center px-1.5 shrink-0">
-          <span className="text-xs font-semibold text-white">{conversation.unread}</span>
+          <span className="text-xs font-semibold text-white">{conversation.unreadCount}</span>
         </div>
       )}
     </button>
@@ -111,11 +176,13 @@ function ConversationItem({ conversation, isSelected, onClick }: ConversationIte
 }
 
 interface MessageBubbleProps {
-  message: Message
+  message: MessageRecord
   isMe: boolean
 }
 
 function MessageBubble({ message, isMe }: MessageBubbleProps) {
+  const attachments = message.metadata?.attachments
+
   return (
     <div className={cn("flex", isMe ? "justify-end" : "justify-start")}>
       <div
@@ -126,7 +193,7 @@ function MessageBubble({ message, isMe }: MessageBubbleProps) {
       >
         <p className="text-sm leading-relaxed">{message.content}</p>
 
-        {message.attachments && message.attachments.length > 0 && (
+        {attachments && attachments.length > 0 && (
           <div className={cn(
             "mt-3 p-3 rounded-xl flex items-center gap-3",
             isMe ? "bg-tiffany-600/50" : "bg-zinc-700/50"
@@ -135,9 +202,9 @@ function MessageBubble({ message, isMe }: MessageBubbleProps) {
               <File className="h-4 w-4" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">{message.attachments[0].name}</p>
+              <p className="text-sm font-medium truncate">{attachments[0].name}</p>
               <p className={cn("text-xs", isMe ? "text-tiffany-200" : "text-zinc-400")}>
-                {message.attachments[0].size}
+                {attachments[0].size}
               </p>
             </div>
             <Button
@@ -154,7 +221,7 @@ function MessageBubble({ message, isMe }: MessageBubbleProps) {
           "flex items-center justify-end gap-1.5 mt-2",
           isMe ? "text-tiffany-200" : "text-zinc-500"
         )}>
-          <span className="text-xs">{format(new Date(message.timestamp), "h:mm a")}</span>
+          <span className="text-xs">{format(new Date(message.createdAt), "h:mm a")}</span>
           {isMe && (
             message.read ? (
               <CheckCheck className="h-3.5 w-3.5" />
@@ -175,26 +242,31 @@ function MessageBubble({ message, isMe }: MessageBubbleProps) {
 type TabId = "all" | "clients" | "team"
 
 export default function MessagesPage() {
-  const { conversations, messages, loadMessages, sendMessage } = useMessages()
+  const { conversations, stats } = useConversations()
+  const [selectedConversationId, setSelectedConversationId] = React.useState<string | null>(null)
+  const { messages } = useConversationMessages(selectedConversationId)
+  const { mutate: sendMessage } = useSendMessage()
+  const { mutate: markRead } = useMarkConversationRead()
+
   const [activeTab, setActiveTab] = React.useState<TabId>("all")
-  const [selectedConversation, setSelectedConversation] = React.useState<Conversation | null>(null)
   const [searchQuery, setSearchQuery] = React.useState("")
   const [newMessage, setNewMessage] = React.useState("")
   const [showMobileChat, setShowMobileChat] = React.useState(false)
   const messagesEndRef = React.useRef<HTMLDivElement>(null)
 
-  // Auto-select first conversation when loaded
+  // Auto-select the first conversation when list arrives
   React.useEffect(() => {
-    if (conversations.length > 0 && !selectedConversation) {
-      const first = conversations[0]
-      setSelectedConversation(first)
-      loadMessages(first.id)
+    if (conversations.length > 0 && !selectedConversationId) {
+      setSelectedConversationId(conversations[0].id)
     }
-  }, [conversations, selectedConversation, loadMessages])
+  }, [conversations, selectedConversationId])
 
+  // Scroll to bottom when messages change
   React.useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [messages, selectedConversation])
+  }, [messages, selectedConversationId])
+
+  const selectedConversation = conversations.find((c) => c.id === selectedConversationId)
 
   const filteredConversations = conversations.filter((conv) => {
     const matchesSearch = conv.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -203,28 +275,31 @@ export default function MessagesPage() {
   })
 
   const handleSend = () => {
-    if (newMessage.trim() && selectedConversation) {
-      sendMessage(selectedConversation.id, newMessage.trim())
+    if (newMessage.trim() && selectedConversationId) {
+      sendMessage({
+        conversationId: selectedConversationId,
+        content: newMessage.trim(),
+        senderType: "advisor",
+      })
       setNewMessage("")
     }
   }
 
-  const handleSelectConversation = (conv: Conversation) => {
-    setSelectedConversation(conv)
-    loadMessages(conv.id)
+  const handleSelectConversation = (conv: ConversationRecord) => {
+    setSelectedConversationId(conv.id)
     setShowMobileChat(true)
+    // Mark as read when selecting
+    if (conv.unreadCount > 0) {
+      markRead(conv.id)
+    }
   }
 
   const groupedMessages = messages.reduce((groups, message) => {
-    const date = formatMessageDate(message.timestamp)
+    const date = formatMessageDate(message.createdAt)
     if (!groups[date]) groups[date] = []
     groups[date].push(message)
     return groups
-  }, {} as Record<string, Message[]>)
-
-  const unreadCount = conversations.reduce((sum, c) => sum + c.unread, 0)
-  const clientCount = conversations.filter(c => c.type === "client").length
-  const teamCount = conversations.filter(c => c.type === "team").length
+  }, {} as Record<string, MessageRecord[]>)
 
   return (
     <div className="space-y-6">
@@ -242,22 +317,22 @@ export default function MessagesPage() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           label="Total Conversations"
-          value={conversations.length}
+          value={stats.total}
           icon={<MessageSquare className="h-4 w-4 text-tiffany-500" />}
         />
         <StatCard
           label="Unread Messages"
-          value={unreadCount}
+          value={stats.unread}
           icon={<MessageSquare className="h-4 w-4 text-amber-400" />}
         />
         <StatCard
           label="Client Threads"
-          value={clientCount}
+          value={stats.clientThreads}
           icon={<Users className="h-4 w-4 text-emerald-400" />}
         />
         <StatCard
           label="Team Threads"
-          value={teamCount}
+          value={stats.teamThreads}
           icon={<Users className="h-4 w-4 text-blue-400" />}
         />
       </div>
@@ -314,7 +389,7 @@ export default function MessagesPage() {
                   <ConversationItem
                     key={conversation.id}
                     conversation={conversation}
-                    isSelected={selectedConversation?.id === conversation.id}
+                    isSelected={selectedConversationId === conversation.id}
                     onClick={() => handleSelectConversation(conversation)}
                   />
                 ))
@@ -341,33 +416,17 @@ export default function MessagesPage() {
                       <ChevronLeft className="h-4 w-4" />
                     </Button>
                     <div className="relative">
-                      <div className={cn("h-10 w-10 rounded-full flex items-center justify-center", selectedConversation.avatarColor)}>
-                        <span className="text-sm font-semibold">{selectedConversation.avatar}</span>
+                      <div className={cn("h-10 w-10 rounded-full flex items-center justify-center", getAvatarColor(selectedConversation.name))}>
+                        <span className="text-sm font-semibold">{getAvatarInitials(selectedConversation.name)}</span>
                       </div>
-                      {selectedConversation.online && (
-                        <div className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-emerald-400 border-2 border-zinc-900" />
-                      )}
                     </div>
                     <div>
                       <p className="text-sm font-medium text-zinc-100">{selectedConversation.name}</p>
                       <p className="text-xs text-zinc-500 flex items-center gap-1">
-                        {selectedConversation.online ? (
-                          <>
-                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                            Online
-                          </>
-                        ) : (
-                          <>
-                            <Clock className="h-3 w-3" />
-                            Last seen recently
-                          </>
-                        )}
-                        {selectedConversation.aum && (
-                          <>
-                            <span className="mx-1">·</span>
-                            <span className="text-tiffany-500">{selectedConversation.aum}</span>
-                          </>
-                        )}
+                        <Clock className="h-3 w-3" />
+                        {selectedConversation.lastMessageAt
+                          ? `Last active ${formatConversationTime(selectedConversation.lastMessageAt)}`
+                          : "No messages yet"}
                       </p>
                     </div>
                   </div>
