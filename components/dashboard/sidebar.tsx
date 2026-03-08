@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
+import { usePathname } from "next/navigation"
 import {
   LayoutDashboard,
   Briefcase,
@@ -83,11 +83,6 @@ interface SidebarProps {
 
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname()
-  const router = useRouter()
-
-  const handleSignOut = async () => {
-    await logoutAction()
-  }
 
   function isActive(href: string): boolean {
     return pathname.startsWith(href)
