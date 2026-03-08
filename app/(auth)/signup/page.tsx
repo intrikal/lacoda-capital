@@ -10,6 +10,12 @@ import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { cn } from "@/lib/utils"
 import { Logo } from "@/components/marketing/logo"
+import { createClient } from "@/utils/supabase/client"
+
+// Keep in sync with app/auth/callback/route.ts
+const PLATFORM_ADMINS = ["alvinwquach@gmail.com", "binarydecisions1111@gmail.com"]
+const ADVISORS: string[] = []
+const ALLOWED_EMAILS = [...PLATFORM_ADMINS, ...ADVISORS]
 
 // Password strength checker
 function getPasswordStrength(password: string): {
@@ -66,6 +72,7 @@ export default function SignUpPage() {
   const [agreedToTerms, setAgreedToTerms] = React.useState(false)
   const [isLoading, setIsLoading] = React.useState(false)
   const [errors, setErrors] = React.useState<Record<string, string>>({})
+  const [emailSent, setEmailSent] = React.useState(false)
 
   const passwordStrength = getPasswordStrength(formData.password)
 
@@ -105,21 +112,53 @@ export default function SignUpPage() {
 
     if (!validateForm()) return
 
+    // Access gate — block non-allowed emails before calling Supabase
+    if (!ALLOWED_EMAILS.includes(formData.email)) {
+      setErrors({ email: "Access restricted. Only authorized users can create an account." })
+      return
+    }
+
     setIsLoading(true)
 
-    // Simulate registration
-    await new Promise((resolve) => setTimeout(resolve, 1500))
+    const supabase = createClient()
+    const { data, error: authError } = await supabase.auth.signUp({
+      email: formData.email,
+      password: formData.password,
+      options: {
+        data: { full_name: formData.fullName },
+        // After email confirmation, Supabase redirects here to exchange the code.
+        // The callback handles admin vs advisor routing automatically.
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+      },
+    })
 
-    // Redirect to onboarding
-    router.push("/onboarding")
+    if (authError) {
+      setErrors({ submit: authError.message })
+      setIsLoading(false)
+      return
+    }
+
+    // If email confirmation is disabled in Supabase, session is returned immediately.
+    // Everyone goes through the onboarding walkthrough on first sign-in.
+    if (data.session) {
+      router.push("/onboarding")
+      return
+    }
+
+    // Otherwise show the "check your email" screen
+    setEmailSent(true)
   }
 
-  const handleSocialSignup = (provider: string) => {
+  const handleSocialSignup = async (provider: "google" | "azure") => {
     setIsLoading(true)
-    console.log(`Signing up with ${provider}`)
-    setTimeout(() => {
-      router.push("/onboarding")
-    }, 1000)
+    const supabase = createClient()
+    await supabase.auth.signInWithOAuth({
+      provider,
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
+    })
+    // OAuth redirects the browser — no further handling needed here
   }
 
   const updateField = (field: string, value: string) => {
@@ -127,6 +166,26 @@ export default function SignUpPage() {
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: "" }))
     }
+  }
+
+  if (emailSent) {
+    return (
+      <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-6">
+        <div className="w-full max-w-md text-center">
+          <div className="w-16 h-16 rounded-full bg-tiffany-500/10 flex items-center justify-center mx-auto mb-6">
+            <Mail className="w-8 h-8 text-tiffany-500" />
+          </div>
+          <h1 className="text-2xl font-bold text-zinc-100 mb-3">Check your email</h1>
+          <p className="text-zinc-400 mb-2">
+            We sent a confirmation link to{" "}
+            <span className="text-zinc-200 font-medium">{formData.email}</span>
+          </p>
+          <p className="text-zinc-500 text-sm">
+            Click the link in the email to activate your account and continue to onboarding.
+          </p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -216,7 +275,7 @@ export default function SignUpPage() {
                 type="button"
                 variant="outline"
                 className="w-full h-11 bg-zinc-900 border-zinc-700 hover:bg-zinc-800 hover:border-zinc-600"
-                onClick={() => handleSocialSignup("Google")}
+                onClick={() => handleSocialSignup("google")}
                 disabled={isLoading}
               >
                 <GoogleIcon className="w-5 h-5 mr-3" />
@@ -226,7 +285,7 @@ export default function SignUpPage() {
                 type="button"
                 variant="outline"
                 className="w-full h-11 bg-zinc-900 border-zinc-700 hover:bg-zinc-800 hover:border-zinc-600"
-                onClick={() => handleSocialSignup("Microsoft")}
+                onClick={() => handleSocialSignup("azure")}
                 disabled={isLoading}
               >
                 <MicrosoftIcon className="w-5 h-5 mr-3" />
@@ -409,6 +468,10 @@ export default function SignUpPage() {
                   <p className="text-sm text-red-400">{errors.terms}</p>
                 )}
               </div>
+
+              {errors.submit && (
+                <p className="text-sm text-red-400">{errors.submit}</p>
+              )}
 
               <Button
                 type="submit"

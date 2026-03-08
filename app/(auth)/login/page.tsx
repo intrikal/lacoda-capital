@@ -2,12 +2,24 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Eye, EyeOff, Mail, Lock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Logo } from "@/components/marketing/logo"
+import { createClient } from "@/utils/supabase/client"
+
+// Keep in sync with app/auth/callback/route.ts
+const PLATFORM_ADMINS = ["alvinwquach@gmail.com", "binarydecisions1111@gmail.com"]
+const ADVISORS: string[] = []
+const ALLOWED_EMAILS = [...PLATFORM_ADMINS, ...ADVISORS]
+
+const AUTH_ERROR_MESSAGES: Record<string, string> = {
+  unauthorized: "Access restricted. This platform is currently invite-only.",
+  auth_error: "Authentication failed. Please try again.",
+  missing_code: "Invalid sign-in link. Please request a new one.",
+}
 
 // Social login icons
 function GoogleIcon({ className }: { className?: string }) {
@@ -32,33 +44,57 @@ function MicrosoftIcon({ className }: { className?: string }) {
   )
 }
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [email, setEmail] = React.useState("")
   const [password, setPassword] = React.useState("")
   const [showPassword, setShowPassword] = React.useState(false)
   const [isLoading, setIsLoading] = React.useState(false)
-  const [error, setError] = React.useState("")
+  const [error, setError] = React.useState(
+    AUTH_ERROR_MESSAGES[searchParams.get("error") ?? ""] ?? ""
+  )
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
     setIsLoading(true)
 
-    // Simulate authentication
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    const supabase = createClient()
+    const { data, error: authError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
 
-    // For demo, just redirect to app
-    router.push("/app")
+    if (authError) {
+      setError(authError.message)
+      setIsLoading(false)
+      return
+    }
+
+    const user = data.user
+    if (!user || !ALLOWED_EMAILS.includes(user.email ?? "")) {
+      await supabase.auth.signOut()
+      setError(AUTH_ERROR_MESSAGES.unauthorized)
+      setIsLoading(false)
+      return
+    }
+
+    // Everyone goes through the onboarding walkthrough on their first sign-in
+    const onboardingComplete = user.user_metadata?.onboarding_completed
+    router.push(onboardingComplete ? "/app" : "/onboarding")
   }
 
-  const handleSocialLogin = (provider: string) => {
+  const handleSocialLogin = async (provider: "google" | "azure") => {
     setIsLoading(true)
-    // Simulate OAuth redirect
-    console.log(`Logging in with ${provider}`)
-    setTimeout(() => {
-      router.push("/app")
-    }, 1000)
+    const supabase = createClient()
+    await supabase.auth.signInWithOAuth({
+      provider,
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
+    })
+    // OAuth redirects the browser — no further handling needed here
   }
 
   return (
@@ -157,7 +193,7 @@ export default function LoginPage() {
                 type="button"
                 variant="outline"
                 className="w-full h-11 bg-zinc-900 border-zinc-700 hover:bg-zinc-800 hover:border-zinc-600"
-                onClick={() => handleSocialLogin("Google")}
+                onClick={() => handleSocialLogin("google")}
                 disabled={isLoading}
               >
                 <GoogleIcon className="w-5 h-5 mr-3" />
@@ -167,7 +203,7 @@ export default function LoginPage() {
                 type="button"
                 variant="outline"
                 className="w-full h-11 bg-zinc-900 border-zinc-700 hover:bg-zinc-800 hover:border-zinc-600"
-                onClick={() => handleSocialLogin("Microsoft")}
+                onClick={() => handleSocialLogin("azure")}
                 disabled={isLoading}
               >
                 <MicrosoftIcon className="w-5 h-5 mr-3" />
@@ -280,5 +316,19 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <React.Suspense
+      fallback={
+        <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
+          <div className="w-8 h-8 border-2 border-tiffany-500/20 border-t-tiffany-500 rounded-full animate-spin" />
+        </div>
+      }
+    >
+      <LoginContent />
+    </React.Suspense>
   )
 }
