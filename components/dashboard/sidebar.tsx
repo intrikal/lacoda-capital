@@ -4,6 +4,7 @@ import * as React from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import {
+  LayoutDashboard,
   Briefcase,
   FolderLock,
   BarChart3,
@@ -73,10 +74,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const router = useRouter()
 
   const handleSignOut = async () => {
-    const supabase = createClient()
-    await supabase.auth.signOut()
-    router.push("/login")
-    router.refresh()
+    await logoutAction()
   }
 
   function isActive(href: string): boolean {
