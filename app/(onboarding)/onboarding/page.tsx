@@ -426,7 +426,7 @@ export default function OnboardingPage() {
           >
             {/* Step icon */}
             <div className="w-12 h-12 rounded-xl bg-tiffany-500/10 flex items-center justify-center mb-6">
-              <current.icon className="w-6 h-6 text-tiffany-500" />
+              {React.createElement(current.icon, { className: "w-6 h-6 text-tiffany-500" })}
             </div>
 
             <h1 className="text-2xl font-bold text-zinc-100 mb-3">
@@ -472,7 +472,7 @@ export default function OnboardingPage() {
                 {current.features.map((feature) => (
                   <div key={feature.label} className="flex items-start gap-4">
                     <div className="w-9 h-9 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center shrink-0 mt-0.5">
-                      <feature.icon className="w-4 h-4 text-tiffany-500" />
+                      {React.createElement(feature.icon, { className: "w-4 h-4 text-tiffany-500" })}
                     </div>
                     <div>
                       <p className="text-sm font-medium text-zinc-200 mb-0.5">
