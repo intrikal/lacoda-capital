@@ -142,6 +142,26 @@ export default function SignUpPage() {
     }
   }
 
+  if (emailSent) {
+    return (
+      <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-6">
+        <div className="w-full max-w-md text-center">
+          <div className="w-16 h-16 rounded-full bg-tiffany-500/10 flex items-center justify-center mx-auto mb-6">
+            <Mail className="w-8 h-8 text-tiffany-500" />
+          </div>
+          <h1 className="text-2xl font-bold text-zinc-100 mb-3">Check your email</h1>
+          <p className="text-zinc-400 mb-2">
+            We sent a confirmation link to{" "}
+            <span className="text-zinc-200 font-medium">{formData.email}</span>
+          </p>
+          <p className="text-zinc-500 text-sm">
+            Click the link in the email to activate your account and continue to onboarding.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-zinc-950 flex">
       {/* Left Panel - Branding */}
@@ -436,6 +456,10 @@ export default function SignUpPage() {
                   <p className="text-sm text-red-400">{errors.terms}</p>
                 )}
               </div>
+
+              {errors.submit && (
+                <p className="text-sm text-red-400">{errors.submit}</p>
+              )}
 
               <Button
                 type="submit"

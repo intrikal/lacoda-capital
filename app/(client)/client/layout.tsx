@@ -5,18 +5,16 @@
  * Renders a collapsible sidebar with grouped navigation and a sticky top bar.
  *
  * Sidebar nav groups:
- *   Main     — Dashboard, Portfolio, Goals
- *   Manage   — Documents, Reports, Transfers, Activity
- *   Planning — Calendar, Beneficiaries
- *   Account  — Messages, Billing
- *   Bottom   — Settings, Help
+ *   Main         — Overview, Asset, Report, Vault
+ *   Stay in touch — Calendar, Messages
+ *   Bottom       — Settings, Help
  *
  * Collapse behaviour:
  *   Collapsed (68 px): icons only with tooltips on hover
  *   Expanded (240 px): icons + labels + group headings
  *
  * Active state:
- *   Dashboard uses exact match (`pathname === "/client"`).
+ *   Overview uses exact match (`pathname === "/client"`).
  *   All other items use `pathname.startsWith(item.href)`.
  */
 
@@ -31,15 +29,10 @@ import { Logo } from "@/components/marketing/logo"
 import {
   LayoutDashboard,
   Briefcase,
-  Target,
   FolderLock,
   FileBarChart2,
-  ArrowRightLeft,
-  Clock,
   CalendarDays,
-  Users,
   MessageSquare,
-  Receipt,
   Settings,
   HelpCircle,
   PanelLeft,
@@ -80,85 +73,45 @@ const navGroups: NavGroup[] = [
     label: "Main",
     items: [
       {
-        name: "Dashboard",
+        name: "Overview",
         href: "/client",
         icon: LayoutDashboard,
-        description: "Portfolio overview & summary",
+        description: "Portfolio summary & recent activity",
       },
       {
-        name: "Portfolio",
-        href: "/client/portfolio",
+        name: "Asset",
+        href: "/client/assets",
         icon: Briefcase,
-        description: "Holdings, performance & allocation",
+        description: "Holdings, valuations & allocation",
       },
       {
-        name: "Goals",
-        href: "/client/goals",
-        icon: Target,
-        description: "Financial goals & milestones",
-      },
-    ],
-  },
-  {
-    label: "Manage",
-    items: [
-      {
-        name: "Documents",
-        href: "/client/documents",
-        icon: FolderLock,
-        description: "Statements, tax docs & legal",
-      },
-      {
-        name: "Reports",
+        name: "Report",
         href: "/client/reports",
         icon: FileBarChart2,
-        description: "Portfolio & performance reports",
+        description: "Advisor-generated performance reports",
       },
       {
-        name: "Transfers",
-        href: "/client/transfers",
-        icon: ArrowRightLeft,
-        description: "Deposits, withdrawals & transfers",
-      },
-      {
-        name: "Activity",
-        href: "/client/activity",
-        icon: Clock,
-        description: "Transaction history & ledger",
+        name: "Vault",
+        href: "/client/vault",
+        icon: FolderLock,
+        description: "Statements, tax docs & shared files",
       },
     ],
   },
   {
-    label: "Planning",
+    label: "Stay in touch",
     items: [
       {
         name: "Calendar",
         href: "/client/calendar",
         icon: CalendarDays,
-        description: "Meetings, payments & deadlines",
+        description: "Meetings, reviews & key dates",
       },
-      {
-        name: "Beneficiaries",
-        href: "/client/beneficiaries",
-        icon: Users,
-        description: "Estate planning & designations",
-      },
-    ],
-  },
-  {
-    label: "Account",
-    items: [
       {
         name: "Messages",
         href: "/client/messages",
         icon: MessageSquare,
-        description: "Advisor communication",
-      },
-      {
-        name: "Billing",
-        href: "/client/billing",
-        icon: Receipt,
-        description: "Advisory fees & invoices",
+        description: "Direct communication with your advisor",
       },
     ],
   },
@@ -249,6 +202,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
    * Dashboard uses exact match to avoid "/client" matching all child routes.
    */
   function isActive(href: string): boolean {
+    // Overview uses exact match to avoid "/client" matching all child routes
     return href === "/client" ? pathname === "/client" : pathname.startsWith(href)
   }
 

@@ -2,13 +2,14 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { Eye, EyeOff, Lock, CheckCircle2, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
 import { Logo } from "@/components/marketing/logo"
+import { createClient } from "@/utils/supabase/client"
 
 // Password strength checker
 function getPasswordStrength(password: string): {
@@ -31,8 +32,6 @@ function getPasswordStrength(password: string): {
 
 function ResetPasswordContent() {
   const router = useRouter()
-  const searchParams = useSearchParams()
-  const token = searchParams.get("token")
 
   const [password, setPassword] = React.useState("")
   const [confirmPassword, setConfirmPassword] = React.useState("")
@@ -41,18 +40,20 @@ function ResetPasswordContent() {
   const [isLoading, setIsLoading] = React.useState(false)
   const [isSuccess, setIsSuccess] = React.useState(false)
   const [errors, setErrors] = React.useState<Record<string, string>>({})
-  const [tokenValid, setTokenValid] = React.useState(true)
+  // With PKCE, the session is set by the auth callback before landing here.
+  // We check for a session to decide if this page is in a valid state.
+  const [sessionValid, setSessionValid] = React.useState<boolean | null>(null)
 
   const passwordStrength = getPasswordStrength(password)
 
-  // Simulate token validation
   React.useEffect(() => {
-    // In production, validate token with API
-    // For demo, we'll consider it valid if present
-    if (!token) {
-      setTokenValid(false)
+    const checkSession = async () => {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      setSessionValid(!!user)
     }
-  }, [token])
+    checkSession()
+  }, [])
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {}
@@ -78,15 +79,30 @@ function ResetPasswordContent() {
 
     setIsLoading(true)
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500))
+    const supabase = createClient()
+    const { error: updateError } = await supabase.auth.updateUser({ password })
+
+    if (updateError) {
+      setErrors({ submit: updateError.message })
+      setIsLoading(false)
+      return
+    }
 
     setIsSuccess(true)
     setIsLoading(false)
   }
 
-  // Invalid/expired token state
-  if (!tokenValid) {
+  // Still checking session
+  if (sessionValid === null) {
+    return (
+      <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-tiffany-500/20 border-t-tiffany-500 rounded-full animate-spin" />
+      </div>
+    )
+  }
+
+  // Invalid/expired session state
+  if (!sessionValid) {
     return (
       <div className="min-h-screen bg-zinc-950 flex">
         {/* Left Panel - Branding */}
@@ -350,6 +366,10 @@ function ResetPasswordContent() {
                       <p className="text-sm text-red-400">{errors.confirmPassword}</p>
                     )}
                   </div>
+
+                  {errors.submit && (
+                    <p className="text-sm text-red-400">{errors.submit}</p>
+                  )}
 
                   <Button
                     type="submit"

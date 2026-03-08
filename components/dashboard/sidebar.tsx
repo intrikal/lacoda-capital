@@ -36,7 +36,14 @@ import {
 import { Logo } from "@/components/marketing/logo"
 import { logoutAction } from "@/lib/actions/auth.actions"
 
-const mainNavigation = [
+type NavItem = {
+  name: string
+  href: string
+  icon: React.ElementType
+  description: string
+}
+
+const mainNavigation: NavItem[] = [
   { name: "Overview", href: "/app", icon: LayoutDashboard, description: "Dashboard home" },
   { name: "Pipeline", href: "/app/pipeline", icon: GitBranch, description: "Deal flow" },
   { name: "Clients", href: "/app/clients", icon: Users, description: "Client management" },
@@ -55,10 +62,19 @@ const mainNavigation = [
   { name: "Notifications", href: "/app/notifications", icon: Bell, description: "Alerts & updates" },
 ]
 
-const secondaryNavigation = [
-  { name: "Settings", href: "/app/settings", icon: Settings },
-  { name: "Help", href: "/app/help", icon: HelpCircle },
+const secondaryNavigation: NavItem[] = [
+  { name: "Settings", href: "/app/settings", icon: Settings, description: "Account preferences" },
+  { name: "Help", href: "/app/help", icon: HelpCircle, description: "Guides & support" },
 ]
+
+const navGroups: { label: string; items: NavItem[] }[] = [
+  { label: "", items: mainNavigation },
+  { label: "Account", items: secondaryNavigation },
+]
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Sidebar
+// ─────────────────────────────────────────────────────────────────────────────
 
 interface SidebarProps {
   collapsed: boolean
@@ -68,12 +84,16 @@ interface SidebarProps {
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname()
 
+  function isActive(href: string): boolean {
+    return pathname.startsWith(href)
+  }
+
   const sidebarWidth = collapsed ? "w-[68px]" : "w-[240px]"
 
   return (
     <aside
       className={cn(
-        "fixed left-0 top-0 bottom-0 z-40 flex flex-col border-r border-zinc-800/60 bg-zinc-950 transition-all duration-200",
+        "fixed left-0 top-0 bottom-0 z-40 flex flex-col border-r border-zinc-800/60 bg-zinc-950 transition-all duration-200 overflow-y-auto",
         sidebarWidth
       )}
     >
@@ -96,61 +116,68 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       </div>
 
       {/* Main Navigation */}
-      <nav className="flex-1 px-3 py-4">
-        <ul className="space-y-1">
-          {mainNavigation.map((item) => {
-            const isActive =
-              item.href === "/app"
-                ? pathname === "/app"
-                : pathname.startsWith(item.href)
+      <nav className="flex-1 px-3 py-4 space-y-5">
+        {navGroups.map((group, gi) => (
+          <div key={gi}>
+            {/* Section heading — hidden when collapsed or label is empty */}
+            {!collapsed && group.label && (
+              <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-widest text-zinc-600">
+                {group.label}
+              </p>
+            )}
+            <ul className="space-y-0.5">
+              {group.items.map((item) => {
+                const active = isActive(item.href)
 
-            const NavLink = (
-              <Link
-                href={item.href}
-                className={cn(
-                  "group flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                  collapsed && "justify-center px-2",
-                  isActive
-                    ? "bg-tiffany-500/10 text-tiffany-500"
-                    : "text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-100"
-                )}
-              >
-                <item.icon className={cn(
-                  "h-[18px] w-[18px] shrink-0 transition-colors",
-                  isActive ? "text-tiffany-500" : "text-zinc-500 group-hover:text-zinc-300"
-                )} />
-                {!collapsed && <span className="truncate">{item.name}</span>}
-              </Link>
-            )
+                const NavLink = (
+                  <Link
+                    href={item.href}
+                    className={cn(
+                      "group flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                      collapsed && "justify-center px-2",
+                      active
+                        ? "bg-tiffany-500/10 text-tiffany-500"
+                        : "text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-100"
+                    )}
+                  >
+                    {React.createElement(item.icon, { className: cn(
+                      "h-[18px] w-[18px] shrink-0 transition-colors",
+                      active ? "text-tiffany-500" : "text-zinc-500 group-hover:text-zinc-300"
+                    ) })}
+                    {!collapsed && <span className="truncate">{item.name}</span>}
+                  </Link>
+                )
 
-            if (collapsed) {
-              return (
-                <li key={item.name}>
-                  <Tooltip delayDuration={0}>
-                    <TooltipTrigger asChild>{NavLink}</TooltipTrigger>
-                    <TooltipContent
-                      side="right"
-                      className="bg-zinc-900 border-zinc-800 text-zinc-100 px-3 py-1.5"
-                      sideOffset={8}
-                    >
-                      <p className="font-medium">{item.name}</p>
-                      <p className="text-xs text-zinc-500">{item.description}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </li>
-              )
-            }
+                if (collapsed) {
+                  return (
+                    <li key={item.name}>
+                      <Tooltip delayDuration={0}>
+                        <TooltipTrigger asChild>{NavLink}</TooltipTrigger>
+                        <TooltipContent
+                          side="right"
+                          className="bg-zinc-900 border-zinc-800 text-zinc-100 px-3 py-1.5"
+                          sideOffset={8}
+                        >
+                          <p className="font-medium">{item.name}</p>
+                          <p className="text-xs text-zinc-500">{item.description}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </li>
+                  )
+                }
 
-            return <li key={item.name}>{NavLink}</li>
-          })}
-        </ul>
+                return <li key={item.name}>{NavLink}</li>
+              })}
+            </ul>
+          </div>
+        ))}
       </nav>
 
       {/* Secondary Navigation */}
       <div className="border-t border-zinc-800/60 px-3 py-3">
-        <ul className="space-y-1">
+        <ul className="space-y-0.5">
           {secondaryNavigation.map((item) => {
-            const isActive = pathname.startsWith(item.href)
+            const active = isActive(item.href)
 
             const NavLink = (
               <Link
@@ -158,15 +185,15 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                 className={cn(
                   "group flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
                   collapsed && "justify-center px-2",
-                  isActive
+                  active
                     ? "bg-tiffany-500/10 text-tiffany-500"
                     : "text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-100"
                 )}
               >
-                <item.icon className={cn(
+                {React.createElement(item.icon, { className: cn(
                   "h-[18px] w-[18px] shrink-0 transition-colors",
-                  isActive ? "text-tiffany-500" : "text-zinc-500 group-hover:text-zinc-300"
-                )} />
+                  active ? "text-tiffany-500" : "text-zinc-500 group-hover:text-zinc-300"
+                ) })}
                 {!collapsed && <span>{item.name}</span>}
               </Link>
             )

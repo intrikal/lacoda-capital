@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Logo } from "@/components/marketing/logo"
+import { createClient } from "@/utils/supabase/client"
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = React.useState("")
@@ -30,8 +31,18 @@ export default function ForgotPasswordPage() {
 
     setIsLoading(true)
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500))
+    const supabase = createClient()
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+      // After clicking the email link, Supabase redirects to the callback
+      // which exchanges the code and then forwards to /reset-password
+      redirectTo: `${window.location.origin}/auth/callback?next=/reset-password`,
+    })
+
+    if (resetError) {
+      setError(resetError.message)
+      setIsLoading(false)
+      return
+    }
 
     setIsSubmitted(true)
     setIsLoading(false)
