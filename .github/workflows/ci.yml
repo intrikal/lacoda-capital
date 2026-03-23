@@ -1,0 +1,161 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# .github/workflows/ci.yml
+#
+# WHAT IS THIS FILE?
+# ──────────────────
+# This is a GitHub Actions workflow. GitHub Actions is a built-in automation
+# system inside GitHub. Whenever something happens in the repo (a PR opened,
+# a push made, etc.), GitHub reads this file and runs the instructions inside
+# it on a fresh cloud computer.
+#
+# Think of it as a checklist that GitHub runs automatically so no human has to
+# remember to lint, type-check, test, and build before merging.
+#
+# WHY DO WE NEED IT?
+# ──────────────────
+# Without this, every developer has to manually run these checks on their
+# machine before merging. People forget. Machines don't.
+# Branch protection (configured separately in GitHub Settings) will block a
+# PR from merging until this workflow goes green — so bad code literally
+# cannot land in main.
+#
+# HOW TO READ THIS FILE
+# ─────────────────────
+# YAML is a config language that uses indentation (spaces) to show structure.
+# The top level has two keys: `on` (when to run) and `jobs` (what to run).
+# Under `jobs` you define one or more jobs. Each job has `steps` — individual
+# commands that run in order on the same machine.
+#
+# PSEUDOCODE of what this whole file does:
+#
+#   WHEN a pull request is opened (or updated) targeting the `main` branch:
+#     Spin up a fresh Ubuntu machine in the cloud
+#     Load all the secret env vars the app needs
+#     THEN run these steps in order:
+#       1. Download the repo code onto that machine
+#       2. Install Node.js version 22
+#       3. Install npm packages (exact versions from lockfile)
+#       4. Run the linter  → fail if any ESLint errors
+#       5. Run TypeScript  → fail if any type errors
+#       6. Run unit tests  → fail if any tests fail
+#       7. Run Next.js build → fail if the app won't compile
+#     IF all steps pass → PR gets a green checkmark
+#     IF any step fails → PR gets a red X and cannot be merged
+#
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: CI
+
+# ── TRIGGER ──────────────────────────────────────────────────────────────────
+# `on` defines when this workflow fires.
+# `pull_request` means: any time a PR is opened, updated, or synced.
+# `branches: [main]` means: only when the PR's *target* branch is main.
+# PRs targeting other branches (e.g. feature → staging) are NOT checked here.
+on:
+  pull_request:
+    branches:
+      - main
+
+# ── JOBS ─────────────────────────────────────────────────────────────────────
+# A workflow can have multiple jobs that run in parallel. We only need one.
+jobs:
+  ci:
+    name: Lint · Type-check · Test · Build
+
+    # `runs-on` picks the operating system for the cloud machine.
+    # `ubuntu-latest` is the standard choice — fast, free, Linux.
+    runs-on: ubuntu-latest
+
+    # ── ENV VARS ───────────────────────────────────────────────────────────
+    # Our app needs these environment variables to run (Next.js reads them at
+    # build time, and some libraries read them at test time).
+    #
+    # We do NOT hardcode real values here — this file is public in the repo.
+    # Instead we store the real values as GitHub Secrets:
+    #   GitHub repo → Settings → Secrets and variables → Actions → New secret
+    #
+    # The `${{ secrets.NAME }}` syntax tells GitHub Actions to inject the
+    # secret value at runtime. The CI machine gets the real value; no one
+    # reading this file ever sees it.
+    #
+    # NEXT_PUBLIC_SITE_URL is safe to hardcode — it's just localhost for CI.
+    env:
+      # Supabase — connection info for the hosted Postgres database
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      DIRECT_URL: ${{ secrets.DIRECT_URL }}
+      # Google OAuth — credentials for the "Sign in with Google" button
+      GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+      GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+      # Sanity CMS — credentials for fetching marketing/content data
+      NEXT_PUBLIC_SANITY_PROJECT_ID: ${{ secrets.NEXT_PUBLIC_SANITY_PROJECT_ID }}
+      NEXT_PUBLIC_SANITY_DATASET: ${{ secrets.NEXT_PUBLIC_SANITY_DATASET }}
+      SANITY_API_TOKEN: ${{ secrets.SANITY_API_TOKEN }}
+      NEXT_PUBLIC_SITE_URL: http://localhost:3000
+
+    # ── STEPS ─────────────────────────────────────────────────────────────
+    # Steps run sequentially on the same machine. If any step fails (non-zero
+    # exit code), GitHub stops immediately and marks the whole job as failed.
+    steps:
+      # STEP 1 — Get the code
+      # `actions/checkout` is an official GitHub Action that clones this repo
+      # onto the CI machine. Without this, the machine has no code to work with.
+      # `@v4` pins the version so a future breaking change doesn't surprise us.
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # STEP 2 — Install the right version of Node.js
+      # The CI machine has Node pre-installed, but not necessarily the version
+      # we want. Pinning to Node 22 matches what we use locally and in
+      # production, avoiding "works on my machine" version mismatches.
+      # `cache: npm` tells GitHub to save the npm download cache between runs
+      # so repeat runs don't re-download every package from scratch.
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # STEP 3 — Install dependencies
+      # `npm ci` ("clean install") is the CI-safe version of `npm install`.
+      # Difference: `npm install` can update package-lock.json; `npm ci` refuses
+      # to run if the lockfile is out of sync with package.json, and always
+      # installs the exact versions recorded in the lockfile.
+      # This guarantees every CI run uses identical packages.
+      - name: Install dependencies
+        run: npm ci
+
+      # STEP 4 — Lint
+      # Runs ESLint (configured in eslint.config.mjs).
+      # ESLint catches code style issues, unused variables, React rule violations,
+      # and other problems that are easy to miss in a code review.
+      # If ESLint finds errors, this step exits with a non-zero code → job fails.
+      - name: Lint
+        run: npm run lint
+
+      # STEP 5 — Type-check
+      # Runs the TypeScript compiler but tells it NOT to emit any output files
+      # (`--noEmit`). We only want the type errors, not the compiled JS.
+      # This catches type mismatches that ESLint won't catch — e.g. passing a
+      # string where a number is expected, or accessing a property that doesn't
+      # exist on a type.
+      - name: Type-check
+        run: npx tsc --noEmit
+
+      # STEP 6 — Run tests
+      # `npm run test` → `vitest run --project unit`
+      # Runs all unit and integration tests in the `tests/` directory using
+      # Vitest in a jsdom environment (simulated browser in Node).
+      # Any failing assertion → non-zero exit → job fails.
+      - name: Test
+        run: npm run test
+
+      # STEP 7 — Build
+      # `next build` compiles the entire Next.js application for production.
+      # This catches errors that only appear at compile time — e.g. a server
+      # component importing a client-only module, or a missing page export.
+      # If the app won't build, it can't ship, so we treat build failure the
+      # same as a test failure.
+      - name: Build
+        run: npm run build
