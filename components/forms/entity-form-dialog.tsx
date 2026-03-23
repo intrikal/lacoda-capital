@@ -28,6 +28,7 @@ interface EntityFormDialogProps {
     name?: string
     entityType?: string
     clientId?: string
+    parentId?: string | null
     jurisdiction?: string | null
     taxId?: string | null
     formationDate?: string | null
@@ -37,6 +38,7 @@ interface EntityFormDialogProps {
   onSubmit: (data: CreateEntityInput) => void
   isPending?: boolean
   clients?: Array<{ id: string; displayName: string }>
+  entities?: Array<{ id: string; name: string }>
 }
 
 export function EntityFormDialog({
@@ -47,10 +49,12 @@ export function EntityFormDialog({
   onSubmit,
   isPending = false,
   clients = [],
+  entities = [],
 }: EntityFormDialogProps) {
   const [name, setName] = React.useState("")
   const [entityType, setEntityType] = React.useState("llc")
   const [clientId, setClientId] = React.useState("")
+  const [parentId, setParentId] = React.useState("")
   const [jurisdiction, setJurisdiction] = React.useState("")
   const [taxId, setTaxId] = React.useState("")
   const [formationDate, setFormationDate] = React.useState("")
@@ -60,6 +64,7 @@ export function EntityFormDialog({
       setName(initialData?.name ?? "")
       setEntityType(initialData?.entityType ?? "llc")
       setClientId(initialData?.clientId ?? (clients[0]?.id ?? ""))
+      setParentId(initialData?.parentId ?? "")
       setJurisdiction(initialData?.jurisdiction ?? "")
       setTaxId(initialData?.taxId ?? "")
       setFormationDate(initialData?.formationDate?.split("T")[0] ?? "")
@@ -74,6 +79,7 @@ export function EntityFormDialog({
       name: name.trim(),
       entityType: entityType as CreateEntityInput["entityType"],
       clientId,
+      parentId: parentId || null,
       jurisdiction: jurisdiction.trim() || null,
       taxId: taxId.trim() || null,
       formationDate: formationDate || null,
@@ -138,6 +144,26 @@ export function EntityFormDialog({
               </div>
             )}
           </div>
+          {entities.length > 0 && (
+            <div className="space-y-2">
+              <Label>Parent Entity (optional)</Label>
+              <Select value={parentId} onValueChange={setParentId}>
+                <SelectTrigger className="bg-zinc-800/50 border-zinc-700">
+                  <SelectValue placeholder="None (top-level)" />
+                </SelectTrigger>
+                <SelectContent className="bg-zinc-900 border-zinc-800">
+                  <SelectItem value="">None (top-level)</SelectItem>
+                  {entities
+                    .filter((e) => e.id !== initialData?.id)
+                    .map((e) => (
+                      <SelectItem key={e.id} value={e.id}>
+                        {e.name}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Jurisdiction</Label>

@@ -30,6 +30,7 @@ export interface EntityRecord {
   id: string
   orgId: string
   clientId: string
+  parentId: string | null
   name: string
   entityType:
     | "llc"
@@ -76,6 +77,19 @@ export interface AssetRecord {
   metadata: Record<string, unknown> | null
   createdAt: string
   updatedAt: string
+}
+
+// ─── Valuation ───────────────────────────────────────────────────────────
+
+export interface ValuationRecord {
+  id: string
+  assetId: string
+  asOfDate: string
+  value: number
+  currency: string
+  source: string | null
+  notes: string | null
+  createdAt: string
 }
 
 // ─── Document ─────────────────────────────────────────────────────────────────

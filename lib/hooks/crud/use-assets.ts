@@ -5,6 +5,7 @@ import {
   getAssets,
   createAsset,
   updateAsset,
+  archiveAsset,
   deleteAsset,
 } from "@/lib/actions/asset.actions"
 import type { AssetRecord } from "@/lib/types"
@@ -78,6 +79,22 @@ export function useUpdateAsset() {
     ({ id, input }: { id: string; input: UpdateAssetInput }, options?: { onSuccess?: () => void }) => {
       startTransition(async () => {
         await updateAsset(id, input)
+        options?.onSuccess?.()
+      })
+    },
+    []
+  )
+
+  return { mutate, isPending }
+}
+
+export function useArchiveAsset() {
+  const [isPending, startTransition] = useTransition()
+
+  const mutate = useCallback(
+    (id: string, options?: { onSuccess?: () => void }) => {
+      startTransition(async () => {
+        await archiveAsset(id)
         options?.onSuccess?.()
       })
     },
