@@ -42,7 +42,6 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { logoutAction } from "@/lib/actions/auth.actions"
-import { ApolloProviderWrapper } from "@/components/providers/apollo-provider"
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Navigation structure — grouped for wealth management client UX
@@ -207,7 +206,6 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   }
 
   return (
-    <ApolloProviderWrapper>
     <TooltipProvider delayDuration={0}>
       <div className="min-h-screen bg-zinc-950">
         {/* ── Sidebar ──────────────────────────────────────────────────────── */}
@@ -356,6 +354,5 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
         </main>
       </div>
     </TooltipProvider>
-    </ApolloProviderWrapper>
   )
 }

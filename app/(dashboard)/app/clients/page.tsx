@@ -189,7 +189,8 @@ import {
 import { ClientFormDialog } from "@/components/forms/client-form-dialog"
 
 /** Type imports for TypeScript type-checking */
-import type { ClientRecord, CreateClientInput } from "@/lib/validations/client.schema"
+import type { ClientRecord } from "@/lib/types"
+import type { CreateClientInput } from "@/lib/validations/client.schema"
 
 
 // ─── CONSTANTS ──────────────────────────────────────────────────────────────────
@@ -312,7 +313,7 @@ function ClientDetailDrawer({
           <div className="p-4 rounded-lg bg-zinc-800/50">
             <p className="text-sm text-zinc-400">Assets Under Management</p>
             <p className="text-2xl font-bold text-zinc-100 mt-1">
-              {formatCurrency(client.totalAUM)}
+              {formatCurrency(client.totalAUM ?? 0)}
             </p>
             <p className="text-xs text-zinc-500 mt-1">
               {/* Pluralization: "1 active asset" vs "3 active assets" */}
@@ -529,7 +530,7 @@ export default function ClientsPage() {
    * Total AUM of the currently visible (filtered) clients.
    * Used in the page header: "24 clients · $12,345,678 AUM"
    */
-  const filteredAUM = filteredClients.reduce((sum, c) => sum + c.totalAUM, 0)
+  const filteredAUM = filteredClients.reduce((sum, c) => sum + (c.totalAUM ?? 0), 0)
 
   /**
    * Tab configuration — defines the tabs shown in the tab bar.
@@ -804,7 +805,7 @@ export default function ClientsPage() {
                     {/* AUM display — hidden on mobile (hidden sm:block) */}
                     <div className="text-right hidden sm:block">
                       <p className="text-sm font-semibold text-tiffany-500">
-                        {formatCurrency(client.totalAUM)}
+                        {formatCurrency(client.totalAUM ?? 0)}
                       </p>
                       <p className="text-xs text-zinc-500">
                         {client.assetCount} asset{client.assetCount !== 1 ? "s" : ""}

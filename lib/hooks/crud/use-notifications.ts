@@ -1,44 +1,15 @@
-/**
- * ============================================================================
- * FILE: lib/hooks/crud/use-notifications.ts
- * ============================================================================
- *
- * WHAT THIS FILE IS:
- *   React hooks that connect the Notifications page to the GraphQL API.
- *
- * ARCHITECTURE:
- *   ┌────────────────────────────────────────────────────────────────────┐
- *   │ Notifications Page                                                │
- *   │   └── useNotifications()          → fetches notification list     │
- *   │   └── useMarkNotificationRead()   → marks one as read            │
- *   │   └── useMarkAllNotificationsRead() → marks all as read          │
- *   │         ↓                                                          │
- *   │ Apollo Client (useQuery / useMutation)                             │
- *   │         ↓                                                          │
- *   │ POST /api/graphql                                                  │
- *   │         ↓                                                          │
- *   │ notificationResolvers → Drizzle ORM → PostgreSQL                  │
- *   └────────────────────────────────────────────────────────────────────┘
- *
- * CONSUMERS:
- *   - app/(dashboard)/app/notifications/page.tsx
- */
-
 "use client"
 
-import { useMemo, useCallback } from "react"
-import { useQuery, useMutation } from "@apollo/client/react"
+import { useState, useEffect, useTransition, useMemo, useCallback } from "react"
 import {
-  GET_NOTIFICATIONS,
-  MARK_NOTIFICATION_READ,
-  MARK_ALL_NOTIFICATIONS_READ,
-} from "@/lib/graphql/operations/notification"
+  getNotifications,
+  markNotificationRead,
+  markAllNotificationsRead,
+} from "@/lib/actions/notification.actions"
+import type { NotificationRecord } from "@/lib/types"
 
-// ─── TYPES ────────────────────────────────────────────────────────────────────
+export type { NotificationRecord }
 
-/**
- * NotificationType — The eight supported notification categories.
- */
 export type NotificationType =
   | "task_assigned"
   | "task_due"
@@ -49,68 +20,31 @@ export type NotificationType =
   | "compliance_alert"
   | "system"
 
-/**
- * NotificationRecord — Shape of a notification returned by the GraphQL API.
- *
- * readAt: null = unread, ISO timestamp = read.
- * payload: type-specific data (e.g., { taskId: "...", clientName: "..." }).
- */
-export interface NotificationRecord {
-  id: string
-  userId: string
-  orgId: string
-  type: NotificationType
-  title: string
-  message: string | null
-  readAt: string | null
-  payload: Record<string, unknown> | null
-  createdAt: string
-}
-
-/**
- * NotificationStats — Aggregate counts computed client-side.
- */
 export interface NotificationStats {
   total: number
   unread: number
   read: number
 }
 
-/** Apollo response shape for GET_NOTIFICATIONS. */
-interface GetNotificationsData {
-  notifications: {
-    items: NotificationRecord[]
-    totalCount: number
-    page: number
-    limit: number
-  }
-}
-
-// ─── HOOKS ────────────────────────────────────────────────────────────────────
-
-/**
- * useNotifications — Fetches the list of notifications for the current user.
- *
- * @param params — Optional filters:
- *   unreadOnly — if true, only return unread notifications
- *
- * @returns
- *   notifications — Array of NotificationRecord (empty while loading)
- *   isLoading     — True during the initial fetch
- *   isError       — True if the query failed
- *   error         — The ApolloError object (null if no error)
- *   stats         — { total, unread, read }
- */
 export function useNotifications(params?: { unreadOnly?: boolean }) {
-  const variables: Record<string, unknown> = { limit: 100 }
-  if (params?.unreadOnly) variables.unreadOnly = true
+  const [notifications, setNotifications] = useState<NotificationRecord[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<Error | null>(null)
 
-  const { data, loading, error } = useQuery<GetNotificationsData>(
-    GET_NOTIFICATIONS,
-    { variables }
-  )
+  const load = useCallback(async () => {
+    setIsLoading(true)
+    setError(null)
+    try {
+      const result = await getNotifications({ unreadOnly: params?.unreadOnly, limit: 100 })
+      setNotifications(result.items)
+    } catch (e) {
+      setError(e as Error)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [params?.unreadOnly])
 
-  const notifications = data?.notifications?.items ?? []
+  useEffect(() => { load() }, [load])
 
   const stats = useMemo<NotificationStats>(() => ({
     total: notifications.length,
@@ -120,43 +54,48 @@ export function useNotifications(params?: { unreadOnly?: boolean }) {
 
   return {
     notifications,
-    isLoading: loading,
+    isLoading,
     isError: !!error,
-    error: error ?? null,
+    error,
     stats,
+    refetch: load,
   }
 }
 
-/**
- * useMarkNotificationRead — Marks a single notification as read.
- * Sets readAt to the current timestamp server-side.
- */
 export function useMarkNotificationRead() {
-  const [markRead, { loading }] = useMutation(MARK_NOTIFICATION_READ, {
-    refetchQueries: [{ query: GET_NOTIFICATIONS }],
-  })
+  const [isPending, startTransition] = useTransition()
 
   const mutate = useCallback(
-    (id: string) => {
-      return markRead({ variables: { id } })
+    (id: string, options?: { onSuccess?: () => void }) => {
+      return new Promise<void>((resolve) => {
+        startTransition(async () => {
+          await markNotificationRead(id)
+          options?.onSuccess?.()
+          resolve()
+        })
+      })
     },
-    [markRead]
+    []
   )
 
-  return { mutate, isPending: loading }
+  return { mutate, isPending }
 }
 
-/**
- * useMarkAllNotificationsRead — Marks all unread notifications as read.
- */
 export function useMarkAllNotificationsRead() {
-  const [markAll, { loading }] = useMutation(MARK_ALL_NOTIFICATIONS_READ, {
-    refetchQueries: [{ query: GET_NOTIFICATIONS }],
-  })
+  const [isPending, startTransition] = useTransition()
 
-  const mutate = useCallback(() => {
-    return markAll()
-  }, [markAll])
+  const mutate = useCallback(
+    (options?: { onSuccess?: () => void }) => {
+      return new Promise<void>((resolve) => {
+        startTransition(async () => {
+          await markAllNotificationsRead()
+          options?.onSuccess?.()
+          resolve()
+        })
+      })
+    },
+    []
+  )
 
-  return { mutate, isPending: loading }
+  return { mutate, isPending }
 }

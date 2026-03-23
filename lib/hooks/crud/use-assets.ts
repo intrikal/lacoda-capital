@@ -1,35 +1,14 @@
 "use client"
 
-import { useMemo, useCallback } from "react"
-import { useQuery, useMutation } from "@apollo/client/react"
+import { useState, useEffect, useTransition, useMemo, useCallback } from "react"
 import {
-  GET_ASSETS,
-  CREATE_ASSET,
-  UPDATE_ASSET,
-  DELETE_ASSET,
-} from "@/lib/graphql/operations/asset"
+  getAssets,
+  createAsset,
+  updateAsset,
+  deleteAsset,
+} from "@/lib/actions/asset.actions"
+import type { AssetRecord } from "@/lib/types"
 import type { CreateAssetInput, UpdateAssetInput } from "@/lib/validations/asset.schema"
-
-interface AssetRecord {
-  id: string
-  entityId: string
-  name: string
-  description: string | null
-  assetClass: string
-  status: string
-  acquisitionDate: string | null
-  acquisitionCost: number | null
-  currency: string
-  currentValue: number | null
-  valuedAt: string | null
-  externalId: string | null
-  createdAt: string
-  updatedAt: string
-}
-
-interface GetAssetsData {
-  assets: { items: AssetRecord[]; totalCount: number; page: number; limit: number }
-}
 
 export function useAssets(params?: {
   search?: string
@@ -37,81 +16,89 @@ export function useAssets(params?: {
   assetClass?: string
   status?: string
 }) {
-  const variables: Record<string, unknown> = {}
-  if (params?.search) variables.search = params.search
-  if (params?.entityId) variables.entityId = params.entityId
-  if (params?.assetClass && params.assetClass !== "all") variables.assetClass = params.assetClass
-  if (params?.status && params.status !== "all") variables.status = params.status
+  const [assets, setAssets] = useState<AssetRecord[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<Error | null>(null)
 
-  const { data, loading, error } = useQuery<GetAssetsData>(GET_ASSETS, { variables })
+  const load = useCallback(async () => {
+    setIsLoading(true)
+    setError(null)
+    try {
+      const result = await getAssets({ entityId: params?.entityId })
+      setAssets(result.items)
+    } catch (e) {
+      setError(e as Error)
+    } finally {
+      setIsLoading(false)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params?.entityId, params?.assetClass, params?.status])
 
-  const assets = data?.assets?.items ?? []
+  useEffect(() => { load() }, [load])
 
   const stats = useMemo(() => {
-    const totalValue = assets.reduce(
-      (sum, a) => sum + (a.currentValue ?? 0),
-      0
-    )
-    const activeAssets = assets.filter((a) => a.status === "active")
+    const totalValue = assets.reduce((sum, a) => sum + (a.currentValue ?? 0), 0)
     return {
       total: assets.length,
-      active: activeAssets.length,
+      active: assets.filter((a) => a.status === "active").length,
       totalValue,
     }
   }, [assets])
 
   return {
     assets,
-    isLoading: loading,
+    isLoading,
     isError: !!error,
-    error: error ?? null,
+    error,
     stats,
+    refetch: load,
   }
 }
 
 export function useCreateAsset() {
-  const [createAsset, { loading }] = useMutation(CREATE_ASSET, {
-    refetchQueries: [{ query: GET_ASSETS }],
-  })
+  const [isPending, startTransition] = useTransition()
 
   const mutate = useCallback(
-    (input: CreateAssetInput) => {
-      createAsset({ variables: { input } })
-    },
-    [createAsset]
-  )
-
-  return { mutate, isPending: loading }
-}
-
-export function useUpdateAsset() {
-  const [updateAsset, { loading }] = useMutation(UPDATE_ASSET, {
-    refetchQueries: [{ query: GET_ASSETS }],
-  })
-
-  const mutate = useCallback(
-    ({ id, input }: { id: string; input: UpdateAssetInput }) => {
-      updateAsset({ variables: { id, input } })
-    },
-    [updateAsset]
-  )
-
-  return { mutate, isPending: loading }
-}
-
-export function useDeleteAsset() {
-  const [deleteAsset, { loading }] = useMutation(DELETE_ASSET, {
-    refetchQueries: [{ query: GET_ASSETS }],
-  })
-
-  const mutate = useCallback(
-    (id: string, options?: { onSuccess?: () => void }) => {
-      deleteAsset({ variables: { id } }).then(() => {
+    (input: CreateAssetInput, options?: { onSuccess?: () => void }) => {
+      startTransition(async () => {
+        await createAsset(input)
         options?.onSuccess?.()
       })
     },
-    [deleteAsset]
+    []
   )
 
-  return { mutate, isPending: loading }
+  return { mutate, isPending }
+}
+
+export function useUpdateAsset() {
+  const [isPending, startTransition] = useTransition()
+
+  const mutate = useCallback(
+    ({ id, input }: { id: string; input: UpdateAssetInput }, options?: { onSuccess?: () => void }) => {
+      startTransition(async () => {
+        await updateAsset(id, input)
+        options?.onSuccess?.()
+      })
+    },
+    []
+  )
+
+  return { mutate, isPending }
+}
+
+export function useDeleteAsset() {
+  const [isPending, startTransition] = useTransition()
+
+  const mutate = useCallback(
+    (id: string, options?: { onSuccess?: () => void }) => {
+      startTransition(async () => {
+        await deleteAsset(id)
+        options?.onSuccess?.()
+      })
+    },
+    []
+  )
+
+  return { mutate, isPending }
 }
