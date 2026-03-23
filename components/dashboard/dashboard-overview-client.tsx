@@ -28,7 +28,7 @@ import {
   InvestmentReturnsChart,
   AllocationChart as AllocationPieChart,
 } from "@/components/dashboard/charts"
-import type { KPIData } from "@/lib/mock/types"
+import type { KPIData } from "@/lib/types/mock"
 
 // ─── Static chart data (will be replaced with real data in a future branch) ──
 

@@ -7,10 +7,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { mockAlerts, alertSeverityConfig } from "@/lib/mock/data"
+import { alertSeverityConfig } from "@/lib/config/alerts"
+import type { Alert } from "@/lib/types/mock"
 
-export function AlertsPanel() {
-  const activeAlerts = mockAlerts.filter((a) => !a.isRead).slice(0, 4)
+interface AlertsPanelProps {
+  alerts?: Alert[]
+}
+
+export function AlertsPanel({ alerts = [] }: AlertsPanelProps) {
+  const activeAlerts = alerts.filter((a) => !a.isRead).slice(0, 4)
 
   const getIcon = (severity: string) => {
     switch (severity) {

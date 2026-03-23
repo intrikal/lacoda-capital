@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 import { formatCurrency, formatPercentage } from "@/lib/utils"
 import { useReducedMotion } from "@/lib/hooks/use-reduced-motion"
-import type { KPIData } from "@/lib/mock/types"
+import type { KPIData } from "@/lib/types/mock"
 
 interface KPICardProps {
   data: KPIData

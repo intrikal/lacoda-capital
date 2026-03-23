@@ -49,7 +49,7 @@ const AUTH_ROUTES = ["/login", "/signup", "/forgot-password", "/reset-password"]
 
 // ─── Main middleware function ─────────────────────────────────────────────────
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // Step 1: Refresh the Supabase session and get the response with updated

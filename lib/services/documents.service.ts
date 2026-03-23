@@ -1,38 +1,63 @@
+"use server"
+
 // ─────────────────────────────────────────────────────────────────────────────
 // DOCUMENTS SERVICE
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { mockDocuments } from "@/lib/mock/data"
-import type { Document, DocumentStatus } from "@/lib/mock/types"
+import { db } from "@/app/db"
+import { documents } from "@/app/db/schema"
+import { eq, desc, isNull } from "drizzle-orm"
+import type { Document, DocumentStatus } from "@/lib/types/mock"
+
+/** Map a DB documents row to the Document mock type shape. */
+function toDocument(row: typeof documents.$inferSelect): Document {
+  return {
+    id: row.id,
+    name: row.name,
+    type: row.mimeType ?? "application/pdf",
+    status: (row.status ?? "pending") as DocumentStatus,
+    assetId: row.assetId ?? undefined,
+    clientId: row.clientId ?? undefined,
+    uploadedBy: row.uploadedBy ?? "",
+    uploadedAt: row.createdAt.toISOString(),
+    expiresAt: row.expiresAt?.toISOString() ?? undefined,
+    size: row.fileSize ?? "0",
+    tags: (row.tags as string[]) ?? [],
+    folder: row.folder ?? "",
+  }
+}
 
 export async function getDocuments(): Promise<Document[]> {
-  // REAL: return db.query.documents.findMany({ orderBy: desc(documents.uploadedAt) })
-  return mockDocuments
+  const rows = await db
+    .select()
+    .from(documents)
+    .where(isNull(documents.deletedAt))
+    .orderBy(desc(documents.createdAt))
+  return rows.map(toDocument)
 }
 
 export async function getDocumentById(id: string): Promise<Document | undefined> {
-  // REAL: return db.query.documents.findFirst({ where: eq(documents.id, id) })
-  return mockDocuments.find((d) => d.id === id)
+  const rows = await db.select().from(documents).where(eq(documents.id, id))
+  return rows[0] ? toDocument(rows[0]) : undefined
 }
 
 export async function getDocumentsByAsset(assetId: string): Promise<Document[]> {
-  // REAL: return db.query.documents.findMany({ where: eq(documents.assetId, assetId) })
-  return mockDocuments.filter((d) => d.assetId === assetId)
+  const rows = await db.select().from(documents).where(eq(documents.assetId, assetId))
+  return rows.map(toDocument)
 }
 
 export async function getDocumentsByClient(clientId: string): Promise<Document[]> {
-  // REAL: return db.query.documents.findMany({ where: eq(documents.clientId, clientId) })
-  return mockDocuments.filter((d) => d.clientId === clientId)
+  const rows = await db.select().from(documents).where(eq(documents.clientId, clientId))
+  return rows.map(toDocument)
 }
 
 export async function getDocumentsByStatus(status: DocumentStatus): Promise<Document[]> {
-  // REAL: return db.query.documents.findMany({ where: eq(documents.status, status) })
-  return mockDocuments.filter((d) => d.status === status)
+  const rows = await db.select().from(documents).where(eq(documents.status, status))
+  return rows.map(toDocument)
 }
 
 export async function getDocumentStats() {
-  const all = mockDocuments
-  // REAL: use SQL COUNT grouped by status
+  const all = await getDocuments()
   return {
     total: all.length,
     verified: all.filter((d) => d.status === "verified").length,

@@ -12,9 +12,12 @@ import {
   Legend,
 } from "recharts"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { mockPerformanceData } from "@/lib/mock/data"
 
-export function PerformanceChart() {
+interface PerformanceChartProps {
+  data?: { month: string; portfolio: number; benchmark: number }[]
+}
+
+export function PerformanceChart({ data = [] }: PerformanceChartProps) {
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
@@ -51,7 +54,7 @@ export function PerformanceChart() {
         <div className="h-[300px]">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart
-              data={mockPerformanceData}
+              data={data}
               margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
             >
               <defs>

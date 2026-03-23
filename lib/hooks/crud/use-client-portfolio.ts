@@ -26,7 +26,7 @@ import {
   getPortfolioHoldings,
   getPortfolioSummary,
 } from "@/lib/services/portfolio.service"
-import type { PortfolioHolding, AssetClass } from "@/lib/mock/types"
+import type { PortfolioHolding, AssetClass } from "@/lib/types/mock"
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shape of computed portfolio stats returned by the hook

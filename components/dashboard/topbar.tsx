@@ -33,22 +33,29 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import { mockAlerts, mockUsers } from "@/lib/mock/data"
-import { alertSeverityConfig } from "@/lib/mock/data"
+import { alertSeverityConfig } from "@/lib/config/alerts"
+import type { Alert } from "@/lib/types/mock"
 
 interface TopbarProps {
   sidebarCollapsed: boolean
   dateRange: { from: Date; to: Date }
   onDateRangeChange: (range: { from: Date; to: Date }) => void
+  userName?: string
+  userEmail?: string
+  userRole?: string
+  alerts?: Alert[]
 }
 
 export function Topbar({
   sidebarCollapsed,
   dateRange,
   onDateRangeChange,
+  userName = "User",
+  userEmail = "",
+  userRole = "viewer",
+  alerts = [],
 }: TopbarProps) {
-  const currentUser = mockUsers[0] // Sarah Chen - owner
-  const unreadAlerts = mockAlerts.filter((a) => !a.isRead)
+  const unreadAlerts = alerts.filter((a) => !a.isRead)
 
   const dateRangePresets = [
     {
@@ -144,7 +151,7 @@ export function Topbar({
               </p>
             </div>
             <div className="max-h-80 overflow-y-auto">
-              {mockAlerts.slice(0, 5).map((alert) => {
+              {alerts.slice(0, 5).map((alert) => {
                 const config = alertSeverityConfig[alert.severity]
                 return (
                   <Link
@@ -194,15 +201,15 @@ export function Topbar({
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="gap-2 px-2">
               <Avatar
-                fallback={currentUser.name}
+                fallback={userName}
                 size="sm"
               />
               <div className="hidden sm:block text-left">
                 <p className="text-sm font-medium text-zinc-100">
-                  {currentUser.name}
+                  {userName}
                 </p>
                 <p className="text-xs text-zinc-500 capitalize">
-                  {currentUser.role}
+                  {userRole}
                 </p>
               </div>
               <ChevronDown className="h-3 w-3 opacity-50" />
@@ -210,9 +217,9 @@ export function Topbar({
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuLabel>
-              <p className="font-medium">{currentUser.name}</p>
+              <p className="font-medium">{userName}</p>
               <p className="text-xs text-zinc-500 font-normal">
-                {currentUser.email}
+                {userEmail}
               </p>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />

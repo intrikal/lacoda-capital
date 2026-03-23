@@ -47,7 +47,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import type { CreateTransferInput } from "@/lib/hooks/crud/use-client-transfers"
-import type { ClientTransferType } from "@/lib/mock/types"
+import type { ClientTransferType } from "@/lib/types/mock"
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Static account lists — replace with hook data when connected to real API

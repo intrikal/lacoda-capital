@@ -1,17 +1,30 @@
+"use server"
+
 /**
- * @deprecated This mock service has been replaced by the GraphQL backend.
- * Billing data now flows through:
- *   Apollo Client → GET_BILLING_RECORDS → billingRecordResolvers → PostgreSQL
+ * billing.service.ts
  *
- * See: lib/graphql/resolvers/billing-record.ts
- * See: lib/hooks/crud/use-billing-records.ts (advisor CRUD)
- * See: lib/hooks/crud/use-client-billing.ts  (client read-only)
- *
- * This file is kept temporarily for reference and can be safely deleted.
+ * Service layer for billing records (advisory fee invoices).
+ * Reads from the billing_records table via Drizzle ORM.
  */
 
-import { mockBillingHistory } from "@/lib/mock/data"
-import type { BillingRecord } from "@/lib/mock/types"
+import { db } from "@/app/db"
+import { billingRecords } from "@/app/db/schema"
+import { eq, desc, isNull } from "drizzle-orm"
+import type { BillingRecord } from "@/lib/types/mock"
+
+/** Map a DB billing_records row to the BillingRecord mock type shape. */
+function toBillingRecord(row: typeof billingRecords.$inferSelect): BillingRecord {
+  return {
+    id: row.id,
+    period: row.period,
+    amount: row.amount,
+    aum: row.aum,
+    status: row.status as BillingRecord["status"],
+    dueDate: row.dueDate,
+    paidDate: row.paidDate ?? undefined,
+    effectiveRate: row.effectiveRate,
+  }
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Read Operations (billing is advisor-managed, client is read-only)
@@ -21,14 +34,20 @@ import type { BillingRecord } from "@/lib/mock/types"
  * Fetch the full billing history for the current client, most recent first.
  */
 export async function getBillingHistory(): Promise<BillingRecord[]> {
-  return Promise.resolve([...mockBillingHistory])
+  const rows = await db
+    .select()
+    .from(billingRecords)
+    .where(isNull(billingRecords.deletedAt))
+    .orderBy(desc(billingRecords.dueDate))
+  return rows.map(toBillingRecord)
 }
 
 /**
  * Fetch a single invoice by ID.
  */
 export async function getBillingRecordById(id: string): Promise<BillingRecord | undefined> {
-  return Promise.resolve(mockBillingHistory.find((r) => r.id === id))
+  const rows = await db.select().from(billingRecords).where(eq(billingRecords.id, id))
+  return rows[0] ? toBillingRecord(rows[0]) : undefined
 }
 
 /**
@@ -36,7 +55,7 @@ export async function getBillingRecordById(id: string): Promise<BillingRecord | 
  * Calculates YTD fees paid, the next upcoming payment, and the effective rate.
  */
 export async function getBillingSummary() {
-  const records = mockBillingHistory
+  const records = await getBillingHistory()
   const currentYear = new Date().getFullYear().toString()
 
   // YTD = all paid records in the current calendar year
@@ -47,14 +66,14 @@ export async function getBillingSummary() {
   // Next upcoming payment
   const upcoming = records.find((r) => r.status === "upcoming" || r.status === "due")
 
-  // Effective rate is consistent across all records (0.85% + 0.05% custody = 0.90%)
+  // Effective rate is consistent across all records
   const effectiveRate = records[0]?.effectiveRate ?? 0.0085
 
-  return Promise.resolve({
+  return {
     ytdFeesPaid: ytdPaid,
     nextPaymentAmount: upcoming?.amount ?? 0,
     nextPaymentDue: upcoming?.dueDate ?? null,
     effectiveRate,
-    annualRate: effectiveRate * 4, // quarterly × 4 approximation
-  })
+    annualRate: effectiveRate * 4, // quarterly x 4 approximation
+  }
 }

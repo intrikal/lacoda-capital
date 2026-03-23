@@ -28,7 +28,7 @@ import {
 import { cn } from "@/lib/utils"
 import { useReducedMotion } from "@/lib/hooks/use-reduced-motion"
 import { useLedger } from "@/lib/hooks/crud/use-ledger"
-import type { LedgerEntry as LedgerEntryType } from "@/lib/mock/types"
+import type { LedgerEntry as LedgerEntryType } from "@/lib/types/mock"
 
 const actionLabels = {
   asset_created: "Asset Created",
