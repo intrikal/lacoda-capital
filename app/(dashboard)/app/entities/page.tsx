@@ -18,6 +18,8 @@ import {
   User,
   Landmark,
   Filter,
+  ChevronRight,
+  ChevronDown,
 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -54,16 +56,22 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible"
 import { cn, formatCurrency } from "@/lib/utils"
 import { ContentCard, StatCard, PageHeader } from "@/components/dashboard/content-card"
 import {
-  useEntities,
+  useEntitiesTree,
   useCreateEntity,
   useUpdateEntity,
   useDeleteEntity,
 } from "@/lib/hooks/crud/use-entities"
 import { useClients } from "@/lib/hooks/crud/use-clients"
 import { EntityFormDialog } from "@/components/forms/entity-form-dialog"
+import type { EntityTreeNode } from "@/lib/actions/entity.actions"
 import type { CreateEntityInput } from "@/lib/validations/entity.schema"
 
 const entityTypeConfig = {
@@ -113,69 +121,88 @@ const entityTypeConfig = {
 
 type EntityType = keyof typeof entityTypeConfig
 
-interface EntityRecord {
-  id: string
-  clientId: string
-  name: string
-  entityType: EntityType
-  jurisdiction: string | null
-  formationDate: string | null
-  taxId: string | null
-  createdAt: string
-  assetCount: number
-  totalValue: number
-}
+// ─── Tree Node ───────────────────────────────────────────────────────────────
 
-function EntityCard({
-  entity,
-  onClick,
+function EntityTreeItem({
+  node,
+  depth,
+  onSelect,
   onEdit,
   onDelete,
 }: {
-  entity: EntityRecord
-  onClick: () => void
-  onEdit: () => void
-  onDelete: () => void
+  node: EntityTreeNode
+  depth: number
+  onSelect: (node: EntityTreeNode) => void
+  onEdit: (node: EntityTreeNode) => void
+  onDelete: (node: EntityTreeNode) => void
 }) {
-  const typeConfig = entityTypeConfig[entity.entityType] ?? entityTypeConfig.llc
+  const [isOpen, setIsOpen] = React.useState(depth < 2)
+  const hasChildren = node.children.length > 0
+  const typeConfig = entityTypeConfig[node.entityType as EntityType] ?? entityTypeConfig.llc
   const TypeIcon = typeConfig.icon
 
   return (
-    <Card
-      className="group cursor-pointer hover:border-zinc-700 transition-colors"
-      onClick={onClick}
-    >
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-3">
-            <div className={cn("p-2 rounded-lg", typeConfig.bg)}>
-              <TypeIcon className={cn("h-5 w-5", typeConfig.color)} />
+    <div>
+      <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+        <div
+          className="group flex items-center gap-2 py-2 px-3 rounded-lg hover:bg-zinc-800/50 cursor-pointer transition-colors"
+          style={{ paddingLeft: `${depth * 20 + 12}px` }}
+        >
+          {hasChildren ? (
+            <CollapsibleTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-5 w-5 p-0 shrink-0"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {isOpen ? (
+                  <ChevronDown className="h-3.5 w-3.5 text-zinc-500" />
+                ) : (
+                  <ChevronRight className="h-3.5 w-3.5 text-zinc-500" />
+                )}
+              </Button>
+            </CollapsibleTrigger>
+          ) : (
+            <div className="w-5 shrink-0" />
+          )}
+
+          <div
+            className="flex items-center gap-3 flex-1 min-w-0"
+            onClick={() => onSelect(node)}
+          >
+            <div className={cn("p-1.5 rounded-md shrink-0", typeConfig.bg)}>
+              <TypeIcon className={cn("h-4 w-4", typeConfig.color)} />
             </div>
-            <div>
-              <p className="font-medium text-zinc-100">{entity.name}</p>
-              <p className="text-xs text-zinc-500">{typeConfig.fullLabel}</p>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-zinc-100 truncate">{node.name}</p>
+              <p className="text-xs text-zinc-500">
+                {node.assetCount} asset{node.assetCount !== 1 ? "s" : ""} · {formatCurrency(node.totalValue)}
+              </p>
             </div>
+            <Badge className={cn(typeConfig.bg, typeConfig.color, "border-0 text-xs shrink-0")}>
+              {typeConfig.label}
+            </Badge>
           </div>
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
                 onClick={(e) => e.stopPropagation()}
               >
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="bg-zinc-900 border-zinc-800">
-              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit() }}>
-                Edit Entity
-              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onEdit(node)}>Edit Entity</DropdownMenuItem>
               <DropdownMenuItem>View Documents</DropdownMenuItem>
               <DropdownMenuSeparator className="bg-zinc-800" />
               <DropdownMenuItem
                 className="text-rose-400 focus:text-rose-400"
-                onClick={(e) => { e.stopPropagation(); onDelete() }}
+                onClick={() => onDelete(node)}
               >
                 Delete
               </DropdownMenuItem>
@@ -183,38 +210,26 @@ function EntityCard({
           </DropdownMenu>
         </div>
 
-        <div className="mt-4 grid grid-cols-2 gap-4">
-          <div>
-            <p className="text-xs text-zinc-500">Total Assets</p>
-            <p className="text-lg font-semibold text-tiffany-500">
-              {formatCurrency(entity.totalValue)}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs text-zinc-500">Holdings</p>
-            <p className="text-lg font-semibold text-zinc-100">
-              {entity.assetCount} asset{entity.assetCount !== 1 ? "s" : ""}
-            </p>
-          </div>
-        </div>
-
-        <div className="mt-4 pt-4 border-t border-zinc-800 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-xs text-zinc-500">
-            {entity.jurisdiction && (
-              <>
-                <MapPin className="h-3 w-3" />
-                <span>{entity.jurisdiction}</span>
-              </>
-            )}
-          </div>
-          <Badge className={cn(typeConfig.bg, typeConfig.color, "border-0")}>
-            {typeConfig.label}
-          </Badge>
-        </div>
-      </CardContent>
-    </Card>
+        {hasChildren && (
+          <CollapsibleContent>
+            {node.children.map((child) => (
+              <EntityTreeItem
+                key={child.id}
+                node={child}
+                depth={depth + 1}
+                onSelect={onSelect}
+                onEdit={onEdit}
+                onDelete={onDelete}
+              />
+            ))}
+          </CollapsibleContent>
+        )}
+      </Collapsible>
+    </div>
   )
 }
+
+// ─── Detail Drawer ───────────────────────────────────────────────────────────
 
 function EntityDetailDrawer({
   entity,
@@ -222,14 +237,14 @@ function EntityDetailDrawer({
   onClose,
   onEdit,
 }: {
-  entity: EntityRecord | null
+  entity: EntityTreeNode | null
   open: boolean
   onClose: () => void
-  onEdit: (entity: EntityRecord) => void
+  onEdit: (entity: EntityTreeNode) => void
 }) {
   if (!entity) return null
 
-  const typeConfig = entityTypeConfig[entity.entityType] ?? entityTypeConfig.llc
+  const typeConfig = entityTypeConfig[entity.entityType as EntityType] ?? entityTypeConfig.llc
   const TypeIcon = typeConfig.icon
 
   return (
@@ -284,6 +299,12 @@ function EntityDetailDrawer({
                 <span className="text-zinc-100 font-mono">{entity.taxId}</span>
               </div>
             )}
+            {entity.children.length > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-zinc-400">Child Entities</span>
+                <span className="text-zinc-100">{entity.children.length}</span>
+              </div>
+            )}
             <div className="flex justify-between text-sm">
               <span className="text-zinc-400">Created</span>
               <span className="text-zinc-100">
@@ -307,6 +328,8 @@ function EntityDetailDrawer({
   )
 }
 
+// ─── Delete Dialog ───────────────────────────────────────────────────────────
+
 function DeleteEntityDialog({
   entity,
   open,
@@ -314,7 +337,7 @@ function DeleteEntityDialog({
   onConfirm,
   isPending,
 }: {
-  entity: EntityRecord | null
+  entity: EntityTreeNode | null
   open: boolean
   onOpenChange: (open: boolean) => void
   onConfirm: () => void
@@ -329,8 +352,24 @@ function DeleteEntityDialog({
             This will permanently delete{" "}
             <span className="font-semibold text-zinc-100">
               {entity?.name}
-            </span>{" "}
-            and all associated assets and data. This cannot be undone.
+            </span>
+            {entity && entity.assetCount > 0 && (
+              <>
+                {" "}and its{" "}
+                <span className="font-semibold text-zinc-100">
+                  {entity.assetCount} asset{entity.assetCount !== 1 ? "s" : ""}
+                </span>
+              </>
+            )}
+            {entity && entity.children.length > 0 && (
+              <>
+                {" "}and{" "}
+                <span className="font-semibold text-zinc-100">
+                  {entity.children.length} child entit{entity.children.length !== 1 ? "ies" : "y"}
+                </span>
+              </>
+            )}
+            . This cannot be undone.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -350,28 +389,49 @@ function DeleteEntityDialog({
   )
 }
 
+// ─── Page ────────────────────────────────────────────────────────────────────
+
 export default function EntitiesPage() {
   const [searchQuery, setSearchQuery] = React.useState("")
   const [typeFilter, setTypeFilter] = React.useState<string>("all")
-  const [selectedEntity, setSelectedEntity] = React.useState<EntityRecord | null>(null)
+  const [selectedEntity, setSelectedEntity] = React.useState<EntityTreeNode | null>(null)
   const [formOpen, setFormOpen] = React.useState(false)
   const [formMode, setFormMode] = React.useState<"create" | "edit">("create")
-  const [editingEntity, setEditingEntity] = React.useState<EntityRecord | undefined>()
-  const [deleteTarget, setDeleteTarget] = React.useState<EntityRecord | null>(null)
+  const [editingEntity, setEditingEntity] = React.useState<EntityTreeNode | undefined>()
+  const [deleteTarget, setDeleteTarget] = React.useState<EntityTreeNode | null>(null)
 
-  const { entities, isLoading, isError, stats } = useEntities()
+  const { tree, allEntities, isLoading, isError, stats, refetch } = useEntitiesTree()
   const createMutation = useCreateEntity()
   const updateMutation = useUpdateEntity()
   const deleteMutation = useDeleteEntity()
   const { clients } = useClients()
 
-  const filteredEntities = (entities as EntityRecord[]).filter((entity) => {
-    const matchesSearch = entity.name.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesType = typeFilter === "all" || entity.entityType === typeFilter
-    return matchesSearch && matchesType
-  })
+  // Filter tree nodes for search/type
+  const matchesFilter = React.useCallback(
+    (node: EntityTreeNode): boolean => {
+      const matchesSearch = node.name.toLowerCase().includes(searchQuery.toLowerCase())
+      const matchesType = typeFilter === "all" || node.entityType === typeFilter
+      const childrenMatch = node.children.some(matchesFilter)
+      return (matchesSearch && matchesType) || childrenMatch
+    },
+    [searchQuery, typeFilter]
+  )
 
-  const totalValue = filteredEntities.reduce((sum, e) => sum + (e.totalValue ?? 0), 0)
+  const filterTree = React.useCallback(
+    (nodes: EntityTreeNode[]): EntityTreeNode[] => {
+      if (!searchQuery && typeFilter === "all") return nodes
+      return nodes
+        .filter(matchesFilter)
+        .map((node) => ({
+          ...node,
+          children: filterTree(node.children),
+        }))
+    },
+    [matchesFilter, searchQuery, typeFilter]
+  )
+
+  const filteredTree = React.useMemo(() => filterTree(tree), [filterTree, tree])
+  const totalValue = allEntities.reduce((sum, e) => sum + (e.totalValue ?? 0), 0)
 
   function handleAddEntity() {
     setFormMode("create")
@@ -379,7 +439,7 @@ export default function EntitiesPage() {
     setFormOpen(true)
   }
 
-  function handleEditEntity(entity: EntityRecord) {
+  function handleEditEntity(entity: EntityTreeNode) {
     setFormMode("edit")
     setEditingEntity(entity)
     setFormOpen(true)
@@ -387,17 +447,17 @@ export default function EntitiesPage() {
 
   function handleFormSubmit(data: CreateEntityInput) {
     if (formMode === "create") {
-      createMutation.mutate(data)
+      createMutation.mutate(data, { onSuccess: refetch })
     } else if (editingEntity) {
       const { clientId: _, ...updateData } = data
-      updateMutation.mutate({ id: editingEntity.id, input: updateData })
+      updateMutation.mutate({ id: editingEntity.id, input: updateData }, { onSuccess: refetch })
     }
   }
 
   function handleDeleteConfirm() {
     if (!deleteTarget) return
     deleteMutation.mutate(deleteTarget.id, {
-      onSuccess: () => setDeleteTarget(null),
+      onSuccess: () => { setDeleteTarget(null); refetch() },
     })
   }
 
@@ -414,7 +474,7 @@ export default function EntitiesPage() {
     <div className="space-y-6">
       <PageHeader
         title="Entities"
-        description={`${filteredEntities.length} entities · ${formatCurrency(totalValue)} total value`}
+        description={`${allEntities.length} entities · ${formatCurrency(totalValue)} total value`}
         actions={
           <>
             <Button variant="outline" size="sm">
@@ -481,7 +541,7 @@ export default function EntitiesPage() {
           <Loader2 className="h-5 w-5 animate-spin mr-2" />
           Loading entities…
         </div>
-      ) : filteredEntities.length === 0 ? (
+      ) : filteredTree.length === 0 ? (
         <ContentCard>
           <div className="flex flex-col items-center justify-center h-40 gap-2 text-zinc-500">
             <Building2 className="h-8 w-8" />
@@ -498,17 +558,20 @@ export default function EntitiesPage() {
           </div>
         </ContentCard>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredEntities.map((entity) => (
-            <EntityCard
-              key={entity.id}
-              entity={entity}
-              onClick={() => setSelectedEntity(entity)}
-              onEdit={() => handleEditEntity(entity)}
-              onDelete={() => setDeleteTarget(entity)}
-            />
-          ))}
-        </div>
+        <ContentCard>
+          <div className="divide-y divide-zinc-800/50">
+            {filteredTree.map((node) => (
+              <EntityTreeItem
+                key={node.id}
+                node={node}
+                depth={0}
+                onSelect={setSelectedEntity}
+                onEdit={handleEditEntity}
+                onDelete={setDeleteTarget}
+              />
+            ))}
+          </div>
+        </ContentCard>
       )}
 
       <EntityDetailDrawer
@@ -529,6 +592,7 @@ export default function EntitiesPage() {
           id: c.id,
           displayName: c.displayName,
         }))}
+        entities={allEntities.map((e) => ({ id: e.id, name: e.name }))}
       />
 
       <DeleteEntityDialog

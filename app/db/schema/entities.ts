@@ -389,6 +389,13 @@ export const entities = pgTable(
       .$onUpdate(() => new Date()),
 
     /**
+     * parentId — Self-referential FK for entity hierarchy.
+     * Enables ownership structures like: LLC → SPV → Property.
+     * NULL means this is a top-level entity under the client.
+     */
+    parentId: uuid("parent_id"),
+
+    /**
      * SOFT DELETE — see documents.ts deletedAt for full explanation.
      * NULL = active row. NOT NULL = "deleted" at that timestamp.
      */
@@ -459,6 +466,9 @@ export const entities = pgTable(
      * └─────────────────────────────────────────────────────────────────────┘
      */
     index("entities_client_type_idx").on(table.clientId, table.entityType),
+
+    /** Index on parent_id for tree queries (find children of an entity). */
+    index("entities_parent_id_idx").on(table.parentId),
   ]
 );
 
@@ -644,6 +654,16 @@ export interface EntityMetadata {
  *   // entity.documentRequests = [{ title: "2023 Tax Return" }, ...]
  */
 export const entitiesRelations = relations(entities, ({ one, many }) => ({
+  /** Self-referential: parent entity in the ownership hierarchy. */
+  parent: one(entities, {
+    fields: [entities.parentId],
+    references: [entities.id],
+    relationName: "entityHierarchy",
+  }),
+
+  /** Self-referential: child entities in the ownership hierarchy. */
+  children: many(entities, { relationName: "entityHierarchy" }),
+
   /**
    * ┌─────────────────────────────────────────────────────────────────────┐
    * │ client: one(clients, { fields: [...], references: [...] })          │

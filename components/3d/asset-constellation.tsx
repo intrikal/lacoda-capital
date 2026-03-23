@@ -210,11 +210,12 @@ function CameraController({ reducedMotion }: CameraControllerProps) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface SceneProps {
+  nodes: ConstellationNodeType[]
   onNodeSelect: (node: ConstellationNodeType | null) => void
   reducedMotion: boolean
 }
 
-function Scene({ onNodeSelect, reducedMotion }: SceneProps) {
+function Scene({ nodes, onNodeSelect, reducedMotion }: SceneProps) {
   const [hoveredNode, setHoveredNode] = React.useState<string | null>(null)
   const [selectedNode, setSelectedNode] = React.useState<string | null>(null)
 
@@ -231,7 +232,7 @@ function Scene({ onNodeSelect, reducedMotion }: SceneProps) {
       map[node.id] = node.position
     })
     return map
-  }, [])
+  }, [nodes])
 
   return (
     <>
@@ -310,7 +311,7 @@ export function AssetConstellation({
         gl={{ antialias: true, alpha: true }}
         style={{ background: "transparent" }}
       >
-        <Scene onNodeSelect={handleNodeSelect} reducedMotion={reducedMotion} />
+        <Scene nodes={nodes} onNodeSelect={handleNodeSelect} reducedMotion={reducedMotion} />
       </Canvas>
     </div>
   )
