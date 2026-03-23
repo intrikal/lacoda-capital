@@ -17,6 +17,7 @@ export {
   entityTypeEnum,
   assetClassEnum,
   assetStatusEnum,
+  valuationSourceEnum,
   documentStatusEnum,
   documentRequestStatusEnum,
   taskStatusEnum,

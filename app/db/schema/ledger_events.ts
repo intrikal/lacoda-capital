@@ -372,10 +372,10 @@ export const ledgerEvents = pgTable(
      * │   └─────────────────────────────────────────────────────────────┘   │
      * └─────────────────────────────────────────────────────────────────────┘
      */
-    // Who performed the action (null for system-triggered events)
-    actorUserId: uuid("actor_user_id").references(() => users.id, {
-      onDelete: "set null",
-    }),
+    // Who performed the action — REQUIRED for compliance ("WHO did WHAT")
+    actorUserId: uuid("actor_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
 
     /**
      * ┌─────────────────────────────────────────────────────────────────────┐

@@ -106,6 +106,7 @@ import {
   uuid,
   text,
   timestamp,
+  date,
   jsonb,
   boolean,
   index,
@@ -352,6 +353,57 @@ export const complianceControls = pgTable(
 
     /**
      * ┌─────────────────────────────────────────────────────────────────────┐
+     * │ framework: text("framework")                                        │
+     * ├─────────────────────────────────────────────────────────────────────┤
+     * │ WHAT: The compliance framework this control belongs to.             │
+     * │ WHY:  Different organizations follow different compliance standards. │
+     * │       SOC 2, ISO 27001, PCI-DSS, NIST, or custom internal policies. │
+     * │       Grouping by framework lets the UI show "SOC 2 Controls" vs    │
+     * │       "Internal Controls" separately.                               │
+     * │                                                                     │
+     * │ Examples: "SOC2", "ISO27001", "PCI-DSS", "NIST", "INTERNAL"       │
+     * │                                                                     │
+     * │ NULLABLE — not all controls map to a formal framework.              │
+     * └─────────────────────────────────────────────────────────────────────┘
+     */
+    framework: text("framework"),
+
+    /**
+     * ┌─────────────────────────────────────────────────────────────────────┐
+     * │ assigneeId: uuid("assignee_id")                                     │
+     * │   .references(() => users.id, { onDelete: "set null" })             │
+     * ├─────────────────────────────────────────────────────────────────────┤
+     * │ WHAT: The user responsible for ensuring this control is met.        │
+     * │ WHY:  Every compliance control should have an accountable owner.    │
+     * │       When the dashboard shows "KYC-001: Not Started", someone      │
+     * │       specific needs to be responsible for fixing it.               │
+     * │                                                                     │
+     * │ NULLABLE — new controls may be unassigned initially.                │
+     * │ onDelete: "set null" — if the assignee leaves, the control stays   │
+     * │ but needs to be reassigned.                                         │
+     * └─────────────────────────────────────────────────────────────────────┘
+     */
+    assigneeId: uuid("assignee_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+
+    /**
+     * ┌─────────────────────────────────────────────────────────────────────┐
+     * │ dueDate: date("due_date")                                           │
+     * ├─────────────────────────────────────────────────────────────────────┤
+     * │ WHAT: The deadline by which this control must be implemented.        │
+     * │ WHY:  Compliance deadlines are real — "SOC 2 audit is April 30"     │
+     * │       or "PCI-DSS remediation due by Q3." The system uses this to   │
+     * │       flag overdue controls and prioritize work.                     │
+     * │                                                                     │
+     * │ date("due_date") — stores date only (no time component).            │
+     * │ NULLABLE — not all controls have hard deadlines.                     │
+     * └─────────────────────────────────────────────────────────────────────┘
+     */
+    dueDate: date("due_date"),
+
+    /**
+     * ┌─────────────────────────────────────────────────────────────────────┐
      * │ category: text("category")                                          │
      * ├─────────────────────────────────────────────────────────────────────┤
      * │ An optional grouping label for organizing controls by type.         │
@@ -431,13 +483,14 @@ export const complianceControls = pgTable(
      * Updated manually by advisors or automatically when evidence is reviewed.
      *
      * Lifecycle:
-     *   needs_attention → (evidence submitted) → in_progress
-     *                  → (evidence approved)  → compliant
-     *                  → (evidence expired)   → needs_attention
+     *   not_started  → (work begins)            → in_progress
+     *   in_progress  → (control implemented)     → implemented
+     *   implemented  → (independently verified)  → verified
+     *   verified     → (evidence expired)        → not_started
      *
-     * Default: "needs_attention" — every new control starts without evidence.
+     * Default: "not_started" — every new control starts with no work done.
      */
-    status: complianceControlStatusEnum("status").notNull().default("needs_attention"),
+    status: complianceControlStatusEnum("status").notNull().default("not_started"),
 
     /**
      * ┌─────────────────────────────────────────────────────────────────────┐
@@ -584,6 +637,12 @@ export const complianceControls = pgTable(
       .notNull()
       .defaultNow()
       .$onUpdate(() => new Date()),
+
+    /**
+     * SOFT DELETE — see documents.ts deletedAt for full explanation.
+     * NULL = active row. NOT NULL = "deleted" at that timestamp.
+     */
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
   },
 
   // ==================== INDEXES & CONSTRAINTS ====================
@@ -1191,6 +1250,12 @@ export const complianceEvidence = pgTable(
       .notNull()
       .defaultNow()
       .$onUpdate(() => new Date()),
+
+    /**
+     * SOFT DELETE — see documents.ts deletedAt for full explanation.
+     * NULL = active row. NOT NULL = "deleted" at that timestamp.
+     */
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
   },
 
   // ==================== INDEXES ====================
@@ -1360,6 +1425,17 @@ export const complianceControlsRelations = relations(
     org: one(orgs, {
       fields: [complianceControls.orgId],
       references: [orgs.id],
+    }),
+
+    /**
+     * ONE relationship: Control MAY have ONE Assignee (OPTIONAL)
+     *
+     * The user responsible for this control. NULL = unassigned.
+     * SQL: SELECT * FROM users WHERE id = control.assignee_id
+     */
+    assignee: one(users, {
+      fields: [complianceControls.assigneeId],
+      references: [users.id],
     }),
 
     /**
