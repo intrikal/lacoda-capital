@@ -493,6 +493,24 @@ export const documentRequests = pgTable(
 
     /**
      * ┌─────────────────────────────────────────────────────────────────────┐
+     * │ requestedFromName / requestedFromEmail                              │
+     * ├─────────────────────────────────────────────────────────────────────┤
+     * │ WHAT: The name and email of the EXTERNAL person this document was   │
+     * │       requested from (e.g., a CPA, attorney, or insurance broker). │
+     * │ WHY:  Not everyone you request documents from is a user in Lacoda. │
+     * │       A tax preparer has no account — you just need their name and  │
+     * │       email so the system can send the request and track who it     │
+     * │       was sent to.                                                  │
+     * │                                                                     │
+     * │ NULLABLE — internal requests (from a client with a Lacoda account)  │
+     * │ use the assignedTo FK instead. These fields are for EXTERNAL people.│
+     * └─────────────────────────────────────────────────────────────────────┘
+     */
+    requestedFromName: text("requested_from_name"),
+    requestedFromEmail: text("requested_from_email"),
+
+    /**
+     * ┌─────────────────────────────────────────────────────────────────────┐
      * │ status: documentRequestStatusEnum("status")                         │
      * │           .notNull().default("open")                                │
      * ├─────────────────────────────────────────────────────────────────────┤
@@ -506,27 +524,21 @@ export const documentRequests = pgTable(
      * │   Uses a PostgreSQL ENUM type (defined in 00_enums.ts).             │
      * │   Allowed values:                                                   │
      * │                                                                     │
-     * │   "open"      → Request is active, awaiting the document.           │
-     * │                  The client portal shows this as "pending."          │
-     * │   "fulfilled" → The document has been provided and linked.          │
-     * │                  Set when an assistant marks the request complete.   │
-     * │   "cancelled" → Request was cancelled (no longer needed).           │
-     * │                  Example: duplicate request, or client left.        │
-     * │   "overdue"   → Past the due_date and still not fulfilled.          │
-     * │                  A background job typically updates this.            │
+     * │   "pending"   → Request created, not yet sent to the recipient.      │
+     * │   "sent"      → Request has been delivered (email/portal notified). │
+     * │   "received"  → The document has been uploaded by the recipient.    │
+     * │   "reviewed"  → Staff has reviewed the uploaded document.           │
+     * │   "approved"  → Document approved and linked to the request.        │
      * │                                                                     │
      * │   LIFECYCLE:                                                        │
-     * │     open ──→ fulfilled    (happy path)                              │
-     * │     open ──→ cancelled    (no longer needed)                        │
-     * │     open ──→ overdue      (past due date)                           │
-     * │     overdue ──→ fulfilled (late but still completed)                │
+     * │     pending ──→ sent ──→ received ──→ reviewed ──→ approved         │
      * │                                                                     │
      * │ .notNull()                                                          │
      * │   Every request MUST have a status. Can't be empty.                 │
      * │                                                                     │
-     * │ .default("open")                                                    │
+     * │ .default("pending")                                                  │
      * │   If you don't specify a status when inserting, it defaults to      │
-     * │   "open". Makes sense: new requests start as open.                  │
+     * │   "pending". Makes sense: new requests start as pending.            │
      * │                                                                     │
      * │ QUERY EXAMPLE:                                                      │
      * │   "Find all open requests in this org"                              │
@@ -535,7 +547,7 @@ export const documentRequests = pgTable(
      * └─────────────────────────────────────────────────────────────────────┘
      */
     // Request management
-    status: documentRequestStatusEnum("status").notNull().default("open"),
+    status: documentRequestStatusEnum("status").notNull().default("pending"),
 
     /**
      * ┌─────────────────────────────────────────────────────────────────────┐
@@ -782,6 +794,20 @@ export const documentRequests = pgTable(
      * │   So metadata is never NULL - at worst it's {}.                     │
      * └─────────────────────────────────────────────────────────────────────┘
      */
+    /**
+     * ┌─────────────────────────────────────────────────────────────────────┐
+     * │ notes: text("notes")                                                │
+     * ├─────────────────────────────────────────────────────────────────────┤
+     * │ WHAT: Internal notes about this request (visible only to staff).    │
+     * │ WHY:  Staff may need to track context that isn't part of the        │
+     * │       client-facing description. Example: "Client mentioned they'd  │
+     * │       send via FedEx — follow up if not received by March 20."      │
+     * │                                                                     │
+     * │ NULLABLE — not every request needs internal notes.                  │
+     * └─────────────────────────────────────────────────────────────────────┘
+     */
+    notes: text("notes"),
+
     // Additional metadata
     metadata: jsonb("metadata").$type<DocumentRequestMetadata>().default({}),
 
@@ -833,6 +859,14 @@ export const documentRequests = pgTable(
       .notNull()
       .defaultNow()
       .$onUpdate(() => new Date()),
+
+    /**
+     * ┌─────────────────────────────────────────────────────────────────────┐
+     * │ SOFT DELETE — see documents.ts deletedAt for full explanation.      │
+     * │ NULL = active row. NOT NULL = "deleted" at that timestamp.          │
+     * └─────────────────────────────────────────────────────────────────────┘
+     */
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
   },
 
   // ==================== INDEXES ====================

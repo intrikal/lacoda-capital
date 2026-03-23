@@ -232,6 +232,27 @@ export const assetStatusEnum = pgEnum("asset_status", [
 ]);
 
 // ============================================================================
+// Valuation Sources
+// ============================================================================
+
+/**
+ * Valuation source — how a valuation number was obtained
+ * Every valuation must declare its source for audit credibility:
+ * - manual: Entered by a human (advisor or assistant)
+ * - appraisal: From a professional appraisal (e.g., property appraisal)
+ * - market_data: From a market data feed (e.g., stock price, index value)
+ * - ai_extraction: Extracted by an AI agent from a document or data source
+ * - api_feed: From an integrated API (e.g., Plaid, Yodlee)
+ */
+export const valuationSourceEnum = pgEnum("valuation_source", [
+  "manual",
+  "appraisal",
+  "market_data",
+  "ai_extraction",
+  "api_feed",
+]);
+
+// ============================================================================
 // Document Management
 // ============================================================================
 
@@ -250,17 +271,19 @@ export const documentStatusEnum = pgEnum("document_status", [
 ]);
 
 /**
- * Document request status
- * - open: Request is active, awaiting upload
- * - fulfilled: Document has been provided
- * - cancelled: Request was cancelled
- * - overdue: Past due date, not yet fulfilled
+ * Document request status — tracks the lifecycle of a document request
+ * - pending: Request created, not yet sent to the recipient
+ * - sent: Request has been sent (email/portal notification delivered)
+ * - received: Document has been uploaded by the recipient
+ * - reviewed: Staff has reviewed the uploaded document
+ * - approved: Document has been approved and linked
  */
 export const documentRequestStatusEnum = pgEnum("document_request_status", [
-  "open",
-  "fulfilled",
-  "cancelled",
-  "overdue",
+  "pending",
+  "sent",
+  "received",
+  "reviewed",
+  "approved",
 ]);
 
 // ============================================================================
@@ -293,14 +316,16 @@ export const taskPriorityEnum = pgEnum("task_priority", [
 
 /**
  * Compliance control status
- * - needs_attention: No approved evidence exists (default state for new controls)
- * - in_progress: Evidence has been submitted and is pending review
- * - compliant: At least one approved, non-expired evidence record exists
+ * - not_started: Control has been defined but no work has begun
+ * - in_progress: Evidence is being gathered or implementation underway
+ * - implemented: Control is in place but not yet independently verified
+ * - verified: Control has been audited/verified by a reviewer
  */
 export const complianceControlStatusEnum = pgEnum("compliance_control_status", [
-  "needs_attention",
+  "not_started",
   "in_progress",
-  "compliant",
+  "implemented",
+  "verified",
 ]);
 
 /**

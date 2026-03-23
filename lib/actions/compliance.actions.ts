@@ -54,7 +54,7 @@ export async function createComplianceControl(input: unknown): Promise<Complianc
     .values({
       ...parsed,
       orgId: session.orgId!,
-      status: "needs_attention",
+      status: "not_started",
       requiredDocumentTypes: parsed.requiredDocumentTypes ?? [],
       metadata: parsed.metadata ?? {},
     })

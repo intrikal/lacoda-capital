@@ -118,6 +118,12 @@ export const conversations = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
+
+    /**
+     * SOFT DELETE — see documents.ts deletedAt for full explanation.
+     * NULL = active row. NOT NULL = "deleted" at that timestamp.
+     */
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
   },
   (table) => [
     index("conversations_org_id_idx").on(table.orgId),
@@ -175,6 +181,12 @@ export const messages = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
+
+    /**
+     * SOFT DELETE — see documents.ts deletedAt for full explanation.
+     * NULL = active row. NOT NULL = "deleted" at that timestamp.
+     */
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
   },
   (table) => [
     index("messages_conversation_id_idx").on(table.conversationId),

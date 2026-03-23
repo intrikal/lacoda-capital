@@ -56,6 +56,8 @@ import {
   text,
   timestamp,
   jsonb,
+  bigint,
+  integer,
   index,
 } from "drizzle-orm/pg-core";
 
@@ -90,6 +92,7 @@ import { documentStatusEnum } from "./00_enums";
  * See clients.ts for full explanation of FK references to orgs.
  */
 import { orgs } from "./orgs";
+import { users } from "./users";
 
 /**
  * import { clients } from "./clients"
@@ -517,6 +520,54 @@ export const documents = pgTable(
 
     /**
      * ┌─────────────────────────────────────────────────────────────────────┐
+     * │ sizeBytes: bigint("size_bytes", { mode: "bigint" })                │
+     * ├─────────────────────────────────────────────────────────────────────┤
+     * │ WHAT: The file size in bytes as a proper numeric type.              │
+     * │ WHY:  For programmatic comparisons (enforce max file size), sorting │
+     * │       by size, and aggregate queries ("total storage used by org"). │
+     * │       bigint handles files up to ~9.2 exabytes.                     │
+     * │                                                                     │
+     * │ NULLABLE — size may not be known at record creation time.           │
+     * │                                                                     │
+     * │ NOTE: JavaScript BigInt is returned by Drizzle. Use Number() for    │
+     * │       display, but be careful with files > 9 petabytes (unlikely).  │
+     * └─────────────────────────────────────────────────────────────────────┘
+     */
+    sizeBytes: bigint("size_bytes", { mode: "bigint" }),
+
+    /**
+     * ┌─────────────────────────────────────────────────────────────────────┐
+     * │ version: integer("version").notNull().default(1)                    │
+     * ├─────────────────────────────────────────────────────────────────────┤
+     * │ WHAT: The version number of this document.                          │
+     * │ WHY:  When someone uploads an updated version of a document (e.g., │
+     * │       "Q3 Report v2"), this number increments. The old row is kept  │
+     * │       (soft-deleted or archived), and the new row gets version + 1. │
+     * │       This lets the system show version history.                    │
+     * │                                                                     │
+     * │ .default(1) — first upload is always version 1.                     │
+     * └─────────────────────────────────────────────────────────────────────┘
+     */
+    version: integer("version").notNull().default(1),
+
+    /**
+     * ┌─────────────────────────────────────────────────────────────────────┐
+     * │ uploadedBy: uuid("uploaded_by").references(() => users.id, {...})   │
+     * ├─────────────────────────────────────────────────────────────────────┤
+     * │ WHAT: The user who uploaded this document.                          │
+     * │ WHY:  Accountability — "Who uploaded this file?" Auditors ask this. │
+     * │       Different from verifiedBy (who REVIEWED it).                  │
+     * │                                                                     │
+     * │ NULLABLE + onDelete "set null" — if the uploader is deleted, the   │
+     * │ document survives, we just lose the uploader reference.             │
+     * └─────────────────────────────────────────────────────────────────────┘
+     */
+    uploadedBy: uuid("uploaded_by").references(() => users.id, {
+      onDelete: "set null",
+    }),
+
+    /**
+     * ┌─────────────────────────────────────────────────────────────────────┐
      * │ storagePath: text("storage_path").notNull()                         │
      * ├─────────────────────────────────────────────────────────────────────┤
      * │ WHAT: The path to the actual file in cloud storage.                 │
@@ -812,6 +863,23 @@ export const documents = pgTable(
       .notNull()
       .defaultNow()
       .$onUpdate(() => new Date()),
+
+    /**
+     * ┌─────────────────────────────────────────────────────────────────────┐
+     * │ deletedAt: timestamp("deleted_at", { withTimezone: true })          │
+     * ├─────────────────────────────────────────────────────────────────────┤
+     * │ WHAT: Soft-delete timestamp. NULL means "active", non-NULL means    │
+     * │       "deleted at this time."                                       │
+     * │ WHY:  In financial software, you NEVER truly delete data. Instead,  │
+     * │       you mark it as archived. If an auditor asks about a deleted   │
+     * │       document, you can still find it. All queries filter:          │
+     * │       WHERE deleted_at IS NULL (to hide soft-deleted rows).         │
+     * │                                                                     │
+     * │ NULL = active row (the normal state)                                │
+     * │ NOT NULL = "deleted" at that timestamp — hidden from normal queries │
+     * └─────────────────────────────────────────────────────────────────────┘
+     */
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
   },
 
   // ==================== INDEXES ====================
@@ -1181,6 +1249,17 @@ export const documentsRelations = relations(documents, ({ one, many }) => ({
   asset: one(assets, {
     fields: [documents.assetId],
     references: [assets.id],
+  }),
+
+  /**
+   * ONE relationship: Document was uploaded by ONE User (OPTIONAL)
+   *
+   * uploaded_by can be NULL (system-generated documents, or user deleted).
+   * SQL: SELECT * FROM users WHERE id = document.uploaded_by
+   */
+  uploadedByUser: one(users, {
+    fields: [documents.uploadedBy],
+    references: [users.id],
   }),
 
   /**

@@ -159,6 +159,12 @@ export const goals = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
+
+    /**
+     * SOFT DELETE — see documents.ts deletedAt for full explanation.
+     * NULL = active row. NOT NULL = "deleted" at that timestamp.
+     */
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
   },
   (table) => [
     // Index on orgId — every query scopes by org first

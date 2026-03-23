@@ -106,6 +106,12 @@ export const taxDeductions = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
+
+    /**
+     * SOFT DELETE — see documents.ts deletedAt for full explanation.
+     * NULL = active row. NOT NULL = "deleted" at that timestamp.
+     */
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
   },
   (table) => [
     index("tax_deductions_org_id_idx").on(table.orgId),

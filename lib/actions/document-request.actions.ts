@@ -20,7 +20,7 @@ export async function getDocumentRequests(params?: {
 
   const conditions = [eq(documentRequests.orgId, session.orgId!)]
   if (params?.clientId) conditions.push(eq(documentRequests.clientId, params.clientId))
-  if (params?.status) conditions.push(eq(documentRequests.status, params.status as "open" | "fulfilled" | "cancelled" | "overdue"))
+  if (params?.status) conditions.push(eq(documentRequests.status, params.status as "pending" | "sent" | "received" | "reviewed" | "approved"))
 
   const where = and(...conditions)
   const [items, [{ total }]] = await Promise.all([

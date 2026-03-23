@@ -509,6 +509,26 @@ export const notifications = pgTable(
 
     /**
      * ┌─────────────────────────────────────────────────────────────────────┐
+     * │ link: text("link")                                                  │
+     * ├─────────────────────────────────────────────────────────────────────┤
+     * │ WHAT: A relative URL path to navigate to when the notification is   │
+     * │       clicked.                                                      │
+     * │ WHY:  Clicking a notification should take you to the relevant page. │
+     * │       "Document expiring" → /vault/doc-456                          │
+     * │       "Task assigned"     → /tasks/task-789                         │
+     * │                                                                     │
+     * │ NULLABLE — some notifications are informational with no destination.│
+     * │                                                                     │
+     * │ Example values:                                                     │
+     * │   "/vault/d4e5f6a7-b8c9-1234-5678-abcdef012345"                    │
+     * │   "/tasks/a1b2c3d4-e5f6-7890-abcd-ef1234567890"                    │
+     * │   "/compliance/controls/550e8400-e29b-41d4-a716-446655440000"       │
+     * └─────────────────────────────────────────────────────────────────────┘
+     */
+    link: text("link"),
+
+    /**
+     * ┌─────────────────────────────────────────────────────────────────────┐
      * │ payload: jsonb("payload").$type<NotificationPayload>().default({}) │
      * ├─────────────────────────────────────────────────────────────────────┤
      * │ A flexible JSONB column for type-specific data about this          │
@@ -584,6 +604,12 @@ export const notifications = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
+
+    /**
+     * SOFT DELETE — see documents.ts deletedAt for full explanation.
+     * NULL = active row. NOT NULL = "deleted" at that timestamp.
+     */
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
   },
 
   // ==================== INDEXES ====================
