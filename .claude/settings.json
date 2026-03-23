@@ -3,7 +3,8 @@
     "allow": [
       "Bash(npx drizzle-kit:*)",
       "Bash(find c:UserslacodDesktopwebsiteslacoda-capital -name drizzle.config.* -o -name .drizzlerc* -o -name migrations -type d)",
-      "Bash(npx vitest:*)"
+      "Bash(npx vitest:*)",
+      "Bash(npm install:*)"
     ]
   }
 }
