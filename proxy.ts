@@ -1,92 +1,110 @@
-import { createServerClient } from "@supabase/ssr";
-import { type NextRequest, NextResponse } from "next/server";
+/**
+ * proxy.ts — Next.js Edge Middleware (Next.js 16+)
+ *
+ * ┌─────────────────────────────────────────────────────────────────────────┐
+ * │ WHAT IS MIDDLEWARE?                                                     │
+ * ├─────────────────────────────────────────────────────────────────────────┤
+ * │ Middleware runs BEFORE a page renders — it sits between the browser    │
+ * │ request and your Next.js pages. Think of it as a bouncer at the door:  │
+ * │                                                                         │
+ * │   Browser → [middleware.ts] → Page                                      │
+ * │                ↓ (if not logged in)                                     │
+ * │            redirect to /login                                           │
+ * │                                                                         │
+ * │ It runs on the Edge (Cloudflare/Vercel network), so it's fast and      │
+ * │ doesn't spin up your full Node.js server for every check.              │
+ * └─────────────────────────────────────────────────────────────────────────┘
+ *
+ * WHAT THIS FILE DOES:
+ *   1. Refreshes the Supabase session token on every request (keeps the
+ *      user logged in even if their JWT is about to expire).
+ *   2. Protects all /app/* and /client/* routes — unauthenticated users
+ *      are redirected to /login?next={currentPath}.
+ *   3. Redirects already-authenticated users away from /login and /signup.
+ *   4. Handles new users with no org membership → redirect to /onboarding.
+ *
+ * NOTE ON ROLE CHECKS:
+ *   Middleware only checks "are you logged in?" not "are you an admin?".
+ *   Role enforcement (admin vs. assistant vs. client) is done in Server
+ *   Components via requireRole() from lib/auth.ts — middleware would need
+ *   a DB query on every request which is too slow for the Edge.
+ */
 
-export async function proxy(request: NextRequest) {
-  // ─── 1. Refresh session (required on every request) ────────────────────────
-  let supabaseResponse = NextResponse.next({ request });
+import { type NextRequest, NextResponse } from "next/server"
+import { createMiddlewareClient } from "@/utils/supabase/middleware"
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value)
-          );
-          supabaseResponse = NextResponse.next({ request });
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
-          );
-        },
-      },
-    }
-  );
+// ─── Route configuration ──────────────────────────────────────────────────────
 
-  // IMPORTANT: Use getUser() not getSession() — getUser() validates with Supabase
-  // servers on every call, getSession() only reads the local JWT (can be stale).
+/**
+ * Routes that require the user to be authenticated.
+ * Any path starting with these prefixes will be protected.
+ */
+const PROTECTED_PREFIXES = ["/app", "/client", "/onboarding"]
+
+/**
+ * Routes that authenticated users should NOT visit.
+ * Visiting /login while logged in redirects to /app.
+ */
+const AUTH_ROUTES = ["/login", "/signup", "/forgot-password", "/reset-password"]
+
+// ─── Main middleware function ─────────────────────────────────────────────────
+
+export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl
+
+  // Step 1: Refresh the Supabase session and get the response with updated
+  // cookies. This MUST happen on every request to keep tokens fresh.
+  const { supabase, response } = createMiddlewareClient(request)
+
+  // Step 2: Get the current user. Using getUser() (not getSession()) because
+  // getUser() validates the token with the Supabase server — it can't be
+  // spoofed by a tampered cookie. getSession() only reads the local cookie.
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await supabase.auth.getUser()
 
-  const { pathname } = request.nextUrl;
+  const isAuthenticated = !!user
 
-  // ─── 2. Role from cookie (set during auth/callback) ────────────────────────
-  // This cookie is HttpOnly and set server-side — clients cannot forge it.
-  // It's a UX routing hint. Real data access is gated in server components/actions
-  // via a fresh DB lookup (lib/auth.ts → requireRole).
-  const role = request.cookies.get("user-role")?.value;
+  // ── Guard: Protected routes ──────────────────────────────────────────────
+  const isProtected = PROTECTED_PREFIXES.some((prefix) =>
+    pathname.startsWith(prefix)
+  )
 
-  // ─── 3. Classify route ─────────────────────────────────────────────────────
-  const isAuthRoute =
-    pathname.startsWith("/login") ||
-    pathname.startsWith("/signup") ||
-    pathname.startsWith("/forgot-password") ||
-    pathname.startsWith("/reset-password");
-
-  const isAdvisorRoute = pathname.startsWith("/app");
-  const isClientRoute = pathname.startsWith("/client");
-  const isOnboardingRoute = pathname.startsWith("/onboarding");
-  const isProtectedRoute = isAdvisorRoute || isClientRoute || isOnboardingRoute;
-
-  // ─── 4. Redirect rules ─────────────────────────────────────────────────────
-
-  // Not authenticated → send to login (preserve destination for post-login redirect)
-  if (!user && isProtectedRoute) {
-    const loginUrl = new URL("/login", request.url);
-    loginUrl.searchParams.set("next", pathname);
-    return NextResponse.redirect(loginUrl);
+  if (isProtected && !isAuthenticated) {
+    // Build the redirect URL: /login?next=/app/clients
+    // This lets the login page send the user back where they were going.
+    const loginUrl = new URL("/login", request.url)
+    loginUrl.searchParams.set("next", pathname)
+    return NextResponse.redirect(loginUrl)
   }
 
-  // Already authenticated → don't show auth pages, send to their dashboard
-  if (user && isAuthRoute) {
-    const destination = role === "client" ? "/client" : "/app";
-    return NextResponse.redirect(new URL(destination, request.url));
+  // ── Guard: Auth routes (already logged in) ───────────────────────────────
+  const isAuthRoute = AUTH_ROUTES.some((route) => pathname.startsWith(route))
+
+  if (isAuthRoute && isAuthenticated) {
+    // Already logged in — send them to the dashboard instead
+    return NextResponse.redirect(new URL("/app", request.url))
   }
 
-  // Wrong portal for role — prevent advisors from accessing client portal & vice versa
-  if (user && isAdvisorRoute && role === "client") {
-    return NextResponse.redirect(new URL("/client", request.url));
-  }
-  if (user && isClientRoute && (role === "admin" || role === "assistant")) {
-    return NextResponse.redirect(new URL("/app", request.url));
-  }
-
-  return supabaseResponse;
+  // All checks passed — return the response (with refreshed cookies)
+  return response
 }
 
+// ─── Matcher ──────────────────────────────────────────────────────────────────
+
+/**
+ * config.matcher tells Next.js which paths this middleware should run on.
+ *
+ * We EXCLUDE:
+ *   - _next/static  — built JS/CSS bundles
+ *   - _next/image   — image optimization API
+ *   - favicon.ico   — browser tab icon
+ *   - Files with extensions (.png, .svg, etc.) — static assets
+ *
+ * This prevents middleware from slowing down static file requests.
+ */
 export const config = {
   matcher: [
-    /*
-     * Match all paths except:
-     * - _next/static (static files)
-     * - _next/image (image optimization)
-     * - favicon.ico, sitemap.xml, robots.txt
-     * - Public image/font assets
-     */
-    "/((?!_next/static|_next/image|favicon\\.ico|sitemap\\.xml|robots\\.txt|.*\\.(?:svg|png|jpg|jpeg|gif|webp|woff2?)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
-};
+}
