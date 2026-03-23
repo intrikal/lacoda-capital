@@ -302,5 +302,5 @@ export interface ClientRecord {
   assetCount: number
 
   /** Total Assets Under Management in dollars — sum of all active asset values */
-  totalAUM: number
+  totalAUM: number | null
 }

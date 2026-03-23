@@ -1,50 +1,19 @@
-/**
- * ============================================================================
- * FILE: lib/hooks/crud/use-org-members.ts
- * ============================================================================
- *
- * WHAT THIS FILE IS:
- *   React hooks that connect the Settings Team tab to the GraphQL API.
- *
- * ARCHITECTURE:
- *   ┌────────────────────────────────────────────────────────────────────┐
- *   │ Settings Page (Team Tab)                                          │
- *   │   └── useOrgMembers()           → fetches member list             │
- *   │   └── useCurrentMember()        → fetches current user's member   │
- *   │   └── useInviteOrgMember()      → invites a new member           │
- *   │   └── useUpdateOrgMemberRole()  → changes a member's role        │
- *   │   └── useRemoveOrgMember()      → removes a member               │
- *   │         ↓                                                          │
- *   │ Apollo Client (useQuery / useMutation)                             │
- *   │         ↓                                                          │
- *   │ POST /api/graphql                                                  │
- *   │         ↓                                                          │
- *   │ orgResolvers → Drizzle ORM → PostgreSQL                           │
- *   └────────────────────────────────────────────────────────────────────┘
- *
- * CONSUMERS:
- *   - app/(dashboard)/app/settings/page.tsx
- */
-
 "use client"
 
-import { useCallback } from "react"
-import { useQuery, useMutation } from "@apollo/client/react"
+import { useState, useEffect, useTransition, useCallback } from "react"
 import {
-  GET_ORG_MEMBERS,
-  GET_ME,
-  INVITE_ORG_MEMBER,
-  UPDATE_ORG_MEMBER_ROLE,
-  REMOVE_ORG_MEMBER,
-} from "@/lib/graphql/operations/org"
+  getOrgMembers,
+  getCurrentMember,
+  inviteOrgMember,
+  updateOrgMemberRole,
+  removeOrgMember,
+  type OrgMemberRecord,
+} from "@/lib/actions/org.actions"
 import type { InviteOrgMemberInput, UpdateOrgMemberRoleInput } from "@/lib/validations/org.schema"
 
-// ─── TYPES ────────────────────────────────────────────────────────────────────
-
-/** Org member role values matching the DB enum. */
+export type { OrgMemberRecord }
 export type OrgMemberRole = "admin" | "assistant" | "client"
 
-/** User details resolved from the user relation. */
 export interface OrgMemberUser {
   id: string
   email: string
@@ -52,123 +21,99 @@ export interface OrgMemberUser {
   avatarUrl: string | null
 }
 
-/**
- * OrgMemberRecord — Shape of an org member returned by the GraphQL API.
- * Includes the resolved user relation for display purposes.
- */
-export interface OrgMemberRecord {
-  id: string
-  orgId: string
-  userId: string
-  role: OrgMemberRole
-  clientId: string | null
-  createdAt: string
-  updatedAt: string
-  user: OrgMemberUser
-}
-
-/** Apollo response shape for GET_ORG_MEMBERS. */
-interface GetOrgMembersData {
-  orgMembers: {
-    items: OrgMemberRecord[]
-    totalCount: number
-    page: number
-    limit: number
-  }
-}
-
-/** Apollo response shape for GET_ME. */
-interface GetMeData {
-  me: OrgMemberRecord | null
-}
-
-// ─── HOOKS ────────────────────────────────────────────────────────────────────
-
-/**
- * useOrgMembers — Fetches the list of org members with user details.
- *
- * @returns
- *   members   — Array of OrgMemberRecord (empty while loading)
- *   isLoading — True during the initial fetch
- *   isError   — True if the query failed
- *   error     — The ApolloError object (null if no error)
- */
 export function useOrgMembers() {
-  const { data, loading, error } = useQuery<GetOrgMembersData>(
-    GET_ORG_MEMBERS,
-    { variables: { limit: 100 } }
-  )
+  const [members, setMembers] = useState<OrgMemberRecord[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<Error | null>(null)
+
+  const load = useCallback(async () => {
+    setIsLoading(true)
+    setError(null)
+    try {
+      const result = await getOrgMembers({ limit: 100 })
+      setMembers(result.items)
+    } catch (e) {
+      setError(e as Error)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { load() }, [load])
 
   return {
-    members: data?.orgMembers?.items ?? [],
-    isLoading: loading,
+    members,
+    isLoading,
     isError: !!error,
-    error: error ?? null,
+    error,
+    refetch: load,
   }
 }
 
-/**
- * useCurrentMember — Fetches the current user's org membership record.
- */
 export function useCurrentMember() {
-  const { data, loading } = useQuery<GetMeData>(GET_ME)
+  const [member, setMember] = useState<OrgMemberRecord | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
 
-  return {
-    member: data?.me ?? null,
-    isLoading: loading,
-  }
+  useEffect(() => {
+    getCurrentMember().then((m) => {
+      setMember(m)
+      setIsLoading(false)
+    }).catch(() => setIsLoading(false))
+  }, [])
+
+  return { member, isLoading }
 }
 
-/**
- * useInviteOrgMember — Invites a user to the org by email.
- */
 export function useInviteOrgMember() {
-  const [invite, { loading }] = useMutation(INVITE_ORG_MEMBER, {
-    refetchQueries: [{ query: GET_ORG_MEMBERS }],
-  })
+  const [isPending, startTransition] = useTransition()
 
   const mutate = useCallback(
-    (input: InviteOrgMemberInput) => {
-      return invite({ variables: { input } })
+    (input: InviteOrgMemberInput, options?: { onSuccess?: () => void }) => {
+      return new Promise<void>((resolve) => {
+        startTransition(async () => {
+          await inviteOrgMember(input)
+          options?.onSuccess?.()
+          resolve()
+        })
+      })
     },
-    [invite]
+    []
   )
 
-  return { mutate, isPending: loading }
+  return { mutate, isPending }
 }
 
-/**
- * useUpdateOrgMemberRole — Changes a member's role in the org.
- */
 export function useUpdateOrgMemberRole() {
-  const [update, { loading }] = useMutation(UPDATE_ORG_MEMBER_ROLE, {
-    refetchQueries: [{ query: GET_ORG_MEMBERS }],
-  })
+  const [isPending, startTransition] = useTransition()
 
   const mutate = useCallback(
-    (id: string, input: UpdateOrgMemberRoleInput) => {
-      return update({ variables: { id, input } })
+    (id: string, input: UpdateOrgMemberRoleInput, options?: { onSuccess?: () => void }) => {
+      return new Promise<void>((resolve) => {
+        startTransition(async () => {
+          await updateOrgMemberRole(id, input)
+          options?.onSuccess?.()
+          resolve()
+        })
+      })
     },
-    [update]
+    []
   )
 
-  return { mutate, isPending: loading }
+  return { mutate, isPending }
 }
 
-/**
- * useRemoveOrgMember — Removes a member from the org.
- */
 export function useRemoveOrgMember() {
-  const [remove, { loading }] = useMutation(REMOVE_ORG_MEMBER, {
-    refetchQueries: [{ query: GET_ORG_MEMBERS }],
-  })
+  const [isPending, startTransition] = useTransition()
 
   const mutate = useCallback(
-    (id: string) => {
-      return remove({ variables: { id } })
+    (id: string, options?: { onSuccess?: () => void }) => {
+      startTransition(async () => {
+        await removeOrgMember(id)
+        options?.onSuccess?.()
+      })
     },
-    [remove]
+    []
   )
 
-  return { mutate, isPending: loading }
+  return { mutate, isPending }
 }

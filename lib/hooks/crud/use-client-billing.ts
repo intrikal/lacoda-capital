@@ -1,49 +1,17 @@
-/**
- * ============================================================================
- * FILE: lib/hooks/crud/use-client-billing.ts
- * ============================================================================
- *
- * Read-only hook for the client's advisory fee billing history.
- * Advisory fees are set and managed by the advisor; this hook exposes
- * the data for the client to view their fee statements transparently.
- *
- * Architecture position:
- *   Billing page → useClientBilling() → Apollo useQuery → POST /api/graphql
- *
- * CONSUMERS:
- *   - app/(client)/client/billing/page.tsx (client read-only billing view)
- *
- * @example
- * ```tsx
- * const { billingHistory, stats, isLoading } = useClientBilling()
- * ```
- */
-
 "use client"
 
-import { useMemo } from "react"
-import { useQuery } from "@apollo/client/react"
-import { GET_BILLING_RECORDS } from "@/lib/graphql/operations/billing-record"
-import type { BillingRecordItem } from "@/lib/hooks/crud/use-billing-records"
-
-// ─── Computed stats shape (preserved from original hook) ─────────────────────
+import { useState, useEffect, useMemo, useCallback } from "react"
+import { getBillingRecords } from "@/lib/actions/billing-record.actions"
+import type { BillingRecordItem } from "@/lib/types"
 
 export interface BillingStats {
-  /** Total advisory fees paid year-to-date */
   ytdFeesPaid: number
-  /** Amount due on the next upcoming invoice */
   nextPaymentAmount: number
-  /** ISO date string for next payment due date (null if none) */
   nextPaymentDue: string | null
-  /** Effective annual fee rate, e.g. 0.0090 = 0.90% */
   effectiveRate: number
-  /** Annualised rate label-friendly (effectiveRate × 4 quarters) */
   annualRate: number
 }
 
-// ─── Types (compatible with existing client billing page) ────────────────────
-
-/** Maps DB BillingRecordItem to the shape the client billing page expects. */
 export interface ClientBillingRecord {
   id: string
   period: string
@@ -54,17 +22,6 @@ export interface ClientBillingRecord {
   paidDate?: string
   effectiveRate: number
 }
-
-interface GetBillingRecordsData {
-  billingRecords: {
-    items: BillingRecordItem[]
-    totalCount: number
-    page: number
-    limit: number
-  }
-}
-
-// ─── Hook ────────────────────────────────────────────────────────────────────
 
 interface UseClientBillingReturn {
   billingHistory: ClientBillingRecord[]
@@ -81,11 +38,23 @@ const EMPTY_STATS: BillingStats = {
 }
 
 export function useClientBilling(): UseClientBillingReturn {
-  const { data, loading } = useQuery<GetBillingRecordsData>(GET_BILLING_RECORDS)
+  const [items, setItems] = useState<BillingRecordItem[]>([])
+  const [isLoading, setIsLoading] = useState(true)
 
-  const items = data?.billingRecords?.items ?? []
+  const load = useCallback(async () => {
+    setIsLoading(true)
+    try {
+      const result = await getBillingRecords()
+      setItems(result.items)
+    } catch {
+      // ignore
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
 
-  /** Map DB records to the shape the client billing page expects. */
+  useEffect(() => { load() }, [load])
+
   const billingHistory = useMemo<ClientBillingRecord[]>(
     () =>
       items.map((r) => ({
@@ -101,23 +70,14 @@ export function useClientBilling(): UseClientBillingReturn {
     [items]
   )
 
-  /** Compute summary stats from the billing records. */
   const stats = useMemo<BillingStats>(() => {
     if (items.length === 0) return EMPTY_STATS
-
     const currentYear = new Date().getFullYear().toString()
-
-    // YTD = all paid records in the current calendar year
     const ytdPaid = items
       .filter((r) => r.status === "paid" && r.paidDate?.startsWith(currentYear))
       .reduce((sum, r) => sum + r.amount, 0)
-
-    // Next upcoming/due payment
     const upcoming = items.find((r) => r.status === "upcoming" || r.status === "due")
-
-    // Effective rate from the first record
     const effectiveRate = items[0]?.effectiveRate ?? 0.0085
-
     return {
       ytdFeesPaid: ytdPaid,
       nextPaymentAmount: upcoming?.amount ?? 0,
@@ -127,5 +87,5 @@ export function useClientBilling(): UseClientBillingReturn {
     }
   }, [items])
 
-  return { billingHistory, stats, isLoading: loading }
+  return { billingHistory, stats, isLoading }
 }

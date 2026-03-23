@@ -1,37 +1,19 @@
 "use client"
 
-import { useMemo, useCallback } from "react"
-import { useQuery, useMutation } from "@apollo/client/react"
+import { useState, useEffect, useTransition, useMemo, useCallback } from "react"
 import {
-  GET_BENCHMARKS,
-  CREATE_BENCHMARK,
-  UPDATE_BENCHMARK,
-  DELETE_BENCHMARK,
-} from "@/lib/graphql/operations/benchmark"
+  getBenchmarks,
+  createBenchmark,
+  updateBenchmark,
+  deleteBenchmark,
+} from "@/lib/actions/benchmark.actions"
+import type { BenchmarkRecord } from "@/lib/types"
 import type {
   CreateBenchmarkInput,
   UpdateBenchmarkInput,
 } from "@/lib/validations/benchmark.schema"
 
-// ─── Types ──────────────────────────────────────────────────────────────────
-
-export interface BenchmarkRecord {
-  id: string
-  orgId: string
-  clientId: string | null
-  name: string
-  symbol: string | null
-  category: "index" | "etf" | "mutual_fund" | "custom"
-  ytdReturn: number
-  alpha: number
-  beta: number
-  sharpeRatio: number
-  volatility: number
-  notes: string | null
-  metadata: Record<string, unknown> | null
-  createdAt: string
-  updatedAt: string
-}
+export type { BenchmarkRecord }
 
 export interface BenchmarkStats {
   total: number
@@ -41,95 +23,101 @@ export interface BenchmarkStats {
   avgVolatility: number
 }
 
-/** Shape of the raw Apollo useQuery response for GET_BENCHMARKS. */
-interface GetBenchmarksData {
-  benchmarks: {
-    items: BenchmarkRecord[]
-    totalCount: number
-    page: number
-    limit: number
-  }
-}
-
-// ─── Hooks ──────────────────────────────────────────────────────────────────
-
 export function useBenchmarks(params?: {
   clientId?: string
   category?: string
 }) {
-  const variables: Record<string, unknown> = {}
-  if (params?.clientId) variables.clientId = params.clientId
-  if (params?.category) variables.category = params.category
+  const [benchmarks, setBenchmarks] = useState<BenchmarkRecord[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<Error | null>(null)
 
-  const { data, loading, error } = useQuery<GetBenchmarksData>(GET_BENCHMARKS, { variables })
+  const load = useCallback(async () => {
+    setIsLoading(true)
+    setError(null)
+    try {
+      const result = await getBenchmarks(params)
+      setBenchmarks(result.items)
+    } catch (e) {
+      setError(e as Error)
+    } finally {
+      setIsLoading(false)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params?.clientId, params?.category])
 
-  const benchmarks: BenchmarkRecord[] = data?.benchmarks?.items ?? []
+  useEffect(() => { load() }, [load])
 
   const stats = useMemo<BenchmarkStats>(() => {
     const len = benchmarks.length || 1
     return {
       total: benchmarks.length,
-      avgAlpha:
-        benchmarks.reduce((sum, b) => sum + b.alpha, 0) / len,
-      avgBeta:
-        benchmarks.reduce((sum, b) => sum + b.beta, 0) / len,
-      avgSharpe:
-        benchmarks.reduce((sum, b) => sum + b.sharpeRatio, 0) / len,
-      avgVolatility:
-        benchmarks.reduce((sum, b) => sum + b.volatility, 0) / len,
+      avgAlpha: benchmarks.reduce((sum, b) => sum + b.alpha, 0) / len,
+      avgBeta: benchmarks.reduce((sum, b) => sum + b.beta, 0) / len,
+      avgSharpe: benchmarks.reduce((sum, b) => sum + b.sharpeRatio, 0) / len,
+      avgVolatility: benchmarks.reduce((sum, b) => sum + b.volatility, 0) / len,
     }
   }, [benchmarks])
 
   return {
     benchmarks,
-    isLoading: loading,
+    isLoading,
     isError: !!error,
-    error: error ?? null,
+    error,
     stats,
+    refetch: load,
   }
 }
 
 export function useCreateBenchmark() {
-  const [createBenchmark, { loading }] = useMutation(CREATE_BENCHMARK, {
-    refetchQueries: [{ query: GET_BENCHMARKS }],
-  })
+  const [isPending, startTransition] = useTransition()
 
   const mutate = useCallback(
-    (input: CreateBenchmarkInput) =>
-      createBenchmark({ variables: { input } }),
-    [createBenchmark]
+    (input: CreateBenchmarkInput, options?: { onSuccess?: () => void }) => {
+      return new Promise<void>((resolve) => {
+        startTransition(async () => {
+          await createBenchmark(input)
+          options?.onSuccess?.()
+          resolve()
+        })
+      })
+    },
+    []
   )
 
-  return { mutate, isPending: loading }
+  return { mutate, isPending }
 }
 
 export function useUpdateBenchmark() {
-  const [updateBenchmark, { loading }] = useMutation(UPDATE_BENCHMARK, {
-    refetchQueries: [{ query: GET_BENCHMARKS }],
-  })
+  const [isPending, startTransition] = useTransition()
 
   const mutate = useCallback(
-    ({ id, input }: { id: string; input: UpdateBenchmarkInput }) =>
-      updateBenchmark({ variables: { id, input } }),
-    [updateBenchmark]
+    ({ id, input }: { id: string; input: UpdateBenchmarkInput }, options?: { onSuccess?: () => void }) => {
+      return new Promise<void>((resolve) => {
+        startTransition(async () => {
+          await updateBenchmark(id, input)
+          options?.onSuccess?.()
+          resolve()
+        })
+      })
+    },
+    []
   )
 
-  return { mutate, isPending: loading }
+  return { mutate, isPending }
 }
 
 export function useDeleteBenchmark() {
-  const [deleteBenchmark, { loading }] = useMutation(DELETE_BENCHMARK, {
-    refetchQueries: [{ query: GET_BENCHMARKS }],
-  })
+  const [isPending, startTransition] = useTransition()
 
   const mutate = useCallback(
     (id: string, options?: { onSuccess?: () => void }) => {
-      deleteBenchmark({ variables: { id } }).then(() => {
+      startTransition(async () => {
+        await deleteBenchmark(id)
         options?.onSuccess?.()
       })
     },
-    [deleteBenchmark]
+    []
   )
 
-  return { mutate, isPending: loading }
+  return { mutate, isPending }
 }

@@ -1,56 +1,19 @@
-/**
- * React hooks for insurance policy CRUD operations.
- * Connects the insurance page to the GraphQL API via Apollo Client.
- */
-
 "use client"
 
-import { useMemo, useCallback } from "react"
-import { useQuery, useMutation } from "@apollo/client/react"
+import { useState, useEffect, useTransition, useMemo, useCallback } from "react"
 import {
-  GET_INSURANCE_POLICIES,
-  CREATE_INSURANCE_POLICY,
-  UPDATE_INSURANCE_POLICY,
-  DELETE_INSURANCE_POLICY,
-} from "@/lib/graphql/operations/insurance-policy"
+  getInsurancePolicies,
+  createInsurancePolicy,
+  updateInsurancePolicy,
+  deleteInsurancePolicy,
+} from "@/lib/actions/insurance-policy.actions"
+import type { InsurancePolicyRecord } from "@/lib/types"
 import type {
   CreateInsurancePolicyInput,
   UpdateInsurancePolicyInput,
 } from "@/lib/validations/insurance-policy.schema"
 
-// ─── TYPES ────────────────────────────────────────────────────────────────────
-
-export interface InsurancePolicyRecord {
-  id: string
-  orgId: string
-  clientId: string | null
-  name: string
-  policyType:
-    | "home"
-    | "auto"
-    | "life"
-    | "umbrella"
-    | "liability"
-    | "health"
-    | "business"
-    | "property"
-  status: "active" | "expiring" | "expired" | "pending"
-  provider: string
-  policyNumber: string
-  coverageAmount: number
-  deductible: number
-  premium: number
-  premiumFrequency: "monthly" | "quarterly" | "annual"
-  effectiveDate: string
-  expirationDate: string
-  coveredAssets: string[] | null
-  beneficiaries: string[] | null
-  agent: { name: string; phone: string; email: string } | null
-  notes: string | null
-  metadata: Record<string, unknown> | null
-  createdAt: string
-  updatedAt: string
-}
+export type { InsurancePolicyRecord }
 
 export interface InsurancePolicyStats {
   total: number
@@ -61,114 +24,108 @@ export interface InsurancePolicyStats {
   expired: number
 }
 
-interface GetInsurancePoliciesData {
-  insurancePolicies: {
-    items: InsurancePolicyRecord[]
-    totalCount: number
-    page: number
-    limit: number
-  }
-}
-
-// ─── HELPERS ──────────────────────────────────────────────────────────────────
-
-/** Annualize a premium based on its frequency. */
 function annualizePremium(premium: number, frequency: string): number {
   switch (frequency) {
-    case "monthly":
-      return premium * 12
-    case "quarterly":
-      return premium * 4
-    default:
-      return premium
+    case "monthly": return premium * 12
+    case "quarterly": return premium * 4
+    default: return premium
   }
 }
-
-// ─── HOOKS ────────────────────────────────────────────────────────────────────
 
 export function useInsurancePolicies(params?: {
   clientId?: string
   status?: string
   policyType?: string
 }) {
-  const variables: Record<string, unknown> = {}
-  if (params?.clientId) variables.clientId = params.clientId
-  if (params?.status) variables.status = params.status
-  if (params?.policyType) variables.policyType = params.policyType
+  const [policies, setPolicies] = useState<InsurancePolicyRecord[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<Error | null>(null)
 
-  const { data, loading, error } = useQuery<GetInsurancePoliciesData>(
-    GET_INSURANCE_POLICIES,
-    { variables }
-  )
-
-  const policies = data?.insurancePolicies?.items ?? []
-
-  const stats = useMemo<InsurancePolicyStats>(() => {
-    return {
-      total: policies.length,
-      totalCoverage: policies.reduce((sum, p) => sum + p.coverageAmount, 0),
-      totalAnnualPremium: policies.reduce(
-        (sum, p) => sum + annualizePremium(p.premium, p.premiumFrequency),
-        0
-      ),
-      active: policies.filter((p) => p.status === "active").length,
-      expiring: policies.filter((p) => p.status === "expiring").length,
-      expired: policies.filter((p) => p.status === "expired").length,
+  const load = useCallback(async () => {
+    setIsLoading(true)
+    setError(null)
+    try {
+      const result = await getInsurancePolicies(params)
+      setPolicies(result.items)
+    } catch (e) {
+      setError(e as Error)
+    } finally {
+      setIsLoading(false)
     }
-  }, [policies])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params?.clientId, params?.status, params?.policyType])
+
+  useEffect(() => { load() }, [load])
+
+  const stats = useMemo<InsurancePolicyStats>(() => ({
+    total: policies.length,
+    totalCoverage: policies.reduce((sum, p) => sum + p.coverageAmount, 0),
+    totalAnnualPremium: policies.reduce((sum, p) => sum + annualizePremium(p.premium, p.premiumFrequency), 0),
+    active: policies.filter((p) => p.status === "active").length,
+    expiring: policies.filter((p) => p.status === "expiring").length,
+    expired: policies.filter((p) => p.status === "expired").length,
+  }), [policies])
 
   return {
     policies,
-    isLoading: loading,
+    isLoading,
     isError: !!error,
-    error: error ?? null,
+    error,
     stats,
+    refetch: load,
   }
 }
 
 export function useCreateInsurancePolicy() {
-  const [createPolicy, { loading }] = useMutation(CREATE_INSURANCE_POLICY, {
-    refetchQueries: [{ query: GET_INSURANCE_POLICIES }],
-  })
+  const [isPending, startTransition] = useTransition()
 
   const mutate = useCallback(
-    (input: CreateInsurancePolicyInput) => {
-      return createPolicy({ variables: { input } })
+    (input: CreateInsurancePolicyInput, options?: { onSuccess?: () => void }) => {
+      return new Promise<void>((resolve) => {
+        startTransition(async () => {
+          await createInsurancePolicy(input)
+          options?.onSuccess?.()
+          resolve()
+        })
+      })
     },
-    [createPolicy]
+    []
   )
 
-  return { mutate, isPending: loading }
+  return { mutate, isPending }
 }
 
 export function useUpdateInsurancePolicy() {
-  const [updatePolicy, { loading }] = useMutation(UPDATE_INSURANCE_POLICY, {
-    refetchQueries: [{ query: GET_INSURANCE_POLICIES }],
-  })
+  const [isPending, startTransition] = useTransition()
 
   const mutate = useCallback(
-    ({ id, input }: { id: string; input: UpdateInsurancePolicyInput }) => {
-      return updatePolicy({ variables: { id, input } })
+    ({ id, input }: { id: string; input: UpdateInsurancePolicyInput }, options?: { onSuccess?: () => void }) => {
+      return new Promise<void>((resolve) => {
+        startTransition(async () => {
+          await updateInsurancePolicy(id, input)
+          options?.onSuccess?.()
+          resolve()
+        })
+      })
     },
-    [updatePolicy]
+    []
   )
 
-  return { mutate, isPending: loading }
+  return { mutate, isPending }
 }
 
 export function useDeleteInsurancePolicy() {
-  const [deletePolicy, { loading }] = useMutation(DELETE_INSURANCE_POLICY, {
-    refetchQueries: [{ query: GET_INSURANCE_POLICIES }],
-  })
+  const [isPending, startTransition] = useTransition()
 
   const mutate = useCallback(
     (id: string, options?: { onSuccess?: () => void }) => {
-      deletePolicy({ variables: { id } }).then(() => {
+      startTransition(async () => {
+        await deleteInsurancePolicy(id)
         options?.onSuccess?.()
       })
     },
-    [deletePolicy]
+    []
   )
 
-  return { mutate, isPending: loading }
+  return { mutate, isPending }
 }

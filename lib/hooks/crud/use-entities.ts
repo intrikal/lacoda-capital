@@ -1,48 +1,38 @@
 "use client"
 
-import { useMemo, useCallback } from "react"
-import { useQuery, useMutation } from "@apollo/client/react"
+import { useState, useEffect, useTransition, useMemo, useCallback } from "react"
 import {
-  GET_ENTITIES,
-  CREATE_ENTITY,
-  UPDATE_ENTITY,
-  DELETE_ENTITY,
-} from "@/lib/graphql/operations/entity"
+  getEntities,
+  createEntity,
+  updateEntity,
+  deleteEntity,
+} from "@/lib/actions/entity.actions"
+import type { EntityRecord } from "@/lib/types"
 import type { CreateEntityInput, UpdateEntityInput } from "@/lib/validations/entity.schema"
 
-interface EntityRecord {
-  id: string
-  clientId: string
-  name: string
-  entityType: string
-  jurisdiction: string | null
-  formationDate: string | null
-  taxId: string | null
-  assetCount: number
-  totalValue: number
-  createdAt: string
-  updatedAt: string
-}
-
-interface GetEntitiesData {
-  entities: { items: EntityRecord[]; totalCount: number; page: number; limit: number }
-}
-
 export function useEntities(params?: { search?: string; clientId?: string; entityType?: string }) {
-  const variables: Record<string, unknown> = {}
-  if (params?.search) variables.search = params.search
-  if (params?.clientId) variables.clientId = params.clientId
-  if (params?.entityType && params.entityType !== "all") variables.entityType = params.entityType
+  const [entities, setEntities] = useState<EntityRecord[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<Error | null>(null)
 
-  const { data, loading, error } = useQuery<GetEntitiesData>(GET_ENTITIES, { variables })
+  const load = useCallback(async () => {
+    setIsLoading(true)
+    setError(null)
+    try {
+      const result = await getEntities({ clientId: params?.clientId })
+      setEntities(result.items)
+    } catch (e) {
+      setError(e as Error)
+    } finally {
+      setIsLoading(false)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params?.clientId, params?.entityType])
 
-  const entities = data?.entities?.items ?? []
+  useEffect(() => { load() }, [load])
 
   const stats = useMemo(() => {
-    const totalValue = entities.reduce(
-      (sum, e) => sum + (e.totalValue ?? 0),
-      0
-    )
+    const totalValue = entities.reduce((sum, e) => sum + (e.totalValue ?? 0), 0)
     return {
       total: entities.length,
       active: entities.length,
@@ -60,56 +50,58 @@ export function useEntities(params?: { search?: string; clientId?: string; entit
 
   return {
     entities,
-    isLoading: loading,
+    isLoading,
     isError: !!error,
-    error: error ?? null,
+    error,
     stats,
+    refetch: load,
   }
 }
 
 export function useCreateEntity() {
-  const [createEntity, { loading }] = useMutation(CREATE_ENTITY, {
-    refetchQueries: [{ query: GET_ENTITIES }],
-  })
+  const [isPending, startTransition] = useTransition()
 
   const mutate = useCallback(
-    (input: CreateEntityInput) => {
-      createEntity({ variables: { input } })
-    },
-    [createEntity]
-  )
-
-  return { mutate, isPending: loading }
-}
-
-export function useUpdateEntity() {
-  const [updateEntity, { loading }] = useMutation(UPDATE_ENTITY, {
-    refetchQueries: [{ query: GET_ENTITIES }],
-  })
-
-  const mutate = useCallback(
-    ({ id, input }: { id: string; input: UpdateEntityInput }) => {
-      updateEntity({ variables: { id, input } })
-    },
-    [updateEntity]
-  )
-
-  return { mutate, isPending: loading }
-}
-
-export function useDeleteEntity() {
-  const [deleteEntity, { loading }] = useMutation(DELETE_ENTITY, {
-    refetchQueries: [{ query: GET_ENTITIES }],
-  })
-
-  const mutate = useCallback(
-    (id: string, options?: { onSuccess?: () => void }) => {
-      deleteEntity({ variables: { id } }).then(() => {
+    (input: CreateEntityInput, options?: { onSuccess?: () => void }) => {
+      startTransition(async () => {
+        await createEntity(input)
         options?.onSuccess?.()
       })
     },
-    [deleteEntity]
+    []
   )
 
-  return { mutate, isPending: loading }
+  return { mutate, isPending }
+}
+
+export function useUpdateEntity() {
+  const [isPending, startTransition] = useTransition()
+
+  const mutate = useCallback(
+    ({ id, input }: { id: string; input: UpdateEntityInput }, options?: { onSuccess?: () => void }) => {
+      startTransition(async () => {
+        await updateEntity(id, input)
+        options?.onSuccess?.()
+      })
+    },
+    []
+  )
+
+  return { mutate, isPending }
+}
+
+export function useDeleteEntity() {
+  const [isPending, startTransition] = useTransition()
+
+  const mutate = useCallback(
+    (id: string, options?: { onSuccess?: () => void }) => {
+      startTransition(async () => {
+        await deleteEntity(id)
+        options?.onSuccess?.()
+      })
+    },
+    []
+  )
+
+  return { mutate, isPending }
 }
