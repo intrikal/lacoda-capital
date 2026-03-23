@@ -28,7 +28,7 @@
 
 import * as React from "react"
 import { getBeneficiaries } from "@/lib/services/beneficiaries.service"
-import type { Beneficiary, BeneficiaryDesignation } from "@/lib/mock/types"
+import type { Beneficiary, BeneficiaryDesignation } from "@/lib/types/mock"
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Input shape for creating / editing a beneficiary

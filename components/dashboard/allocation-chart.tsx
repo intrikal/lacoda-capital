@@ -11,20 +11,23 @@ import {
 } from "recharts"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { formatCurrency } from "@/lib/utils"
-import { mockAllocationData } from "@/lib/mock/data"
 
-export function AllocationChart() {
-  const total = mockAllocationData.reduce((sum, item) => sum + item.value, 0)
+interface AllocationChartProps {
+  data?: { name: string; value: number; color: string }[]
+}
+
+export function AllocationChart({ data = [] }: AllocationChartProps) {
+  const total = data.reduce((sum, item) => sum + item.value, 0)
 
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
-      const data = payload[0].payload
+      const d = payload[0].payload
       return (
         <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-3 shadow-lg">
-          <p className="font-medium text-zinc-100">{data.name}</p>
-          <p className="text-teal-400">{formatCurrency(data.value)}</p>
+          <p className="font-medium text-zinc-100">{d.name}</p>
+          <p className="text-teal-400">{formatCurrency(d.value)}</p>
           <p className="text-sm text-zinc-500">
-            {((data.value / total) * 100).toFixed(1)}% of portfolio
+            {((d.value / total) * 100).toFixed(1)}% of portfolio
           </p>
         </div>
       )
@@ -60,7 +63,7 @@ export function AllocationChart() {
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
-                data={mockAllocationData}
+                data={data}
                 cx="50%"
                 cy="45%"
                 innerRadius={60}
@@ -68,7 +71,7 @@ export function AllocationChart() {
                 paddingAngle={2}
                 dataKey="value"
               >
-                {mockAllocationData.map((entry, index) => (
+                {data.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}
               </Pie>

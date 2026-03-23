@@ -23,7 +23,7 @@
 
 import * as React from "react"
 import { getClientTransfers } from "@/lib/services/transfers.service"
-import type { ClientTransfer, ClientTransferType, ClientTransferStatus } from "@/lib/mock/types"
+import type { ClientTransfer, ClientTransferType, ClientTransferStatus } from "@/lib/types/mock"
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Input shape for creating a new transfer

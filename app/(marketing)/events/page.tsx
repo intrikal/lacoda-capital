@@ -31,13 +31,13 @@ import {
   eventTypeColors,
 } from "@/lib/sanity/types"
 import { getAllEvents } from "@/lib/sanity/fetch"
-import { mockEvents } from "@/lib/mock/events"
+import { fallbackEvents } from "@/lib/config/events"
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Convert mock data to Sanity format for fallback
 // ─────────────────────────────────────────────────────────────────────────────
 
-function convertMockToSanity(mock: typeof mockEvents): SanityEvent[] {
+function convertMockToSanity(mock: typeof fallbackEvents): SanityEvent[] {
   return mock.map((event) => ({
     _id: event.id,
     title: event.title,
@@ -393,12 +393,12 @@ export default function EventsPage() {
           setEvents(sanityEvents)
         } else {
           // Fall back to mock data
-          setEvents(convertMockToSanity(mockEvents))
+          setEvents(convertMockToSanity(fallbackEvents))
         }
       } catch (error) {
         console.error("Error fetching events:", error)
         // Fall back to mock data on error
-        setEvents(convertMockToSanity(mockEvents))
+        setEvents(convertMockToSanity(fallbackEvents))
       } finally {
         setLoading(false)
       }

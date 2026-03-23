@@ -1,32 +1,68 @@
+"use server"
+
 // ─────────────────────────────────────────────────────────────────────────────
 // CALENDAR SERVICE
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { mockCalendarEvents } from "@/lib/mock/data"
-import type { CalendarEvent, CalendarEventType } from "@/lib/mock/types"
+import { db } from "@/app/db"
+import { calendarEvents } from "@/app/db/schema"
+import { asc, and, gte, lte, eq, isNull } from "drizzle-orm"
+import type { CalendarEvent, CalendarEventType } from "@/lib/types/mock"
+
+/** Map a DB calendar_events row to the CalendarEvent mock type shape. */
+function toCalendarEvent(row: typeof calendarEvents.$inferSelect): CalendarEvent {
+  return {
+    id: row.id,
+    title: row.title,
+    type: row.type as CalendarEventType,
+    date: row.date,
+    time: row.time ?? undefined,
+    endTime: row.endTime ?? undefined,
+    location: row.location ?? undefined,
+    amount: row.amount ?? undefined,
+    description: row.description ?? undefined,
+    attendees: (row.attendees as string[]) ?? undefined,
+    reminder: row.reminder,
+  }
+}
 
 export async function getCalendarEvents(): Promise<CalendarEvent[]> {
-  // REAL: return db.query.calendarEvents.findMany({ orderBy: asc(events.date) })
-  return mockCalendarEvents
+  const rows = await db
+    .select()
+    .from(calendarEvents)
+    .where(isNull(calendarEvents.deletedAt))
+    .orderBy(asc(calendarEvents.date))
+  return rows.map(toCalendarEvent)
 }
 
 export async function getCalendarEventsByType(type: CalendarEventType): Promise<CalendarEvent[]> {
-  // REAL: return db.query.calendarEvents.findMany({ where: eq(events.type, type) })
-  return mockCalendarEvents.filter((e) => e.type === type)
+  const rows = await db
+    .select()
+    .from(calendarEvents)
+    .where(and(eq(calendarEvents.type, type), isNull(calendarEvents.deletedAt)))
+    .orderBy(asc(calendarEvents.date))
+  return rows.map(toCalendarEvent)
 }
 
 export async function getUpcomingEvents(days = 7): Promise<CalendarEvent[]> {
   const now = new Date()
   const cutoff = new Date()
   cutoff.setDate(cutoff.getDate() + days)
-  // REAL: return db.query.calendarEvents.findMany({
-  //         where: and(gte(events.date, now), lte(events.date, cutoff)),
-  //         orderBy: asc(events.date),
-  //       })
-  return mockCalendarEvents.filter((e) => {
-    const d = new Date(e.date)
-    return d >= now && d <= cutoff
-  })
+  const nowStr = now.toISOString().split("T")[0]
+  const cutoffStr = cutoff.toISOString().split("T")[0]
+  // date is stored as text "YYYY-MM-DD" — use string comparison
+  const rows = await db
+    .select()
+    .from(calendarEvents)
+    .where(
+      and(
+        gte(calendarEvents.date, nowStr),
+        lte(calendarEvents.date, cutoffStr),
+        isNull(calendarEvents.deletedAt),
+      ),
+    )
+    .orderBy(asc(calendarEvents.date))
+  return rows.map(toCalendarEvent)
 }
 
 export async function getCalendarSummary() {

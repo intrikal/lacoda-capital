@@ -66,7 +66,7 @@ import { cn } from "@/lib/utils"
 import { useReducedMotion } from "@/lib/hooks/use-reduced-motion"
 import { useClientBeneficiaries } from "@/lib/hooks/crud/use-client-beneficiaries"
 import { BeneficiaryFormDialog } from "@/components/forms/beneficiary-form-dialog"
-import type { Beneficiary } from "@/lib/mock/types"
+import type { Beneficiary } from "@/lib/types/mock"
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Static display config (not data)

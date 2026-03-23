@@ -3,7 +3,7 @@
 import { useCallback, useMemo } from "react"
 import { useCrudState } from "./use-crud-state"
 import { getUsers } from "@/lib/services/users.service"
-import type { User } from "@/lib/mock/types"
+import type { User } from "@/lib/types/mock"
 
 function generateId(): string {
   return `user-${crypto.randomUUID().slice(0, 8)}`

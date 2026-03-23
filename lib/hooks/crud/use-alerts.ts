@@ -3,7 +3,7 @@
 import { useCallback, useMemo } from "react"
 import { useCrudState } from "./use-crud-state"
 import { getAlerts } from "@/lib/services/alerts.service"
-import type { Alert } from "@/lib/mock/types"
+import type { Alert } from "@/lib/types/mock"
 
 export function useAlerts() {
   const { data, isLoading, update, remove, getById } = useCrudState<Alert>(getAlerts)

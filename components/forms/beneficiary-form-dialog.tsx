@@ -53,7 +53,7 @@ import {
 } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import type { CreateBeneficiaryInput } from "@/lib/hooks/crud/use-client-beneficiaries"
-import type { Beneficiary, BeneficiaryDesignation } from "@/lib/mock/types"
+import type { Beneficiary, BeneficiaryDesignation } from "@/lib/types/mock"
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants

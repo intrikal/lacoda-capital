@@ -15,8 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { mockRecentActivity } from "@/lib/mock/data"
-import type { LedgerActionType } from "@/lib/mock/types"
+import type { LedgerActionType, ActivityItem } from "@/lib/types/mock"
 import type { LucideIcon } from "lucide-react"
 
 const actionIcons: Record<LedgerActionType, LucideIcon> = {
@@ -51,7 +50,11 @@ const actionColors: Record<LedgerActionType, string> = {
   compliance_check: "text-teal-400",
 }
 
-export function ActivityFeed() {
+interface ActivityFeedProps {
+  activities?: ActivityItem[]
+}
+
+export function ActivityFeed({ activities = [] }: ActivityFeedProps) {
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -59,7 +62,7 @@ export function ActivityFeed() {
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          {mockRecentActivity.map((activity, index) => {
+          {activities.map((activity, index) => {
             const Icon = actionIcons[activity.type] || FileText
             const color = actionColors[activity.type] || "text-zinc-400"
 
@@ -68,7 +71,7 @@ export function ActivityFeed() {
                 key={activity.id}
                 className={cn(
                   "flex items-start gap-3",
-                  index !== mockRecentActivity.length - 1 &&
+                  index !== activities.length - 1 &&
                     "pb-4 border-b border-zinc-800"
                 )}
               >

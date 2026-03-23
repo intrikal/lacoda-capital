@@ -7,9 +7,9 @@ import { useSpring, animated, config } from "@react-spring/three"
 import * as THREE from "three"
 import { cn } from "@/lib/utils"
 import { useReducedMotion } from "@/lib/hooks/use-reduced-motion"
-import { mockConstellationNodes, assetClassConfig } from "@/lib/mock/data"
+import { assetClassConfig } from "@/lib/config/asset-classes"
 import { formatCurrency } from "@/lib/utils"
-import type { ConstellationNode as ConstellationNodeType } from "@/lib/mock/types"
+import type { ConstellationNode as ConstellationNodeType } from "@/lib/types/mock"
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constellation Node Component
@@ -227,7 +227,7 @@ function Scene({ onNodeSelect, reducedMotion }: SceneProps) {
   // Build connection lookup
   const nodePositions = React.useMemo(() => {
     const map: Record<string, [number, number, number]> = {}
-    mockConstellationNodes.forEach((node) => {
+    nodes.forEach((node) => {
       map[node.id] = node.position
     })
     return map
@@ -243,7 +243,7 @@ function Scene({ onNodeSelect, reducedMotion }: SceneProps) {
       <pointLight position={[-10, -10, -5]} intensity={0.3} color="#06b6d4" />
 
       {/* Connection lines */}
-      {mockConstellationNodes.map((node) =>
+      {nodes.map((node) =>
         node.connections.map((connectionId) => {
           const targetPos = nodePositions[connectionId]
           if (!targetPos) return null
@@ -263,7 +263,7 @@ function Scene({ onNodeSelect, reducedMotion }: SceneProps) {
       )}
 
       {/* Nodes */}
-      {mockConstellationNodes.map((node) => (
+      {nodes.map((node) => (
         <ConstellationNode
           key={node.id}
           node={node}
@@ -287,11 +287,13 @@ function Scene({ onNodeSelect, reducedMotion }: SceneProps) {
 
 interface AssetConstellationProps {
   className?: string
+  nodes?: ConstellationNodeType[]
   onNodeSelect?: (node: ConstellationNodeType | null) => void
 }
 
 export function AssetConstellation({
   className,
+  nodes = [],
   onNodeSelect,
 }: AssetConstellationProps) {
   const reducedMotion = useReducedMotion()

@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { cn } from "@/lib/utils"
-import { mockTasks } from "@/lib/mock/data"
+import type { Task } from "@/lib/types/mock"
 
 const priorityConfig = {
   high: { label: "High", color: "text-red-400", bg: "bg-red-400/10" },
@@ -16,8 +16,12 @@ const priorityConfig = {
   low: { label: "Low", color: "text-blue-400", bg: "bg-blue-400/10" },
 }
 
-export function TasksPanel() {
-  const pendingTasks = mockTasks
+interface TasksPanelProps {
+  tasks?: Task[]
+}
+
+export function TasksPanel({ tasks = [] }: TasksPanelProps) {
+  const pendingTasks = tasks
     .filter((t) => t.status !== "completed")
     .slice(0, 4)
 

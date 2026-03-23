@@ -1,31 +1,51 @@
+"use server"
+
 // ─────────────────────────────────────────────────────────────────────────────
 // LEDGER SERVICE
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { mockLedgerEntries } from "@/lib/mock/data"
-import type { LedgerEntry, LedgerActionType } from "@/lib/mock/types"
+import { db } from "@/app/db"
+import { ledgerEvents } from "@/app/db/schema"
+import { eq, desc } from "drizzle-orm"
+import type { LedgerEntry, LedgerActionType } from "@/lib/types/mock"
+
+/** Map a DB ledger_events row to the LedgerEntry mock type shape. */
+function toLedgerEntry(row: typeof ledgerEvents.$inferSelect): LedgerEntry {
+  return {
+    id: row.id,
+    timestamp: row.createdAt.toISOString(),
+    action: row.action as LedgerActionType,
+    user: row.actorUserId ?? "system",
+    entity: row.targetId,
+    entityType: row.targetType as LedgerEntry["entityType"],
+    details: (row.payload as Record<string, unknown>)?.details as string ?? "",
+    isSensitive: ((row.payload as Record<string, unknown>)?.isSensitive as boolean) ?? false,
+    ipAddress: row.ipAddress ?? "",
+  }
+}
 
 export async function getLedgerEntries(): Promise<LedgerEntry[]> {
-  // REAL: return db.query.ledgerEvents.findMany({ orderBy: desc(ledgerEvents.timestamp) })
-  return mockLedgerEntries
+  const rows = await db.select().from(ledgerEvents).orderBy(desc(ledgerEvents.createdAt))
+  return rows.map(toLedgerEntry)
 }
 
 export async function getLedgerEntryById(id: string): Promise<LedgerEntry | undefined> {
-  // REAL: return db.query.ledgerEvents.findFirst({ where: eq(ledgerEvents.id, id) })
-  return mockLedgerEntries.find((e) => e.id === id)
+  const rows = await db.select().from(ledgerEvents).where(eq(ledgerEvents.id, id))
+  return rows[0] ? toLedgerEntry(rows[0]) : undefined
 }
 
 export async function getLedgerEntriesByAction(action: LedgerActionType): Promise<LedgerEntry[]> {
-  // REAL: return db.query.ledgerEvents.findMany({ where: eq(ledgerEvents.action, action) })
-  return mockLedgerEntries.filter((e) => e.action === action)
+  const rows = await db.select().from(ledgerEvents).where(eq(ledgerEvents.action, action))
+  return rows.map(toLedgerEntry)
 }
 
 export async function getLedgerEntriesByUser(user: string): Promise<LedgerEntry[]> {
-  // REAL: return db.query.ledgerEvents.findMany({ where: eq(ledgerEvents.actorUserId, userId) })
-  return mockLedgerEntries.filter((e) => e.user === user)
+  const rows = await db.select().from(ledgerEvents).where(eq(ledgerEvents.actorUserId, user))
+  return rows.map(toLedgerEntry)
 }
 
 export async function getSensitiveLedgerEntries(): Promise<LedgerEntry[]> {
-  // REAL: return db.query.ledgerEvents.findMany({ where: eq(ledgerEvents.isSensitive, true) })
-  return mockLedgerEntries.filter((e) => e.isSensitive)
+  // isSensitive is stored inside the payload JSONB — filter in application layer
+  const rows = await db.select().from(ledgerEvents).orderBy(desc(ledgerEvents.createdAt))
+  return rows.map(toLedgerEntry).filter((e) => e.isSensitive)
 }
