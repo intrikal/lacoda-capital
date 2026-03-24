@@ -42,7 +42,7 @@ export async function getInsurancePolicy(id: string): Promise<InsurancePolicyRec
 }
 
 export async function createInsurancePolicy(input: unknown): Promise<InsurancePolicyRecord> {
-  const session = await requireRole(["admin", "assistant"])
+  const session = await requireRole("assistant")
   const parsed = createInsurancePolicySchema.parse(input)
 
   const [created] = await db
@@ -58,7 +58,7 @@ export async function createInsurancePolicy(input: unknown): Promise<InsurancePo
 }
 
 export async function updateInsurancePolicy(id: string, input: unknown): Promise<InsurancePolicyRecord> {
-  const session = await requireRole(["admin", "assistant"])
+  const session = await requireRole("assistant")
   const existing = await db.query.insurancePolicies.findFirst({
     where: and(eq(insurancePolicies.id, id), eq(insurancePolicies.orgId, session.orgId!)),
   })
@@ -81,7 +81,7 @@ export async function updateInsurancePolicy(id: string, input: unknown): Promise
 }
 
 export async function deleteInsurancePolicy(id: string): Promise<boolean> {
-  const session = await requireRole(["admin"])
+  const session = await requireRole("admin")
   const existing = await db.query.insurancePolicies.findFirst({
     where: and(eq(insurancePolicies.id, id), eq(insurancePolicies.orgId, session.orgId!)),
   })

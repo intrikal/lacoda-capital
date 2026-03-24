@@ -35,7 +35,7 @@ export async function getLedgerEntryById(id: string): Promise<LedgerEntry | unde
 }
 
 export async function getLedgerEntriesByAction(action: LedgerActionType): Promise<LedgerEntry[]> {
-  const rows = await db.select().from(ledgerEvents).where(eq(ledgerEvents.action, action))
+  const rows = await db.select().from(ledgerEvents).where(eq(ledgerEvents.action, action as typeof ledgerEvents.action.enumValues[number]))
   return rows.map(toLedgerEntry)
 }
 

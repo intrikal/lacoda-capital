@@ -78,7 +78,7 @@ export async function getClient(id: string): Promise<ClientRecord | null> {
 }
 
 export async function createClient(input: unknown): Promise<ClientRecord> {
-  const session = await requireRole(["admin", "assistant"])
+  const session = await requireRole("assistant")
   const parsed = createClientSchema.parse(input)
   const { clientType, clientStatus, ...rest } = parsed
 
@@ -103,7 +103,7 @@ export async function createClient(input: unknown): Promise<ClientRecord> {
 }
 
 export async function updateClient(id: string, input: unknown): Promise<ClientRecord> {
-  const session = await requireRole(["admin", "assistant"])
+  const session = await requireRole("assistant")
   const existing = await db.query.clients.findFirst({
     where: and(eq(clients.id, id), eq(clients.orgId, session.orgId!)),
   })
@@ -143,8 +143,68 @@ export async function updateClient(id: string, input: unknown): Promise<ClientRe
   } as unknown as ClientRecord
 }
 
+export async function archiveClient(id: string): Promise<ClientRecord> {
+  const session = await requireRole("assistant")
+  const existing = await db.query.clients.findFirst({
+    where: and(eq(clients.id, id), eq(clients.orgId, session.orgId!)),
+  })
+  if (!existing) throw new Error("Not found")
+
+  const existingProfile = (existing.profile ?? {}) as Record<string, unknown>
+  const [updated] = await db
+    .update(clients)
+    .set({ profile: { ...existingProfile, clientStatus: "inactive" } })
+    .where(eq(clients.id, id))
+    .returning()
+
+  const profile = (updated.profile ?? {}) as Record<string, unknown>
+  return {
+    ...updated,
+    clientType: (profile.clientType as string) ?? "individual",
+    clientStatus: "inactive",
+    entityCount: 0,
+    assetCount: 0,
+    totalAUM: null,
+  } as unknown as ClientRecord
+}
+
+export async function getClientWithEntities(id: string) {
+  const session = await requireAuth()
+  const client = await db.query.clients.findFirst({
+    where: and(eq(clients.id, id), eq(clients.orgId, session.orgId!)),
+  })
+  if (!client) return null
+
+  const clientEntities = await db
+    .select({
+      id: entities.id,
+      name: entities.name,
+      entityType: entities.entityType,
+      assetCount: sql<number>`(SELECT COUNT(*) FROM assets WHERE assets.entity_id = ${entities.id} AND assets.status = 'active')`,
+      totalValue: sql<string>`COALESCE((SELECT SUM(current_value) FROM assets WHERE assets.entity_id = ${entities.id} AND assets.status = 'active'), 0)`,
+    })
+    .from(entities)
+    .where(eq(entities.clientId, id))
+
+  const profile = (client.profile ?? {}) as Record<string, unknown>
+  const totalAUM = clientEntities.reduce((sum, e) => sum + parseFloat(e.totalValue || "0"), 0)
+
+  return {
+    ...client,
+    clientType: (profile.clientType as string) ?? "individual",
+    clientStatus: (profile.clientStatus as string) ?? "prospect",
+    entityCount: clientEntities.length,
+    assetCount: clientEntities.reduce((sum, e) => sum + Number(e.assetCount), 0),
+    totalAUM,
+    entities: clientEntities.map((e) => ({
+      ...e,
+      totalValue: parseFloat(e.totalValue || "0"),
+    })),
+  }
+}
+
 export async function deleteClient(id: string): Promise<boolean> {
-  const session = await requireRole(["admin"])
+  const session = await requireRole("admin")
   const existing = await db.query.clients.findFirst({
     where: and(eq(clients.id, id), eq(clients.orgId, session.orgId!)),
   })

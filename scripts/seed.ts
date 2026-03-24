@@ -280,7 +280,7 @@ async function seed() {
     // Collectibles (1)
     { id: ASSET_IDS[19], entityId: ENT_BLACKWOOD_TRUST, name: "Basquiat - Untitled 1982 Print", assetClass: "collectibles" as const, acquisitionCost: "800000.00", currentValue: "1100000.00", valuedAt: daysAgo(180) },
   ]
-  await db.insert(schema.assets).values(assetRows)
+  await db.insert(schema.assets).values(assetRows as typeof schema.assets.$inferInsert[])
 
   // ── 7. Valuations (60 = 3 per asset, chronologically ordered) ─────────
   console.log("  Inserting valuations...")
@@ -360,7 +360,7 @@ async function seed() {
     payload: { description: `Seed event ${i + 1}`, automated: i % 3 === 0 },
     createdAt: daysAgo(50 - i), // chronological order
   }))
-  await db.insert(schema.ledgerEvents).values(ledgerRows)
+  await db.insert(schema.ledgerEvents).values(ledgerRows as typeof schema.ledgerEvents.$inferInsert[])
 
   // ── 10. Notifications (10) ────────────────────────────────────────────────
   console.log("  Inserting notifications...")

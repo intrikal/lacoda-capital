@@ -42,7 +42,7 @@ export async function getTask(id: string): Promise<TaskRecord | null> {
 }
 
 export async function createTask(input: unknown): Promise<TaskRecord> {
-  const session = await requireRole(["admin", "assistant"])
+  const session = await requireRole("assistant")
   const parsed = createTaskSchema.parse(input)
 
   const [created] = await db
@@ -60,7 +60,7 @@ export async function createTask(input: unknown): Promise<TaskRecord> {
 }
 
 export async function updateTask(id: string, input: unknown): Promise<TaskRecord> {
-  const session = await requireRole(["admin", "assistant"])
+  const session = await requireRole("assistant")
   const existing = await db.query.tasks.findFirst({
     where: and(eq(tasks.id, id), eq(tasks.orgId, session.orgId!)),
   })
@@ -90,7 +90,7 @@ export async function updateTask(id: string, input: unknown): Promise<TaskRecord
 }
 
 export async function deleteTask(id: string): Promise<boolean> {
-  const session = await requireRole(["admin"])
+  const session = await requireRole("admin")
   const existing = await db.query.tasks.findFirst({
     where: and(eq(tasks.id, id), eq(tasks.orgId, session.orgId!)),
   })

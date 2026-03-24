@@ -28,7 +28,8 @@ import {
   InvestmentReturnsChart,
   AllocationChart as AllocationPieChart,
 } from "@/components/dashboard/charts"
-import type { KPIData } from "@/lib/types/mock"
+import type { KPIData, LedgerActionType } from "@/lib/types/mock"
+import type { AllocationSlice, ActivityEvent } from "@/lib/actions/dashboard.actions"
 
 // ─── Static chart data (will be replaced with real data in a future branch) ──
 
@@ -93,6 +94,57 @@ const topPerformers = [
   { name: "Tech Growth Fund", return: 22.3, value: 428050 },
 ]
 
+// ─── Ledger → ActivityFeed mapping ────────────────────────────────────────────
+
+function mapLedgerAction(action: string): LedgerActionType {
+  const map: Record<string, LedgerActionType> = {
+    created: "asset_created",
+    updated: "asset_updated",
+    deleted: "asset_updated",
+    archived: "asset_updated",
+    document_uploaded: "document_uploaded",
+    document_verified: "document_verified",
+    document_expired: "document_expired",
+    document_downloaded: "document_uploaded",
+    asset_valued: "valuation_updated",
+    asset_transferred: "asset_sold",
+    asset_sold: "asset_sold",
+    login: "user_login",
+    logout: "user_login",
+    permission_changed: "permission_changed",
+    report_generated: "report_generated",
+    report_shared: "report_generated",
+    compliance_reviewed: "compliance_check",
+    compliance_approved: "compliance_check",
+  }
+  return map[action] ?? "asset_updated"
+}
+
+function describeAction(action: string, targetType: string): string {
+  const verbs: Record<string, string> = {
+    created: "created",
+    updated: "updated",
+    deleted: "deleted",
+    archived: "archived",
+    document_uploaded: "uploaded a document for",
+    document_verified: "verified a document for",
+    document_expired: "document expired for",
+    document_downloaded: "downloaded a document from",
+    asset_valued: "updated valuation for",
+    asset_transferred: "transferred",
+    asset_sold: "marked as sold",
+    login: "logged in",
+    logout: "logged out",
+    permission_changed: "changed permissions on",
+    report_generated: "generated a report for",
+    report_shared: "shared a report from",
+    compliance_reviewed: "reviewed compliance for",
+    compliance_approved: "approved compliance for",
+  }
+  const verb = verbs[action] ?? action.replace(/_/g, " ")
+  return `${verb} ${targetType}`
+}
+
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface DashboardOverviewClientProps {
@@ -101,6 +153,8 @@ interface DashboardOverviewClientProps {
   totalAUM: number
   assetCount: number
   kpis: KPIData[]
+  allocation?: AllocationSlice[]
+  activity?: ActivityEvent[]
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -110,18 +164,23 @@ export function DashboardOverviewClient({
   clientCount,
   totalAUM,
   kpis,
+  allocation = [],
+  activity = [],
 }: DashboardOverviewClientProps) {
   const reducedMotion = useReducedMotion()
   const today = new Date()
 
-  const portfolioAllocation = [
-    { name: "Real Estate", value: 1494000, color: "#14b8a6" },
-    { name: "Public Equities", value: 1004700, color: "#06b6d4" },
-    { name: "Private Equity", value: 664000, color: "#8b5cf6" },
-    { name: "Fixed Income", value: 420800, color: "#f59e0b" },
-    { name: "Commodities", value: 224200, color: "#10b981" },
-    { name: "Crypto", value: 137400, color: "#ec4899" },
-  ]
+  // Use real allocation data from server, fall back to static sample
+  const portfolioAllocation = allocation.length > 0
+    ? allocation
+    : [
+        { name: "Real Estate", value: 1494000, color: "#14b8a6" },
+        { name: "Public Equities", value: 1004700, color: "#06b6d4" },
+        { name: "Private Equity", value: 664000, color: "#8b5cf6" },
+        { name: "Fixed Income", value: 420800, color: "#f59e0b" },
+        { name: "Commodities", value: 224200, color: "#10b981" },
+        { name: "Crypto", value: 137400, color: "#ec4899" },
+      ]
 
   const headerSpring = useSpring({
     from: { opacity: 0, transform: "translateY(-10px)" },
@@ -352,7 +411,14 @@ export function DashboardOverviewClient({
                     <TasksPanel />
                   </TabsContent>
                   <TabsContent value="activity" className="mt-0">
-                    <ActivityFeed />
+                    <ActivityFeed activities={activity.map((e) => ({
+                      id: e.id,
+                      type: mapLedgerAction(e.action),
+                      user: e.actorName ?? "System",
+                      description: describeAction(e.action, e.targetType),
+                      entityName: (e.payload as Record<string, unknown>)?.name as string ?? e.targetType,
+                      timestamp: e.createdAt,
+                    }))} />
                   </TabsContent>
                 </CardContent>
               </Tabs>

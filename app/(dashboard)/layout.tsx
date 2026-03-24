@@ -4,8 +4,10 @@ import * as React from "react"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { Sidebar } from "@/components/dashboard/sidebar"
 import { Button } from "@/components/ui/button"
-import { Bell, Search } from "lucide-react"
+import { Search } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { NotificationBell } from "@/components/dashboard/notification-bell"
+
 export default function DashboardLayout({
   children,
 }: {
@@ -28,9 +30,7 @@ export default function DashboardLayout({
             <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-400 hover:text-zinc-100">
               <Search className="h-4 w-4" />
             </Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-400 hover:text-zinc-100">
-              <Bell className="h-4 w-4" />
-            </Button>
+            <NotificationBell />
           </div>
 
           {/* Page content */}

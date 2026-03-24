@@ -40,7 +40,7 @@ export async function getReport(id: string): Promise<ReportRecord | null> {
 }
 
 export async function createReport(input: unknown): Promise<ReportRecord> {
-  const session = await requireRole(["admin", "assistant"])
+  const session = await requireRole("assistant")
   const parsed = createReportSchema.parse(input)
 
   const [created] = await db
@@ -57,7 +57,7 @@ export async function createReport(input: unknown): Promise<ReportRecord> {
 }
 
 export async function updateReport(id: string, input: unknown): Promise<ReportRecord> {
-  const session = await requireRole(["admin", "assistant"])
+  const session = await requireRole("assistant")
   const existing = await db.query.reports.findFirst({
     where: and(eq(reports.id, id), eq(reports.orgId, session.orgId!)),
   })
@@ -75,7 +75,7 @@ export async function updateReport(id: string, input: unknown): Promise<ReportRe
 }
 
 export async function deleteReport(id: string): Promise<boolean> {
-  const session = await requireRole(["admin"])
+  const session = await requireRole("admin")
   const existing = await db.query.reports.findFirst({
     where: and(eq(reports.id, id), eq(reports.orgId, session.orgId!)),
   })

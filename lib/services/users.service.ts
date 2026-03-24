@@ -52,7 +52,7 @@ export async function getUsersByRole(role: UserRole): Promise<User[]> {
     .select({ user: users, role: orgMembers.role })
     .from(users)
     .innerJoin(orgMembers, eq(users.id, orgMembers.userId))
-    .where(eq(orgMembers.role, role))
+    .where(eq(orgMembers.role, role as typeof orgMembers.role.enumValues[number]))
   return rows.map((r) => toUser(r.user, r.role))
 }
 

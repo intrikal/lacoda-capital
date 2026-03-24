@@ -80,7 +80,7 @@ export async function getOrgMembers(params?: {
 }
 
 export async function inviteOrgMember(input: unknown): Promise<OrgMemberRecord> {
-  const session = await requireRole(["admin"])
+  const session = await requireRole("admin")
   const parsed = inviteOrgMemberSchema.parse(input)
 
   const user = await db.query.users.findFirst({ where: eq(users.email, parsed.email) })
@@ -114,7 +114,7 @@ export async function inviteOrgMember(input: unknown): Promise<OrgMemberRecord> 
 }
 
 export async function updateOrgMemberRole(id: string, input: unknown): Promise<OrgMemberRecord> {
-  const session = await requireRole(["admin"])
+  const session = await requireRole("admin")
   const parsed = updateOrgMemberRoleSchema.parse(input)
 
   const existing = await db.query.orgMembers.findFirst({
@@ -145,7 +145,7 @@ export async function updateOrgMemberRole(id: string, input: unknown): Promise<O
 }
 
 export async function removeOrgMember(id: string): Promise<boolean> {
-  const session = await requireRole(["admin"])
+  const session = await requireRole("admin")
   const existing = await db.query.orgMembers.findFirst({
     where: and(eq(orgMembers.id, id), eq(orgMembers.orgId, session.orgId!)),
   })

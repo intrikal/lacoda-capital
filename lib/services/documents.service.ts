@@ -52,7 +52,7 @@ export async function getDocumentsByClient(clientId: string): Promise<Document[]
 }
 
 export async function getDocumentsByStatus(status: DocumentStatus): Promise<Document[]> {
-  const rows = await db.select().from(documents).where(eq(documents.status, status))
+  const rows = await db.select().from(documents).where(eq(documents.status, status as typeof documents.status.enumValues[number]))
   return rows.map(toDocument)
 }
 

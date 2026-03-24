@@ -14,17 +14,9 @@ export default withSentryConfig(nextConfig, {
   org: process.env.SENTRY_ORG,
   project: process.env.SENTRY_PROJECT,
 
-  // Only upload source maps in CI (not local dev)
-  disableSourceMapUpload: !process.env.CI,
+  // Source maps and logger config moved to webpack-specific options
+  sourcemaps: {
+    disable: !process.env.CI,
+  },
 
-  // Automatically tree-shake Sentry logger statements for smaller bundle
-  disableLogger: true,
-
-  // Hides source maps from generated client bundles
-  hideSourceMaps: true,
-
-  // Automatically instrument API routes and server components
-  autoInstrumentServerFunctions: true,
-  autoInstrumentMiddleware: true,
-  autoInstrumentAppDirectory: true,
 });
