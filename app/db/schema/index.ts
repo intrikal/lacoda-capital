@@ -293,3 +293,12 @@ export type {
   NewStakeholderPortal,
   PortalVisibility,
 } from "./stakeholder_portals";
+
+// ============================================================================
+// Deletion Requests (GDPR)
+// ============================================================================
+export { deletionRequests, deletionRequestsRelations } from "./deletion_requests";
+export type {
+  DeletionRequest,
+  NewDeletionRequest,
+} from "./deletion_requests";
