@@ -308,3 +308,9 @@ export type {
 // ============================================================================
 export { aiCallLog, aiCallLogRelations } from "./ai_call_log";
 export type { AiCallLog, NewAiCallLog } from "./ai_call_log";
+
+// ============================================================================
+// Exchange Rates
+// ============================================================================
+export { exchangeRates, exchangeRatesRelations } from "./exchange_rates";
+export type { ExchangeRate, NewExchangeRate } from "./exchange_rates";
