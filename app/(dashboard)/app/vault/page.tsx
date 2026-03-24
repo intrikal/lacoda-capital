@@ -122,7 +122,7 @@ import {
 import { DocumentFormDialog } from "@/components/forms/document-form-dialog"
 import { SendForSignatureButton } from "@/components/dashboard/send-for-signature-button"
 import { createClient } from "@/utils/supabase/client"
-import { uploadDocumentSchema } from "@/lib/validations/document.schema"
+import { createDocumentSchema } from "@/lib/validations/document.schema"
 
 // ─── TYPES & CONFIG ────────────────────────────────────────────────────────
 
@@ -247,13 +247,12 @@ function UploadDocumentDialog({
 
       if (error) throw error
 
-      // Parse and call uploadDocument action
-      const validatedInput = uploadDocumentSchema.parse({
+      // Parse and call createDocument action with the storage path from the upload
+      const validatedInput = createDocumentSchema.parse({
         name: docName.trim(),
-        fileName,
+        storagePath: data.path,
         folder: folder || null,
         mimeType: file.type || null,
-        sizeBytes: file.size,
         tags: tags
           .split(",")
           .map((t) => t.trim())

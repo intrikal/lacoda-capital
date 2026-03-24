@@ -255,3 +255,19 @@ export type {
   NewTaxDeduction,
   TaxDeductionMetadata,
 } from "./tax_deductions";
+
+// ============================================================================
+// SAML Providers (SSO)
+// ============================================================================
+export { samlProviders, samlProvidersRelations } from "./saml_providers";
+export type {
+  SamlProvider,
+  NewSamlProvider,
+  SamlAttributeMapping,
+} from "./saml_providers";
+
+// ============================================================================
+// API Keys
+// ============================================================================
+export { apiKeys, apiKeysRelations } from "./api_keys";
+export type { ApiKey, NewApiKey } from "./api_keys";
