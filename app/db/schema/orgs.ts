@@ -494,6 +494,10 @@ export interface OrgSettings {
     customDomain?: string;    // e.g., "portal.acmecapital.com"
     orgDisplayName?: string;  // Override org name in portal header
   };
+  retention?: {
+    archiveRetentionMonths?: number;       // Auto-delete archived items after N months
+    deletedItemRetentionMonths?: number;   // Hard-delete soft-deleted items after N months
+  };
 }
 
 /**

@@ -46,6 +46,10 @@ import {
   CheckCircle2,
   XCircle,
   Loader2,
+  FileDown,
+  Trash2,
+  Clock,
+  ShieldCheck,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -88,6 +92,20 @@ import type { OrgMemberRole, OrgMemberRecord } from "@/lib/hooks/crud/use-org-me
 import { useSubscription } from "@/lib/hooks/crud/use-subscription"
 import { PLAN_LIMITS, type PlanTier } from "@/lib/stripe/plan-limits"
 import { Progress } from "@/components/ui/progress"
+import {
+  exportOrgData,
+  exportUserData,
+  tableToCSV,
+} from "@/lib/actions/export.actions"
+import {
+  requestAccountDeletion,
+  cancelAccountDeletion,
+  getDeletionRequestStatus,
+  getRetentionSettings,
+  updateRetentionSettings,
+  type DeletionRequestInfo,
+  type RetentionSettings,
+} from "@/lib/actions/privacy.actions"
 
 // ─── ROLE DISPLAY CONFIG ─────────────────────────────────────────────────────
 
@@ -224,6 +242,350 @@ function MemberRow({ member, isCurrentUser, onUpdateRole, onRemove }: MemberRowP
         )}
       </div>
     </div>
+  )
+}
+
+// ─── PRIVACY TAB ─────────────────────────────────────────────────────────────
+
+function PrivacyTab({ isAdmin }: { isAdmin: boolean }) {
+  const [exportLoading, setExportLoading] = React.useState<string | null>(null)
+  const [deletionStatus, setDeletionStatus] = React.useState<DeletionRequestInfo | null>(null)
+  const [deleteConfirm, setDeleteConfirm] = React.useState(false)
+  const [deleteReason, setDeleteReason] = React.useState("")
+  const [retention, setRetention] = React.useState<RetentionSettings>({
+    archiveRetentionMonths: null,
+    deletedItemRetentionMonths: null,
+  })
+  const [loaded, setLoaded] = React.useState(false)
+
+  React.useEffect(() => {
+    let cancelled = false
+    Promise.all([
+      getDeletionRequestStatus(),
+      getRetentionSettings(),
+    ]).then(([status, ret]) => {
+      if (cancelled) return
+      setDeletionStatus(status)
+      setRetention(ret)
+      setLoaded(true)
+    }).catch(() => setLoaded(true))
+    return () => { cancelled = true }
+  }, [])
+
+  const handleExportOrgData = async () => {
+    setExportLoading("org")
+    try {
+      const result = await exportOrgData("both")
+      // Generate download as JSON
+      const blob = new Blob([JSON.stringify(result, null, 2)], { type: "application/json" })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `lacoda-export-${new Date().toISOString().slice(0, 10)}.json`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch {
+      // Error handled
+    } finally {
+      setExportLoading(null)
+    }
+  }
+
+  const handleExportMyData = async () => {
+    setExportLoading("personal")
+    try {
+      const result = await exportUserData()
+      const blob = new Blob([JSON.stringify(result, null, 2)], { type: "application/json" })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `my-data-export-${new Date().toISOString().slice(0, 10)}.json`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch {
+      // Error handled
+    } finally {
+      setExportLoading(null)
+    }
+  }
+
+  const handleRequestDeletion = async () => {
+    try {
+      const status = await requestAccountDeletion(deleteReason || undefined)
+      setDeletionStatus(status)
+      setDeleteConfirm(false)
+      setDeleteReason("")
+    } catch {
+      // Error handled
+    }
+  }
+
+  const handleCancelDeletion = async () => {
+    try {
+      await cancelAccountDeletion()
+      setDeletionStatus(null)
+    } catch {
+      // Error handled
+    }
+  }
+
+  const handleSaveRetention = async () => {
+    try {
+      await updateRetentionSettings(retention)
+    } catch {
+      // Error handled
+    }
+  }
+
+  if (!loaded) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <Loader2 className="h-6 w-6 animate-spin text-zinc-500" />
+      </div>
+    )
+  }
+
+  return (
+    <>
+      {/* Data Export */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Data Export</CardTitle>
+          <CardDescription>
+            Download your data in JSON and CSV formats.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between p-4 rounded-lg border border-zinc-800">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-teal-500/10">
+                <FileDown className="h-5 w-5 text-teal-400" />
+              </div>
+              <div>
+                <p className="font-medium text-zinc-100">Export My Data</p>
+                <p className="text-sm text-zinc-500">
+                  Download your personal data (profile, activity log)
+                </p>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportMyData}
+              disabled={exportLoading !== null}
+            >
+              {exportLoading === "personal" ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4 mr-2" />
+              )}
+              Download
+            </Button>
+          </div>
+
+          {isAdmin && (
+            <div className="flex items-center justify-between p-4 rounded-lg border border-zinc-800">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-blue-500/10">
+                  <FileDown className="h-5 w-5 text-blue-400" />
+                </div>
+                <div>
+                  <p className="font-medium text-zinc-100">
+                    Export All Organization Data
+                  </p>
+                  <p className="text-sm text-zinc-500">
+                    Full export: clients, assets, documents, ledger (JSON + CSV)
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExportOrgData}
+                disabled={exportLoading !== null}
+              >
+                {exportLoading === "org" ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4 mr-2" />
+                )}
+                Download
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Data Retention (Admin only) */}
+      {isAdmin && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Data Retention</CardTitle>
+            <CardDescription>
+              Configure automatic cleanup of archived and deleted items.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Archive retention (months)</Label>
+                <Select
+                  value={String(retention.archiveRetentionMonths ?? "none")}
+                  onValueChange={(v) =>
+                    setRetention((r) => ({
+                      ...r,
+                      archiveRetentionMonths: v === "none" ? null : parseInt(v),
+                    }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Never (keep forever)</SelectItem>
+                    <SelectItem value="3">3 months</SelectItem>
+                    <SelectItem value="6">6 months</SelectItem>
+                    <SelectItem value="12">12 months</SelectItem>
+                    <SelectItem value="24">24 months</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-zinc-500">
+                  Auto-delete archived items after this period
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label>Deleted item retention (months)</Label>
+                <Select
+                  value={String(retention.deletedItemRetentionMonths ?? "none")}
+                  onValueChange={(v) =>
+                    setRetention((r) => ({
+                      ...r,
+                      deletedItemRetentionMonths: v === "none" ? null : parseInt(v),
+                    }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Never (keep forever)</SelectItem>
+                    <SelectItem value="1">1 month</SelectItem>
+                    <SelectItem value="3">3 months</SelectItem>
+                    <SelectItem value="6">6 months</SelectItem>
+                    <SelectItem value="12">12 months</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-zinc-500">
+                  Hard-delete soft-deleted items after this period
+                </p>
+              </div>
+            </div>
+            <div className="flex justify-end">
+              <Button onClick={handleSaveRetention} size="sm">
+                Save Retention Policy
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Account Deletion */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base text-red-400">
+            Delete Account
+          </CardTitle>
+          <CardDescription>
+            Permanently delete your account and all personal data. This action
+            has a 30-day grace period during which you can cancel.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {deletionStatus ? (
+            <div className="space-y-4">
+              <div className="flex items-start gap-3 p-4 rounded-lg border border-amber-500/30 bg-amber-500/5">
+                <Clock className="h-5 w-5 text-amber-400 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-medium text-amber-300">
+                    Account deletion scheduled
+                  </p>
+                  <p className="text-sm text-amber-400/80 mt-1">
+                    Your account will be permanently deleted on{" "}
+                    {new Date(deletionStatus.scheduledFor).toLocaleDateString(
+                      "en-US",
+                      { month: "long", day: "numeric", year: "numeric" }
+                    )}
+                    . You have {deletionStatus.daysRemaining} days to cancel.
+                  </p>
+                  <p className="text-sm text-amber-400/80 mt-1">
+                    Export your data before this date.
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                onClick={handleCancelDeletion}
+              >
+                Cancel Deletion Request
+              </Button>
+            </div>
+          ) : !deleteConfirm ? (
+            <Button
+              variant="outline"
+              className="text-red-400 hover:text-red-300"
+              onClick={() => setDeleteConfirm(true)}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete My Account
+            </Button>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex items-start gap-3 p-4 rounded-lg border border-red-500/30 bg-red-500/5">
+                <AlertTriangle className="h-5 w-5 text-red-400 flex-shrink-0 mt-0.5" />
+                <div className="text-sm text-red-300 space-y-1">
+                  <p className="font-medium">This will:</p>
+                  <ul className="list-disc pl-4 space-y-0.5 text-red-400/80">
+                    <li>Schedule permanent deletion in 30 days</li>
+                    <li>Erase all personal data (name, email, phone)</li>
+                    <li>Remove you from all organizations</li>
+                    <li>Cancel any active subscriptions</li>
+                  </ul>
+                  <p>Audit log entries will be preserved with anonymized references.</p>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-zinc-400">
+                  Reason for leaving (optional)
+                </Label>
+                <Input
+                  value={deleteReason}
+                  onChange={(e) => setDeleteReason(e.target.value)}
+                  placeholder="Help us improve..."
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  className="text-red-400"
+                  onClick={handleRequestDeletion}
+                >
+                  Confirm — Delete My Account
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    setDeleteConfirm(false)
+                    setDeleteReason("")
+                  }}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </>
   )
 }
 
@@ -729,6 +1091,10 @@ export default function SettingsPage() {
             <CreditCard className="h-4 w-4 mr-2" />
             Billing
           </TabsTrigger>
+          <TabsTrigger value="privacy">
+            <ShieldCheck className="h-4 w-4 mr-2" />
+            Privacy
+          </TabsTrigger>
         </TabsList>
 
         {/* Profile Tab */}
@@ -1020,6 +1386,11 @@ export default function SettingsPage() {
         {/* Billing Tab */}
         <TabsContent value="billing" className="space-y-6">
           <BillingTab isAdmin={currentMember?.role === "admin"} />
+        </TabsContent>
+
+        {/* Privacy Tab */}
+        <TabsContent value="privacy" className="space-y-6">
+          <PrivacyTab isAdmin={currentMember?.role === "admin"} />
         </TabsContent>
       </Tabs>
 
