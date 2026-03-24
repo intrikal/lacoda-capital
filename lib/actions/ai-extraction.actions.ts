@@ -121,15 +121,19 @@ export async function confirmExtractedData(params: {
     .values({
       entityId: doc.entityId,
       name: data.asset_name ?? data.property_address ?? doc.name,
-      assetClass: (data.asset_class as typeof assets.$inferInsert.assetClass) ?? "other",
+      assetClass: (data.asset_class as typeof assets.$inferInsert["assetClass"]) ?? "other",
       currentValue: data.valuation_amount ? String(data.valuation_amount) : "0",
-      location: data.property_address,
       metadata: {
-        source: "ai_extraction",
-        documentId,
-        appraiserName: data.appraiser_name,
-        documentType: data.document_type,
-        extractionConfidence: data.confidence,
+        propertyAddress: data.property_address
+          ? { street: data.property_address }
+          : undefined,
+        customFields: {
+          source: "ai_extraction",
+          documentId,
+          appraiserName: data.appraiser_name,
+          documentType: data.document_type,
+          extractionConfidence: data.confidence,
+        },
       },
     })
     .returning()
@@ -138,6 +142,7 @@ export async function confirmExtractedData(params: {
   if (data.valuation_amount) {
     await db.insert(valuations).values({
       assetId: asset.id,
+      asOfDate: data.valuation_date ? new Date(data.valuation_date) : new Date(),
       value: String(data.valuation_amount),
       source: "ai_extraction",
       notes: `Extracted from document "${doc.name}" by AI. Appraiser: ${data.appraiser_name ?? "N/A"}`,

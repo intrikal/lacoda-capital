@@ -12,8 +12,8 @@ import { z } from "zod"
 const aiCallLogSchema = z.object({
   orgId: z.string().uuid(),
   agentType: z.enum(["extraction", "narrative", "email_draft", "alert_digest"]),
-  inputHash: z.string().length(64), // SHA-256 hex
-  output: z.record(z.unknown()),
+  inputHash: z.string().min(64).max(64), // SHA-256 hex
+  output: z.record(z.string(), z.any()),
   latencyMs: z.number().int().nonnegative(),
   modelVersion: z.string(),
   tokenCount: z.number().int().nonnegative().optional(),

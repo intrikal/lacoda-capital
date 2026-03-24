@@ -200,10 +200,12 @@ export async function saveReportNarrative(params: {
     .values({
       reportId,
       versionNumber: newVersion,
-      parameters: {
-        narrative: summary,
-        keyHighlights,
-        generatedBy: isAiGenerated ? "ai" : "manual",
+      parametersSnapshot: {
+        customFilters: {
+          narrative: summary,
+          keyHighlights,
+          generatedBy: isAiGenerated ? "ai" : "manual",
+        },
       },
     })
     .returning()

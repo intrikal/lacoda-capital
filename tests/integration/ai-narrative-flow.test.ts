@@ -57,7 +57,16 @@ vi.mock("@/app/db", () => ({
             { id: "e1" }, { id: "e2" }, { id: "e3" },
           ]),
         })),
-        where: vi.fn(async () => mockAssets),
+        where: vi.fn(() => {
+          // Return a chainable object that eventually resolves to data
+          const chainable = {
+            orderBy: vi.fn(() => ({
+              limit: vi.fn(async () => []),
+            })),
+            then: (resolve: (v: unknown) => void) => resolve(mockAssets),
+          }
+          return chainable
+        }),
         orderBy: vi.fn(() => ({
           limit: vi.fn(async () => []),
         })),
