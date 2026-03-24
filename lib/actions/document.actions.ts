@@ -6,6 +6,7 @@ import { documents } from "@/app/db/schema"
 import { requireAuth, requireRole } from "@/lib/auth"
 import { createDocumentSchema, updateDocumentSchema, uploadDocumentSchema } from "@/lib/validations/document.schema"
 import type { DocumentRecord, PaginatedResult } from "@/lib/types"
+import { captureServerEvent } from "@/lib/analytics/posthog-server"
 import { createClient } from "@/utils/supabase/server"
 
 export async function getDocuments(params?: {
@@ -56,6 +57,11 @@ export async function createDocument(input: unknown): Promise<DocumentRecord> {
       metadata: parsed.metadata ?? {},
     })
     .returning()
+
+  captureServerEvent(session.userId, "document.uploaded", {
+    org_id: session.orgId,
+    document_type: parsed.documentType,
+  })
 
   return created as unknown as DocumentRecord
 }

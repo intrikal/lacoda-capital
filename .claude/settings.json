@@ -4,7 +4,10 @@
       "Bash(npx drizzle-kit:*)",
       "Bash(find c:UserslacodDesktopwebsiteslacoda-capital -name drizzle.config.* -o -name .drizzlerc* -o -name migrations -type d)",
       "Bash(npx vitest:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(ls \"c:/Users/lacod/Desktop/websites/lacoda-capital/app/\\(marketing\\)\")"
     ]
   }
 }

@@ -1,50 +1,6 @@
-/**
- * ============================================================================
- * FILE: /components/forms/compliance-control-form-dialog.tsx
- * ============================================================================
- *
- * WHAT THIS FILE IS:
- *   A modal dialog for creating and editing compliance controls. Used for
- *   both "Add Control" (create) and "Edit Control" (update) flows.
- *
- * PATTERN:
- *   Follows the same architecture as report-form-dialog.tsx and
- *   task-form-dialog.tsx:
- *     - TanStack Form for state management + validation
- *     - Zod schema (updateComplianceControlSchema) for field validation
- *     - Radix Dialog (via shadcn/ui) for the modal container
- *     - FieldError helper for inline validation messages
- *
- * DATA FLOW:
- *   User clicks "Add Control" or "Edit" → dialog opens with optional
- *   pre-filled data → user fills fields → "Save" → schema validates →
- *   onSubmit(parsedData) → parent calls create/update mutation → DB updated
- *   → GET_COMPLIANCE_CONTROLS refetched → list updates.
- *
- * FIELDS:
- *   code (required, create-only — immutable after creation like reportType)
- *   name (required)
- *   description (optional)
- *   category (optional — grouping label e.g., "KYC", "AML", "TAX")
- *   frequency (optional — recurrence e.g., "annually", "quarterly")
- *
- * WHY ONE DIALOG FOR BOTH CREATE AND EDIT?
- *   The form fields are identical — the only difference is:
- *     - Create: code is editable, parent calls useCreateComplianceControl
- *     - Edit: code is read-only/hidden, parent calls useUpdateComplianceControl
- *   The `mode` prop controls the title and button label.
- *
- * CONSUMERS:
- *   - app/(dashboard)/app/compliance/page.tsx
- *
- * RELATED FILES:
- *   - lib/validations/compliance.schema.ts  — Zod validation schemas
- *   - lib/hooks/crud/use-compliance.ts      — ComplianceControlRecord type
- *   - components/forms/report-form-dialog.tsx — same pattern for reports
- */
-
 "use client"
 
+import { useEffect } from "react"
 import { useForm } from "@tanstack/react-form"
 import {
   Dialog,
@@ -70,10 +26,6 @@ import type { ComplianceControlRecord } from "@/lib/hooks/crud/use-compliance"
 
 // ─── CONSTANTS ───────────────────────────────────────────────────────────────
 
-/**
- * Common compliance categories — matches the convention used by the mock data
- * and the metadata.regulatorySource field. Users can also type a custom value.
- */
 const CATEGORY_OPTIONS = [
   { value: "KYC", label: "KYC — Know Your Customer" },
   { value: "AML", label: "AML — Anti-Money Laundering" },
@@ -83,10 +35,15 @@ const CATEGORY_OPTIONS = [
   { value: "SECURITY", label: "SECURITY — Security" },
 ]
 
-/**
- * Recurrence frequency options for how often a control must be re-satisfied.
- * Maps to the `frequency` column in the `complianceControls` table.
- */
+const FRAMEWORK_OPTIONS = [
+  { value: "SOC2", label: "SOC 2" },
+  { value: "ISO27001", label: "ISO 27001" },
+  { value: "PCI-DSS", label: "PCI-DSS" },
+  { value: "NIST", label: "NIST" },
+  { value: "GDPR", label: "GDPR" },
+  { value: "CUSTOM", label: "Custom / Internal" },
+]
+
 const FREQUENCY_OPTIONS = [
   { value: "once", label: "Once (one-time only)" },
   { value: "annually", label: "Annually" },
@@ -98,34 +55,15 @@ const FREQUENCY_OPTIONS = [
 // ─── PROPS ───────────────────────────────────────────────────────────────────
 
 interface ComplianceControlFormDialogProps {
-  /** "create" shows "Add Control" title; "edit" shows "Edit Control". */
   mode: "create" | "edit"
-
-  /** Existing control data to pre-fill form fields (for edit mode). */
   initialData?: Partial<ComplianceControlRecord>
-
-  /** Controls dialog visibility. */
   open: boolean
-
-  /** Callback to open/close the dialog. Called with `false` to close. */
   onOpenChange: (open: boolean) => void
-
-  /**
-   * Callback when the form is submitted with validated data.
-   * The parent component decides whether to call createMutation or updateMutation.
-   *
-   * In create mode, `code` is included (from the form's code field).
-   * In edit mode, `code` is not included (immutable — resolver ignores it).
-   */
   onSubmit: (data: UpdateComplianceControlInput & { code?: string }) => void
-
-  /** Shows a loading state on the submit button while the mutation runs. */
   isPending?: boolean
+  orgMembers?: { id: string; name: string }[]
 }
 
-// ─── FIELD ERROR HELPER ─────────────────────────────────────────────────────
-
-/** Renders the first validation error below a form field. Null if no errors. */
 function FieldError({ errors }: { errors: string[] }) {
   if (!errors.length) return null
   return <p className="text-xs text-rose-400 mt-1">{errors[0]}</p>
@@ -140,6 +78,7 @@ export function ComplianceControlFormDialog({
   onOpenChange,
   onSubmit,
   isPending = false,
+  orgMembers = [],
 }: ComplianceControlFormDialogProps) {
   const isCreate = mode === "create"
 
@@ -149,21 +88,25 @@ export function ComplianceControlFormDialog({
       name: initialData?.name ?? "",
       description: initialData?.description ?? "",
       category: initialData?.category ?? "",
+      framework: initialData?.framework ?? "",
       frequency: initialData?.frequency ?? "",
+      assigneeId: initialData?.assigneeId ?? "",
+      dueDate: initialData?.dueDate ?? "",
     },
     onSubmit: async ({ value }) => {
       const payload: Record<string, unknown> = {
         name: value.name || undefined,
         description: value.description || null,
         category: value.category || null,
+        framework: value.framework || null,
         frequency: value.frequency || null,
+        assigneeId: value.assigneeId || null,
+        dueDate: value.dueDate || null,
       }
 
       const parsed = updateComplianceControlSchema.safeParse(payload)
       if (!parsed.success) return
 
-      // Pass code alongside the parsed data for create mode.
-      // The parent component will include it in CreateComplianceControlInput.
       onSubmit(isCreate ? { ...parsed.data, code: value.code } : parsed.data)
       onOpenChange(false)
     },
@@ -176,6 +119,14 @@ export function ComplianceControlFormDialog({
     },
   })
 
+  // Reset form when dialog opens/closes or initialData changes
+  useEffect(() => {
+    if (open) {
+      form.reset()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
+
   function handleOpenChange(next: boolean) {
     if (!next) form.reset()
     onOpenChange(next)
@@ -183,7 +134,7 @@ export function ComplianceControlFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="bg-zinc-900 border-zinc-800">
+      <DialogContent className="bg-zinc-900 border-zinc-800 max-w-lg">
         <DialogHeader>
           <DialogTitle>
             {isCreate ? "Add Compliance Control" : "Edit Compliance Control"}
@@ -202,7 +153,7 @@ export function ComplianceControlFormDialog({
           }}
           className="space-y-4 py-4"
         >
-          {/* Code (required, create-only — immutable) */}
+          {/* Code (required, create-only) */}
           {isCreate && (
             <form.Field
               name="code"
@@ -282,6 +233,30 @@ export function ComplianceControlFormDialog({
           </form.Field>
 
           <div className="grid grid-cols-2 gap-4">
+            {/* Framework */}
+            <form.Field name="framework">
+              {(field) => (
+                <div className="space-y-1">
+                  <Label>Framework</Label>
+                  <Select
+                    value={field.state.value ?? ""}
+                    onValueChange={(v) => field.handleChange(v)}
+                  >
+                    <SelectTrigger className="bg-zinc-800/50 border-zinc-700" aria-label="Compliance framework">
+                      <SelectValue placeholder="Select framework" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-zinc-900 border-zinc-800">
+                      {FRAMEWORK_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </form.Field>
+
             {/* Category */}
             <form.Field name="category">
               {(field) => (
@@ -291,10 +266,7 @@ export function ComplianceControlFormDialog({
                     value={field.state.value ?? ""}
                     onValueChange={(v) => field.handleChange(v)}
                   >
-                    <SelectTrigger
-                      className="bg-zinc-800/50 border-zinc-700"
-                      aria-label="Control category"
-                    >
+                    <SelectTrigger className="bg-zinc-800/50 border-zinc-700" aria-label="Control category">
                       <SelectValue placeholder="Select category" />
                     </SelectTrigger>
                     <SelectContent className="bg-zinc-900 border-zinc-800">
@@ -308,34 +280,78 @@ export function ComplianceControlFormDialog({
                 </div>
               )}
             </form.Field>
+          </div>
 
-            {/* Frequency */}
-            <form.Field name="frequency">
+          <div className="grid grid-cols-2 gap-4">
+            {/* Assignee */}
+            <form.Field name="assigneeId">
               {(field) => (
                 <div className="space-y-1">
-                  <Label>Frequency</Label>
+                  <Label>Assignee</Label>
                   <Select
                     value={field.state.value ?? ""}
                     onValueChange={(v) => field.handleChange(v)}
                   >
-                    <SelectTrigger
-                      className="bg-zinc-800/50 border-zinc-700"
-                      aria-label="Review frequency"
-                    >
-                      <SelectValue placeholder="How often?" />
+                    <SelectTrigger className="bg-zinc-800/50 border-zinc-700" aria-label="Assignee">
+                      <SelectValue placeholder="Assign to..." />
                     </SelectTrigger>
                     <SelectContent className="bg-zinc-900 border-zinc-800">
-                      {FREQUENCY_OPTIONS.map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>
-                          {opt.label}
+                      {orgMembers.map((m) => (
+                        <SelectItem key={m.id} value={m.id}>
+                          {m.name}
                         </SelectItem>
                       ))}
+                      {orgMembers.length === 0 && (
+                        <SelectItem value="_none" disabled>
+                          No team members
+                        </SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
               )}
             </form.Field>
+
+            {/* Due Date */}
+            <form.Field name="dueDate">
+              {(field) => (
+                <div className="space-y-1">
+                  <Label htmlFor="control-due-date">Due Date</Label>
+                  <Input
+                    id="control-due-date"
+                    type="date"
+                    value={field.state.value ?? ""}
+                    onChange={(e) => field.handleChange(e.target.value)}
+                    className="bg-zinc-800/50 border-zinc-700"
+                  />
+                </div>
+              )}
+            </form.Field>
           </div>
+
+          {/* Frequency */}
+          <form.Field name="frequency">
+            {(field) => (
+              <div className="space-y-1">
+                <Label>Frequency</Label>
+                <Select
+                  value={field.state.value ?? ""}
+                  onValueChange={(v) => field.handleChange(v)}
+                >
+                  <SelectTrigger className="bg-zinc-800/50 border-zinc-700" aria-label="Review frequency">
+                    <SelectValue placeholder="How often?" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-zinc-900 border-zinc-800">
+                    {FREQUENCY_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </form.Field>
 
           <DialogFooter>
             <Button
