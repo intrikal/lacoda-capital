@@ -302,3 +302,9 @@ export type {
   DeletionRequest,
   NewDeletionRequest,
 } from "./deletion_requests";
+
+// ============================================================================
+// AI Call Log
+// ============================================================================
+export { aiCallLog, aiCallLogRelations } from "./ai_call_log";
+export type { AiCallLog, NewAiCallLog } from "./ai_call_log";
