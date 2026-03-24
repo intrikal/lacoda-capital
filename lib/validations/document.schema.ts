@@ -64,3 +64,27 @@ export const updateDocumentSchema = createDocumentSchema
   .partial()
 
 export type UpdateDocumentInput = z.infer<typeof updateDocumentSchema>
+
+/**
+ * uploadDocumentSchema — Validates input for file uploads via the vault UI.
+ *
+ * Required: name, fileName, sizeBytes
+ * Optional: folder, mimeType, status (defaults to "pending"), expiresAt, tags, clientId/entityId/assetId
+ *
+ * File type validation (no .exe/.bat/.sh) is enforced in the server action.
+ */
+export const uploadDocumentSchema = z.object({
+  name: z.string().min(1, "Document name is required").max(255).trim(),
+  fileName: z.string().min(1).max(255),
+  mimeType: z.string().max(100).nullable().optional(),
+  sizeBytes: z.number().max(50 * 1024 * 1024, "File must be under 50MB"),
+  folder: z.string().max(255).nullable().optional(),
+  status: documentStatusEnum.default("pending"),
+  expiresAt: z.string().nullable().optional(),
+  tags: z.array(z.string()).default([]),
+  clientId: z.string().uuid().nullable().optional(),
+  entityId: z.string().uuid().nullable().optional(),
+  assetId: z.string().uuid().nullable().optional(),
+})
+
+export type UploadDocumentInput = z.infer<typeof uploadDocumentSchema>

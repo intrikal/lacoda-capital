@@ -6,6 +6,8 @@ import {
   createDocument,
   updateDocument,
   deleteDocument,
+  getSignedUrl,
+  bulkUpdateDocuments,
 } from "@/lib/actions/document.actions"
 import type { DocumentRecord } from "@/lib/types"
 import type {
@@ -106,6 +108,42 @@ export function useDeleteDocument() {
     (id: string, options?: { onSuccess?: () => void }) => {
       startTransition(async () => {
         await deleteDocument(id)
+        options?.onSuccess?.()
+      })
+    },
+    []
+  )
+
+  return { mutate, isPending }
+}
+
+export function useSignedUrl() {
+  const [isPending, startTransition] = useTransition()
+
+  const getUrl = useCallback(
+    (storagePath: string, options?: { onSuccess?: (url: string) => void }) => {
+      startTransition(async () => {
+        const url = await getSignedUrl(storagePath)
+        options?.onSuccess?.(url)
+      })
+    },
+    []
+  )
+
+  return { getUrl, isPending }
+}
+
+export function useBulkUpdateDocuments() {
+  const [isPending, startTransition] = useTransition()
+
+  const mutate = useCallback(
+    (
+      ids: string[],
+      updates: { folder?: string | null; tags?: string[]; status?: "pending" | "verified" | "expired" | "rejected" },
+      options?: { onSuccess?: () => void }
+    ) => {
+      startTransition(async () => {
+        await bulkUpdateDocuments(ids, updates)
         options?.onSuccess?.()
       })
     },

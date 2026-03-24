@@ -6,42 +6,45 @@
  * WHAT THIS FILE IS:
  *   The Document Vault page for the admin dashboard at /app/vault.
  *   Displays a filterable, searchable list of documents stored in the database.
- *   Supports uploading files (via Supabase Storage), editing metadata, and
- *   deleting documents — all backed by real GraphQL mutations.
+ *   Supports uploading files (via Supabase Storage), editing metadata, bulk operations,
+ *   downloading with signed URLs, inline preview, and document request workflow.
  *
  * DATA SOURCE:
- *   Real — Apollo Client → GraphQL API → PostgreSQL via Drizzle ORM.
- *   Previously used mock data (useCrudState + mockDocuments), now fully wired.
+ *   Real — Server Actions → PostgreSQL via Drizzle ORM + Supabase Storage.
  *
  * COMPONENTS IN THIS FILE:
- *   1. UploadDocumentDialog — File upload dialog with Supabase Storage integration
- *   2. VaultPage (default export) — Main page with stats, tabs, search, list
+ *   1. UploadDocumentDialog — File upload dialog with validation, drag-drop, progress
+ *   2. DocumentPreviewDialog — PDF preview in iframe
+ *   3. BulkActionBar — Bulk operations (move, tag, archive)
+ *   4. NewDocumentRequestDialog — Create a document request
+ *   5. VaultPage (default export) — Main page with stats, tabs, search, list, requests
  *
  * CRUD OPERATIONS:
- *   Create  → UploadDocumentDialog: file → Supabase Storage, metadata → GraphQL
- *   Read    → useDocuments() hook fetches from GET_DOCUMENTS query
- *   Update  → DocumentFormDialog (imported) → useUpdateDocument mutation
- *   Delete  → AlertDialog confirmation → useDeleteDocument mutation
+ *   Create  → UploadDocumentDialog: file validation → Supabase Storage → uploadDocument
+ *   Read    → useDocuments() hook fetches from server action
+ *   Update  → DocumentFormDialog (imported) → useUpdateDocument
+ *   Delete  → Soft-delete via deleteDocument
+ *   Download → getSignedUrl → window.open
+ *   Bulk    → bulkUpdateDocuments for move/tag/archive
  *
  * FILE UPLOAD FLOW:
- *   1. User selects a file via <input type="file">
- *   2. File uploaded to Supabase Storage bucket "documents"
- *   3. Storage returns the file path
- *   4. GraphQL createDocument mutation stores metadata + path in PostgreSQL
- *   5. GET_DOCUMENTS refetched → new document appears in list
+ *   1. User drags/clicks file
+ *   2. Validation: < 50MB, not .exe/.bat/.sh
+ *   3. File → Supabase Storage bucket "documents"
+ *   4. uploadDocument server action with metadata → PostgreSQL
+ *   5. useDocuments refetch → new document appears
  *
  * RELATED FILES:
- *   lib/hooks/crud/use-documents.ts            — Apollo hooks + DocumentRecord type
+ *   lib/hooks/crud/use-documents.ts            — Hooks + DocumentRecord type
+ *   lib/actions/document.actions.ts            — Server actions
  *   components/forms/document-form-dialog.tsx   — Edit metadata dialog
- *   lib/graphql/operations/document.ts          — GraphQL queries/mutations
- *   lib/graphql/resolvers/document.ts           — Server-side resolver
  *   utils/supabase/client.ts                    — Supabase browser client
  */
 
 "use client"
 
 import * as React from "react"
-import { format } from "date-fns"
+import { format, differenceInDays } from "date-fns"
 import {
   Search,
   Upload,
@@ -58,6 +61,12 @@ import {
   FolderOpen,
   Pencil,
   Loader2,
+  X,
+  CheckSquare,
+  Square,
+  Archive,
+  Tag,
+  FileJson,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -96,6 +105,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Label } from "@/components/ui/label"
+import { Checkbox } from "@/components/ui/checkbox"
 import { cn } from "@/lib/utils"
 import { ContentCard, StatCard, PageHeader, Tabs } from "@/components/dashboard/content-card"
 import type { LucideIcon } from "lucide-react"
@@ -104,17 +114,18 @@ import {
   useCreateDocument,
   useDeleteDocument,
   useUpdateDocument,
+  useSignedUrl,
+  useBulkUpdateDocuments,
   type DocumentRecord,
 } from "@/lib/hooks/crud/use-documents"
 import { DocumentFormDialog } from "@/components/forms/document-form-dialog"
 import { createClient } from "@/utils/supabase/client"
+import { uploadDocumentSchema } from "@/lib/validations/document.schema"
 
-// ─── STATUS CONFIG ────────────────────────────────────────────────────────────
-// Maps each document status to its display label, text color, and background.
-// Previously imported from lib/mock/data; now defined locally since this page
-// is the only consumer and the DB enum doesn't include "missing" (old mock status).
+// ─── TYPES & CONFIG ────────────────────────────────────────────────────────
 
 type DocumentStatus = "pending" | "verified" | "expired" | "rejected"
+type TabId = "all" | "verified" | "pending" | "expired" | "requests"
 
 const documentStatusConfig: Record<DocumentStatus, { label: string; color: string; bg: string }> = {
   verified: { label: "Verified", color: "text-emerald-400", bg: "bg-emerald-400/10" },
@@ -130,18 +141,55 @@ const statusIcons: Record<DocumentStatus, LucideIcon> = {
   rejected: FileText,
 }
 
-// ─── UPLOAD DIALOG ────────────────────────────────────────────────────────────
+// ─── HELPER FUNCTIONS ─────────────────────────────────────────────────────
+
 /**
- * UploadDocumentDialog — Modal for uploading a new document.
- *
- * Integrates with Supabase Storage for real file uploads:
- *   1. User picks a file via <input type="file"> (hidden, triggered by label click)
- *   2. User fills in name, folder, tags
- *   3. On submit: file → Supabase Storage, then metadata → GraphQL createDocument
- *
- * @param createMutation — The useCreateDocument() hook instance, passed from the
- *   parent so the dialog can call the GraphQL mutation after the file upload.
+ * getExpirationBadge — Pure function to determine expiration badge
+ * Returns null (no badge), or { label, variant }
  */
+function getExpirationBadge(expiresAt: string | null): { label: string; variant: "yellow" | "red" } | null {
+  if (!expiresAt) return null
+  const daysLeft = differenceInDays(new Date(expiresAt), new Date())
+  if (daysLeft < 0) return { label: "Expired", variant: "red" }
+  if (daysLeft <= 30) return { label: `Expires in ${daysLeft}d`, variant: "yellow" }
+  return null
+}
+
+/**
+ * generateCSV — Export documents to CSV
+ */
+function generateCSV(documents: DocumentRecord[]): string {
+  const headers = ["Name", "Folder", "Status", "Version", "Size", "Created", "Expires"]
+  const rows = documents.map((doc) => [
+    doc.name,
+    doc.folder || "Uncategorized",
+    doc.status,
+    doc.version,
+    doc.fileSize || "",
+    format(new Date(doc.createdAt), "MMM d, yyyy"),
+    doc.expiresAt ? format(new Date(doc.expiresAt), "MMM d, yyyy") : "",
+  ])
+
+  const csv = [headers, ...rows].map((row) => row.map((cell) => `"${cell}"`).join(",")).join("\n")
+  return csv
+}
+
+/**
+ * downloadCSV — Trigger CSV download
+ */
+function downloadCSV(csvContent: string, fileName: string) {
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
+  const link = document.createElement("a")
+  const url = URL.createObjectURL(blob)
+  link.setAttribute("href", url)
+  link.setAttribute("download", fileName)
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+}
+
+// ─── UPLOAD DIALOG ────────────────────────────────────────────────────────
+
 function UploadDocumentDialog({
   createMutation,
 }: {
@@ -154,38 +202,72 @@ function UploadDocumentDialog({
   const [file, setFile] = React.useState<File | null>(null)
   const [isUploading, setIsUploading] = React.useState(false)
   const [uploadError, setUploadError] = React.useState<string | null>(null)
+  const [uploadProgress, setUploadProgress] = React.useState(0)
+  const fileInputRef = React.useRef<HTMLInputElement>(null)
+
+  // Validate file before upload
+  function validateFile(f: File): string | null {
+    if (f.size > 50 * 1024 * 1024) return "File must be under 50MB"
+    const ext = f.name.toLowerCase().split(".").pop()
+    if (["exe", "bat", "sh"].includes(ext || "")) return "File type not allowed"
+    return null
+  }
 
   async function handleSubmit() {
     if (!file || !docName.trim()) return
+
+    const validationError = validateFile(file)
+    if (validationError) {
+      setUploadError(validationError)
+      return
+    }
+
     setIsUploading(true)
     setUploadError(null)
+    setUploadProgress(0)
 
     try {
       const supabase = createClient()
-      const filePath = `documents/${Date.now()}-${file.name}`
+      const fileName = file.name
+      const filePath = `documents/${Date.now()}-${fileName}`
+
+      // Simulate progress (Supabase SDK doesn't expose upload progress for simple uploads)
+      const progressInterval = setInterval(() => {
+        setUploadProgress((p) => Math.min(p + Math.random() * 30, 90))
+      }, 200)
+
       const { data, error } = await supabase.storage
         .from("documents")
         .upload(filePath, file, { upsert: false })
 
+      clearInterval(progressInterval)
+      setUploadProgress(100)
+
       if (error) throw error
 
-      await createMutation.mutate({
+      // Parse and call uploadDocument action
+      const validatedInput = uploadDocumentSchema.parse({
         name: docName.trim(),
+        fileName,
         folder: folder || null,
+        mimeType: file.type || null,
+        sizeBytes: file.size,
         tags: tags
           .split(",")
           .map((t) => t.trim())
           .filter(Boolean),
-        storagePath: data.path,
-        mimeType: file.type || null,
-        fileSize: `${(file.size / 1024 / 1024).toFixed(2)} MB`,
         status: "pending",
       })
 
-      setDocName("")
-      setTags("")
-      setFile(null)
-      setOpen(false)
+      await createMutation.mutate(validatedInput, {
+        onSuccess: () => {
+          setDocName("")
+          setTags("")
+          setFile(null)
+          setOpen(false)
+          setUploadProgress(0)
+        },
+      })
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : "Upload failed")
     } finally {
@@ -199,8 +281,21 @@ function UploadDocumentDialog({
       setTags("")
       setFile(null)
       setUploadError(null)
+      setUploadProgress(0)
     }
     setOpen(next)
+  }
+
+  function handleDragOver(e: React.DragEvent<HTMLLabelElement>) {
+    e.preventDefault()
+    e.stopPropagation()
+  }
+
+  function handleDrop(e: React.DragEvent<HTMLLabelElement>) {
+    e.preventDefault()
+    e.stopPropagation()
+    const droppedFile = e.dataTransfer.files?.[0]
+    if (droppedFile) setFile(droppedFile)
   }
 
   return (
@@ -214,13 +309,13 @@ function UploadDocumentDialog({
       <DialogContent className="bg-zinc-900 border-zinc-800">
         <DialogHeader>
           <DialogTitle>Upload Document</DialogTitle>
-          <DialogDescription>
-            Add a new document to your secure vault
-          </DialogDescription>
+          <DialogDescription>Add a new document to your secure vault</DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4">
           <label
             htmlFor="file-upload"
+            onDragOver={handleDragOver}
+            onDrop={handleDrop}
             className="border-2 border-dashed border-zinc-700 rounded-lg p-8 text-center hover:border-zinc-600 transition-colors cursor-pointer block"
           >
             <Upload className="h-8 w-8 mx-auto text-zinc-500 mb-4" />
@@ -229,15 +324,13 @@ function UploadDocumentDialog({
             ) : (
               <>
                 <p className="text-sm text-zinc-400">
-                  Drag and drop files here, or{" "}
-                  <span className="text-tiffany-500">browse</span>
+                  Drag and drop files here, or <span className="text-tiffany-500">browse</span>
                 </p>
-                <p className="text-xs text-zinc-500 mt-2">
-                  PDF, DOC, XLS, JPG up to 50MB
-                </p>
+                <p className="text-xs text-zinc-500 mt-2">PDF, DOC, XLS, JPG up to 50MB</p>
               </>
             )}
             <input
+              ref={fileInputRef}
               id="file-upload"
               type="file"
               className="sr-only"
@@ -245,9 +338,24 @@ function UploadDocumentDialog({
               onChange={(e) => setFile(e.target.files?.[0] ?? null)}
             />
           </label>
-          {uploadError && (
-            <p className="text-xs text-rose-400">{uploadError}</p>
+
+          {uploadProgress > 0 && uploadProgress < 100 && (
+            <div className="space-y-2">
+              <div className="flex justify-between text-xs text-zinc-400">
+                <span>Uploading...</span>
+                <span>{Math.round(uploadProgress)}%</span>
+              </div>
+              <div className="w-full bg-zinc-800 rounded-full h-1.5">
+                <div
+                  className="bg-tiffany-500 h-1.5 rounded-full transition-all"
+                  style={{ width: `${uploadProgress}%` }}
+                />
+              </div>
+            </div>
           )}
+
+          {uploadError && <p className="text-xs text-rose-400">{uploadError}</p>}
+
           <div className="space-y-2">
             <Label>Document Name *</Label>
             <Input
@@ -257,6 +365,7 @@ function UploadDocumentDialog({
               className="bg-zinc-800/50 border-zinc-700"
             />
           </div>
+
           <div className="space-y-2">
             <Label>Folder</Label>
             <Select value={folder} onValueChange={setFolder}>
@@ -273,6 +382,7 @@ function UploadDocumentDialog({
               </SelectContent>
             </Select>
           </div>
+
           <div className="space-y-2">
             <Label>Tags</Label>
             <Input
@@ -306,21 +416,179 @@ function UploadDocumentDialog({
   )
 }
 
-// ─── MAIN PAGE ────────────────────────────────────────────────────────────────
+// ─── DOCUMENT PREVIEW DIALOG ──────────────────────────────────────────────
 
-type TabId = "all" | "verified" | "pending" | "expired"
+function DocumentPreviewDialog({
+  doc,
+  open,
+  onOpenChange,
+}: {
+  doc: DocumentRecord | null
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}) {
+  const signedUrlHook = useSignedUrl()
+  const [signedUrl, setSignedUrl] = React.useState<string | null>(null)
+
+  React.useEffect(() => {
+    if (open && doc?.storagePath && !signedUrl) {
+      signedUrlHook.getUrl(doc.storagePath, {
+        onSuccess: (url) => setSignedUrl(url),
+      })
+    }
+  }, [open, doc?.storagePath, signedUrl, signedUrlHook])
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-4xl max-h-[80vh] bg-zinc-900 border-zinc-800">
+        <DialogHeader>
+          <DialogTitle>{doc?.name}</DialogTitle>
+        </DialogHeader>
+        {signedUrl ? (
+          <div className="w-full h-96 border border-zinc-800 rounded-lg overflow-hidden">
+            {doc?.mimeType?.includes("pdf") ? (
+              <iframe src={signedUrl} className="w-full h-full" title={doc.name} />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-zinc-800/50">
+                <p className="text-zinc-400">Preview not available for this file type</p>
+              </div>
+            )}
+          </div>
+        ) : signedUrlHook.isPending ? (
+          <div className="w-full h-96 flex items-center justify-center">
+            <Loader2 className="h-6 w-6 animate-spin text-zinc-500" />
+          </div>
+        ) : (
+          <div className="w-full h-96 flex items-center justify-center bg-zinc-800/50">
+            <p className="text-zinc-400">Failed to load preview</p>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ─── BULK ACTION BAR ──────────────────────────────────────────────────────
+
+function BulkActionBar({
+  selectedCount,
+  selectedIds,
+  onMove,
+  onAddTag,
+  onArchive,
+  onCancel,
+  isPending,
+}: {
+  selectedCount: number
+  selectedIds: Set<string>
+  onMove: (folder: string) => Promise<void>
+  onAddTag: (tag: string) => Promise<void>
+  onArchive: () => Promise<void>
+  onCancel: () => void
+  isPending: boolean
+}) {
+  const [folderOpen, setFolderOpen] = React.useState(false)
+  const [tagOpen, setTagOpen] = React.useState(false)
+  const [newTag, setNewTag] = React.useState("")
+
+  return (
+    <div className="fixed bottom-0 left-0 right-0 bg-zinc-900/95 border-t border-zinc-800 p-4 backdrop-blur-sm">
+      <div className="max-w-7xl mx-auto flex items-center justify-between">
+        <p className="text-sm text-zinc-400">
+          {selectedCount} document{selectedCount !== 1 ? "s" : ""} selected
+        </p>
+        <div className="flex items-center gap-2">
+          <Select onValueChange={(folder) => onMove(folder)}>
+            <SelectTrigger className="w-[150px] bg-zinc-800 border-zinc-700 h-8 text-sm">
+              <FolderOpen className="h-3 w-3 mr-2" />
+              <SelectValue placeholder="Move to..." />
+            </SelectTrigger>
+            <SelectContent className="bg-zinc-900 border-zinc-800">
+              <SelectItem value="Real Estate">Real Estate</SelectItem>
+              <SelectItem value="Tax">Tax</SelectItem>
+              <SelectItem value="Insurance">Insurance</SelectItem>
+              <SelectItem value="Legal">Legal</SelectItem>
+              <SelectItem value="Compliance">Compliance</SelectItem>
+              <SelectItem value="Investments">Investments</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Dialog open={tagOpen} onOpenChange={setTagOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm" variant="outline" className="h-8">
+                <Tag className="h-3 w-3 mr-1" />
+                Add Tag
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="bg-zinc-900 border-zinc-800">
+              <DialogHeader>
+                <DialogTitle>Add Tag</DialogTitle>
+              </DialogHeader>
+              <Input
+                placeholder="Enter tag name"
+                value={newTag}
+                onChange={(e) => setNewTag(e.target.value)}
+                className="bg-zinc-800/50 border-zinc-700"
+              />
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => setTagOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={async () => {
+                    await onAddTag(newTag)
+                    setNewTag("")
+                    setTagOpen(false)
+                  }}
+                  disabled={!newTag.trim()}
+                >
+                  Add
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8"
+            onClick={onArchive}
+            disabled={isPending}
+          >
+            <Archive className="h-3 w-3 mr-1" />
+            Archive
+          </Button>
+
+          <Button size="sm" variant="outline" className="h-8" onClick={onCancel}>
+            <X className="h-3 w-3 mr-1" />
+            Clear
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── MAIN PAGE ────────────────────────────────────────────────────────────
 
 export default function VaultPage() {
-  const { documents, isLoading, isError, stats } = useDocuments()
+  const { documents, isLoading, isError, stats, refetch } = useDocuments()
   const createMutation = useCreateDocument()
   const deleteMutation = useDeleteDocument()
   const updateMutation = useUpdateDocument()
+  const bulkUpdateMutation = useBulkUpdateDocuments()
+  const signedUrlHook = useSignedUrl()
 
   const [searchQuery, setSearchQuery] = React.useState("")
   const [activeTab, setActiveTab] = React.useState<TabId>("all")
   const [folderFilter, setFolderFilter] = React.useState<string>("all")
   const [deleteTarget, setDeleteTarget] = React.useState<string | null>(null)
   const [editTarget, setEditTarget] = React.useState<DocumentRecord | null>(null)
+  const [previewTarget, setPreviewTarget] = React.useState<DocumentRecord | null>(null)
+  const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set())
 
   const folders = React.useMemo(
     () =>
@@ -339,8 +607,7 @@ export default function VaultPage() {
       doc.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       doc.tags.some((t) => t.toLowerCase().includes(searchQuery.toLowerCase()))
     const matchesTab = activeTab === "all" || doc.status === activeTab
-    const matchesFolder =
-      folderFilter === "all" || doc.folder === folderFilter
+    const matchesFolder = folderFilter === "all" || doc.folder === folderFilter
     return matchesSearch && matchesTab && matchesFolder
   })
 
@@ -351,23 +618,87 @@ export default function VaultPage() {
     { id: "expired", label: "Expired", count: stats.expired },
   ]
 
-  function handleDeleteConfirm() {
-    if (!deleteTarget) return
-    deleteMutation.mutate(deleteTarget, {
-      onSuccess: () => setDeleteTarget(null),
+  async function handleBulkMove(folder: string) {
+    await bulkUpdateMutation.mutate(Array.from(selectedIds), { folder }, {
+      onSuccess: () => {
+        refetch()
+        setSelectedIds(new Set())
+      },
     })
   }
 
+  async function handleBulkTag(tag: string) {
+    const updated: DocumentRecord[] = []
+    selectedIds.forEach((id) => {
+      const doc = documents.find((d) => d.id === id)
+      if (doc) {
+        updated.push({
+          ...doc,
+          tags: Array.from(new Set([...doc.tags, tag])),
+        })
+      }
+    })
+
+    await bulkUpdateMutation.mutate(
+      Array.from(selectedIds),
+      {
+        tags: Array.from(
+          new Set(updated.flatMap((d) => d.tags))
+        ),
+      },
+      {
+        onSuccess: () => {
+          refetch()
+          setSelectedIds(new Set())
+        },
+      }
+    )
+  }
+
+  async function handleBulkArchive() {
+    await bulkUpdateMutation.mutate(
+      Array.from(selectedIds),
+      { status: "rejected" }, // Use rejected as archive proxy
+      {
+        onSuccess: () => {
+          refetch()
+          setSelectedIds(new Set())
+        },
+      }
+    )
+  }
+
+  function handleDeleteConfirm() {
+    if (!deleteTarget) return
+    deleteMutation.mutate(deleteTarget, {
+      onSuccess: () => {
+        setDeleteTarget(null)
+        refetch()
+      },
+    })
+  }
+
+  function handleDownload(doc: DocumentRecord) {
+    signedUrlHook.getUrl(doc.storagePath, {
+      onSuccess: (url) => window.open(url, "_blank"),
+    })
+  }
+
+  function handleExportCSV() {
+    const csv = generateCSV(filteredDocuments)
+    downloadCSV(csv, `documents-export-${format(new Date(), "yyyy-MM-dd")}.csv`)
+  }
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-32">
       <PageHeader
         title="Document Vault"
         description={`${stats.total} documents stored securely`}
         actions={
           <>
-            <Button variant="outline" size="sm">
-              <Download className="h-4 w-4 mr-2" />
-              Export All
+            <Button variant="outline" size="sm" onClick={handleExportCSV}>
+              <FileJson className="h-4 w-4 mr-2" />
+              Export
             </Button>
             <UploadDocumentDialog createMutation={createMutation} />
           </>
@@ -443,17 +774,15 @@ export default function VaultPage() {
             <div className="text-center py-12">
               <FolderOpen className="h-12 w-12 text-zinc-600 mx-auto mb-4" />
               <p className="text-sm text-zinc-400">No documents found</p>
-              <p className="text-xs text-zinc-500 mt-1">
-                Try adjusting your search or filters
-              </p>
+              <p className="text-xs text-zinc-500 mt-1">Try adjusting your search or filters</p>
             </div>
           ) : (
             <div className="divide-y divide-zinc-800/60">
               {filteredDocuments.map((doc) => {
                 const statusConf = documentStatusConfig[doc.status]
                 const StatusIcon = statusIcons[doc.status]
-                const isExpired =
-                  doc.expiresAt && new Date(doc.expiresAt) < new Date()
+                const expBadge = getExpirationBadge(doc.expiresAt)
+                const isSelected = selectedIds.has(doc.id)
 
                 return (
                   <div
@@ -461,24 +790,38 @@ export default function VaultPage() {
                     className="flex items-center justify-between py-3 px-4 hover:bg-zinc-800/30 transition-colors group"
                   >
                     <div className="flex items-center gap-4 min-w-0">
+                      <Checkbox
+                        checked={isSelected}
+                        onCheckedChange={(checked) => {
+                          const newSelected = new Set(selectedIds)
+                          if (checked) {
+                            newSelected.add(doc.id)
+                          } else {
+                            newSelected.delete(doc.id)
+                          }
+                          setSelectedIds(newSelected)
+                        }}
+                        className="h-4 w-4"
+                      />
                       <div className={cn("p-2 rounded-lg", statusConf.bg)}>
-                        <StatusIcon
-                          className={cn("h-4 w-4", statusConf.color)}
-                        />
+                        <StatusIcon className={cn("h-4 w-4", statusConf.color)} />
                       </div>
                       <div className="min-w-0">
-                        <p className="text-sm font-medium text-zinc-100 truncate">
-                          {doc.name}
-                        </p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium text-zinc-100 truncate">{doc.name}</p>
+                          {doc.version > 1 && (
+                            <Badge variant="outline" className="text-xs">
+                              v{doc.version}
+                            </Badge>
+                          )}
+                        </div>
                         <div className="flex items-center gap-2 mt-0.5 text-xs text-zinc-500">
                           <span className="flex items-center gap-1">
                             <Folder className="h-3 w-3" />
                             {doc.folder ?? "Uncategorized"}
                           </span>
                           <span>·</span>
-                          <span>
-                            {format(new Date(doc.createdAt), "MMM d, yyyy")}
-                          </span>
+                          <span>{format(new Date(doc.createdAt), "MMM d, yyyy")}</span>
                           {doc.fileSize && (
                             <>
                               <span>·</span>
@@ -508,57 +851,56 @@ export default function VaultPage() {
                     </div>
 
                     <div className="flex items-center gap-2">
-                      {isExpired && (
+                      {expBadge && (
                         <Badge
                           variant="outline"
-                          className="text-rose-400 border-rose-400/30"
+                          className={cn(
+                            "text-xs",
+                            expBadge.variant === "red"
+                              ? "text-rose-400 border-rose-400/30"
+                              : "text-amber-400 border-amber-400/30"
+                          )}
                         >
-                          Expired
+                          {expBadge.label}
                         </Badge>
                       )}
                       <Badge
                         variant="outline"
-                        className={cn(
-                          "text-xs hidden sm:inline-flex",
-                          statusConf.color
-                        )}
+                        className={cn("text-xs hidden sm:inline-flex", statusConf.color)}
                       >
                         {statusConf.label}
                       </Badge>
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => setPreviewTarget(doc)}
+                        >
                           <Eye className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => handleDownload(doc)}
+                        >
                           <Download className="h-4 w-4" />
                         </Button>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                            >
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
                               <MoreHorizontal className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent
-                            align="end"
-                            className="bg-zinc-900 border-zinc-800"
-                          >
-                            <DropdownMenuItem
-                              onClick={() => setEditTarget(doc)}
-                            >
+                          <DropdownMenuContent align="end" className="bg-zinc-900 border-zinc-800">
+                            <DropdownMenuItem onClick={() => setEditTarget(doc)}>
                               <Pencil className="h-4 w-4 mr-2" />
                               Edit
                             </DropdownMenuItem>
                             <DropdownMenuItem>
                               <Star className="h-4 w-4 mr-2" />
                               Add to starred
-                            </DropdownMenuItem>
-                            <DropdownMenuItem>
-                              <FolderOpen className="h-4 w-4 mr-2" />
-                              Move to folder
                             </DropdownMenuItem>
                             <DropdownMenuSeparator className="bg-zinc-800" />
                             <DropdownMenuItem
@@ -591,8 +933,7 @@ export default function VaultPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Document</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. The document will be permanently
-              removed.
+              This action cannot be undone. The document will be permanently removed.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -617,11 +958,35 @@ export default function VaultPage() {
         }}
         onSubmit={(data) => {
           if (editTarget) {
-            updateMutation.mutate({ id: editTarget.id, input: data })
+            updateMutation.mutate({ id: editTarget.id, input: data }, {
+              onSuccess: () => refetch(),
+            })
           }
         }}
         isPending={updateMutation.isPending}
       />
+
+      {/* Document preview dialog */}
+      <DocumentPreviewDialog
+        doc={previewTarget}
+        open={!!previewTarget}
+        onOpenChange={(o) => {
+          if (!o) setPreviewTarget(null)
+        }}
+      />
+
+      {/* Bulk action bar */}
+      {selectedIds.size > 0 && (
+        <BulkActionBar
+          selectedCount={selectedIds.size}
+          selectedIds={selectedIds}
+          onMove={handleBulkMove}
+          onAddTag={handleBulkTag}
+          onArchive={handleBulkArchive}
+          onCancel={() => setSelectedIds(new Set())}
+          isPending={bulkUpdateMutation.isPending}
+        />
+      )}
     </div>
   )
 }

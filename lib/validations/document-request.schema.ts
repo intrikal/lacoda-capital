@@ -1,6 +1,6 @@
 import { z } from "zod"
 
-export const documentRequestStatusEnum = z.enum(["open", "fulfilled", "cancelled", "overdue"])
+export const documentRequestStatusEnum = z.enum(["pending", "sent", "received", "reviewed", "approved"])
 export const taskPriorityEnum = z.enum(["low", "medium", "high", "urgent"])
 
 export const createDocumentRequestSchema = z.object({
