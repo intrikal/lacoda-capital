@@ -735,6 +735,17 @@ export const assets = pgTable(
      */
     metadata: jsonb("metadata").$type<AssetMetadata>().default({}),
 
+    // ==================== PE/VC CAPITAL TRACKING ====================
+
+    /** Total committed capital for PE/VC funds */
+    committedCapital: numeric("committed_capital", { precision: 18, scale: 2 }),
+
+    /** Cached sum of paid capital calls (updated on each capital event mutation) */
+    calledCapitalCached: numeric("called_capital_cached", { precision: 18, scale: 2 }).default("0"),
+
+    /** Cached sum of distributions received (updated on each capital event mutation) */
+    distributedCached: numeric("distributed_cached", { precision: 18, scale: 2 }).default("0"),
+
     // ==================== STANDARD TIMESTAMPS ====================
 
     /**

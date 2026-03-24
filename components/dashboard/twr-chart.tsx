@@ -86,7 +86,7 @@ export function TWRChart({ assetId }: TWRChartProps) {
               borderRadius: "8px",
               color: "#f4f4f5",
             }}
-            formatter={(value: number) => [formatPercent(value), "TWR"]}
+            formatter={(value) => [formatPercent(Number(value ?? 0)), "TWR"]}
             labelFormatter={(label) => {
               const date = new Date(label)
               return date.toLocaleDateString("en-US", {
