@@ -48,6 +48,8 @@ export {
   taxDeductionStatusEnum,
   subscriptionPlanEnum,
   subscriptionStatusEnum,
+  capitalEventTypeEnum,
+  capitalEventStatusEnum,
 } from "./00_enums";
 
 // ============================================================================
@@ -314,3 +316,9 @@ export type { AiCallLog, NewAiCallLog } from "./ai_call_log";
 // ============================================================================
 export { exchangeRates, exchangeRatesRelations } from "./exchange_rates";
 export type { ExchangeRate, NewExchangeRate } from "./exchange_rates";
+
+// ============================================================================
+// Capital Events (PE/VC)
+// ============================================================================
+export { capitalEvents, capitalEventsRelations } from "./capital_events";
+export type { CapitalEvent, NewCapitalEvent } from "./capital_events";

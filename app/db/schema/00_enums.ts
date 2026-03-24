@@ -723,5 +723,37 @@ export const notificationTypeEnum = pgEnum("notification_type", [
   "document_requested",
   "report_ready",
   "compliance_alert",
+  "capital_call_due",
+  "capital_call_overdue",
   "system",
+]);
+
+// ============================================================================
+// Capital Events (PE/VC)
+// ============================================================================
+
+/**
+ * Capital event type — the kind of PE/VC capital activity
+ * - capital_call: GP requests LP to fund committed capital
+ * - distribution: GP returns capital/profits to LP
+ * - recallable: distribution that can be recalled by GP for re-investment
+ */
+export const capitalEventTypeEnum = pgEnum("capital_event_type", [
+  "capital_call",
+  "distribution",
+  "recallable",
+]);
+
+/**
+ * Capital event status — lifecycle of a capital call or distribution
+ * - pending: event created, not yet settled
+ * - paid: capital call has been funded by LP
+ * - received: distribution has been received by LP
+ * - overdue: past due_date and still pending (set by pg_cron)
+ */
+export const capitalEventStatusEnum = pgEnum("capital_event_status", [
+  "pending",
+  "paid",
+  "received",
+  "overdue",
 ]);
