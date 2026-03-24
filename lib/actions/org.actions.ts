@@ -4,7 +4,7 @@ import { eq, and, count, isNull } from "drizzle-orm"
 import { db } from "@/app/db"
 import { orgs, orgMembers, users } from "@/app/db/schema"
 import { requireAuth, requireRole } from "@/lib/auth"
-import { inviteOrgMemberSchema, updateOrgMemberRoleSchema } from "@/lib/validations/org.schema"
+import { inviteOrgMemberSchema, updateOrgMemberRoleSchema, updateOrgSettingsSchema } from "@/lib/validations/org.schema"
 import type { PaginatedResult } from "@/lib/types"
 
 export interface OrgMemberUser {
@@ -265,4 +265,48 @@ export async function removeOrgMember(id: string): Promise<boolean> {
   })
 
   return true
+}
+
+export async function updateOrgSettings(input: unknown): Promise<void> {
+  const session = await requireRole("admin")
+  const parsed = updateOrgSettingsSchema.parse(input)
+
+  // Get existing org to merge settings
+  const existing = await db.query.orgs.findFirst({
+    where: eq(orgs.id, session.orgId!),
+  })
+  if (!existing) throw new Error("Organization not found")
+
+  // Build update object
+  const setData: Record<string, unknown> = {}
+  if (parsed.name !== undefined) setData.name = parsed.name
+  if (parsed.timezone !== undefined || parsed.currency !== undefined || parsed.logoUrl !== undefined) {
+    const currentSettings = (existing.settings as object ?? {}) as Record<string, unknown>
+    if (parsed.timezone !== undefined) currentSettings.timezone = parsed.timezone
+    if (parsed.currency !== undefined) currentSettings.currency = parsed.currency
+    if (parsed.logoUrl !== undefined) {
+      if (!currentSettings.branding) currentSettings.branding = {}
+      const branding = currentSettings.branding as Record<string, unknown>
+      branding.logoUrl = parsed.logoUrl
+    }
+    setData.settings = currentSettings
+  }
+
+  await db
+    .update(orgs)
+    .set(setData)
+    .where(eq(orgs.id, session.orgId!))
+
+  // Log the org settings update
+  const { createLedgerEvent } = await import("@/lib/actions/ledger")
+  await createLedgerEvent({
+    orgId: session.orgId!,
+    actorId: session.userId,
+    action: "updated",
+    targetType: "org",
+    targetId: session.orgId!,
+    metadata: {
+      fields: Object.keys(setData),
+    },
+  })
 }
