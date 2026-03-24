@@ -124,10 +124,10 @@ const complianceCertifications = [
   {
     name: "SOC 2 Type II",
     icon: Award,
-    status: "certified",
+    status: "in_progress",
     description:
-      "Annual third-party audit verifying security, availability, and confidentiality controls. Report available under NDA.",
-    link: "Download Report",
+      "Undergoing third-party SOC 2 Type II audit. Report will be available under NDA upon completion.",
+    link: "Contact Security Team",
   },
   {
     name: "GDPR Compliant",
@@ -135,7 +135,7 @@ const complianceCertifications = [
     status: "compliant",
     description:
       "Full compliance with EU General Data Protection Regulation including data subject rights and cross-border transfer mechanisms.",
-    link: "Privacy Policy",
+    link: "Learn More",
   },
   {
     name: "CCPA Compliant",
@@ -143,15 +143,15 @@ const complianceCertifications = [
     status: "compliant",
     description:
       "California Consumer Privacy Act compliance with comprehensive data handling and disclosure procedures.",
-    link: "Privacy Policy",
+    link: "Learn More",
   },
   {
     name: "SOC 1 Type II",
     icon: FileCheck,
-    status: "certified",
+    status: "in_progress",
     description:
-      "SSAE 18 attestation for controls relevant to financial reporting. Available for customers with audit requirements.",
-    link: "Request Report",
+      "SSAE 18 audit in progress. Expected completion Q3 2025.",
+    link: "Contact Security Team",
   },
   {
     name: "ISO 27001",
@@ -394,9 +394,11 @@ export default function SecurityPage() {
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
               </Button>
-              <Button variant="outline" size="lg">
-                Download SOC 2 Report
-                <ExternalLink className="ml-2 h-4 w-4" />
+              <Button variant="outline" size="lg" asChild>
+                <Link href="/contact">
+                  Contact Security Team
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
               </Button>
             </div>
 
@@ -477,7 +479,7 @@ export default function SecurityPage() {
                 Compliance
               </Badge>
               <h2 className="text-2xl sm:text-3xl font-bold text-zinc-100">
-                Certified and Audited
+                Compliance & Certifications
               </h2>
               <p className="mt-4 text-zinc-400 max-w-2xl mx-auto">
                 We maintain rigorous compliance certifications and undergo regular
@@ -515,10 +517,10 @@ export default function SecurityPage() {
                     <p className="mt-2 text-sm text-zinc-400 leading-relaxed">
                       {cert.description}
                     </p>
-                    <button className="mt-4 text-sm text-teal-400 hover:text-teal-300 flex items-center gap-1">
+                    <Link href={cert.link === "Contact Security Team" ? "/contact" : "/contact"} className="mt-4 text-sm text-teal-400 hover:text-teal-300 flex items-center gap-1 w-fit">
                       {cert.link}
                       <ExternalLink className="h-3 w-3" />
-                    </button>
+                    </Link>
                   </CardContent>
                 </Card>
               </FadeInSection>
