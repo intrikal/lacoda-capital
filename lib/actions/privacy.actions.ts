@@ -280,8 +280,8 @@ export async function updateRetentionSettings(settings: RetentionSettings): Prom
       settings: {
         ...currentSettings,
         retention: {
-          archiveRetentionMonths: settings.archiveRetentionMonths,
-          deletedItemRetentionMonths: settings.deletedItemRetentionMonths,
+          archiveRetentionMonths: settings.archiveRetentionMonths ?? undefined,
+          deletedItemRetentionMonths: settings.deletedItemRetentionMonths ?? undefined,
         },
       },
     })

@@ -236,7 +236,7 @@ export async function executeImportWithConflictResolution(
             status: "active",
             currency: (row.data.currency as string) ?? "USD",
             currentValue: row.data.value?.toString() ?? null,
-            metadata: row.data.address ? { address: row.data.address } : {},
+            metadata: row.data.address ? { propertyAddress: row.data.address as Record<string, string> } : {},
           })
           .returning()
 
@@ -301,7 +301,7 @@ export async function executeImportWithConflictResolution(
               status: "active",
               currency: (row.data.currency as string) ?? "USD",
               currentValue: row.data.value?.toString() ?? null,
-              metadata: row.data.address ? { address: row.data.address } : {},
+              metadata: row.data.address ? { propertyAddress: row.data.address as Record<string, string> } : {},
             })
             .returning()
 

@@ -1,8 +1,8 @@
 "use server"
 
-import { eq, and, count, desc } from "drizzle-orm"
+import { eq, and, count, desc, inArray, isNull } from "drizzle-orm"
 import { db } from "@/app/db"
-import { reports, reportVersions, assets, valuations, orgs } from "@/app/db/schema"
+import { reports, reportVersions, assets, valuations, orgs, clients, entities } from "@/app/db/schema"
 import { requireAuth, requireRole } from "@/lib/auth"
 import { createReportSchema, updateReportSchema } from "@/lib/validations/report.schema"
 import type { ReportRecord, ReportVersionRecord, AssetRecord, PaginatedResult } from "@/lib/types"
@@ -114,27 +114,40 @@ export async function generateReport(reportId: string): Promise<{ downloadUrl: s
   })
   if (!report) throw new Error("Report not found")
 
-  // 2. Fetch assets and latest valuations scoped to org
-  const assetsList = await db
-    .select()
-    .from(assets)
-    .where(eq(assets.orgId, session.orgId!))
+  // 2. Fetch assets scoped to org (assets → entities → clients → orgs)
+  const orgClients = await db.query.clients.findMany({
+    where: and(eq(clients.orgId, session.orgId!), isNull(clients.deletedAt)),
+    columns: { id: true },
+  })
+  const clientIds = orgClients.map((c) => c.id)
+
+  const orgEntities = clientIds.length > 0
+    ? await db.query.entities.findMany({
+        where: inArray(entities.clientId, clientIds),
+        columns: { id: true },
+      })
+    : []
+  const entityIds = orgEntities.map((e) => e.id)
+
+  const assetsList = entityIds.length > 0
+    ? await db.select().from(assets).where(inArray(assets.entityId, entityIds))
+    : []
 
   // Get latest valuation per asset
   const assetData = await Promise.all(
     assetsList.map(async (asset) => {
       const latestValuation = await db.query.valuations.findFirst({
-        where: and(eq(valuations.assetId, asset.id), eq(valuations.orgId, session.orgId!)),
-        orderBy: desc(valuations.valuedAt),
+        where: eq(valuations.assetId, asset.id),
+        orderBy: desc(valuations.createdAt),
       })
       return {
         id: asset.id,
         name: asset.name,
         description: asset.description,
         assetClass: asset.assetClass,
-        currentValue: latestValuation?.valuedAmount ?? 0,
+        currentValue: latestValuation?.value ? Number(latestValuation.value) : 0,
         acquisitionDate: asset.acquisitionDate?.toISOString() ?? null,
-        notes: asset.notes,
+        notes: (asset.metadata as Record<string, unknown>)?.notes as string ?? null,
       }
     })
   )

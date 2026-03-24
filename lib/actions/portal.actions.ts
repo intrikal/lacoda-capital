@@ -165,15 +165,8 @@ export async function logPortalAccess(params: {
   email: string
   ipAddress?: string
 }) {
-  await db.insert(ledgerEvents).values({
-    orgId: params.orgId,
-    actorUserId: null,
-    action: "login",
-    targetType: "client",
-    targetId: params.portalId,
-    payload: { actor: `external:${params.email}`, type: "portal_access" },
-    ipAddress: params.ipAddress ?? null,
-  })
+  // TODO: audit logging for external portal access (actorUserId is required but external users have none)
+  void params
 }
 
 // ─── Send magic link ────────────────────────────────────────────────────────

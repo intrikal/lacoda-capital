@@ -81,7 +81,7 @@ export async function disconnectDocuSign(): Promise<void> {
     orgId: session.orgId,
     actorId: session.userId,
     action: "updated",
-    targetType: "integration",
+    targetType: "org",
     targetId: "docusign",
     metadata: { action: "disconnected" },
   })

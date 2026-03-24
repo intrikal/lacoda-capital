@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect } from "vitest"
-import { tableToCSV, type ExportTableData } from "@/lib/actions/export.actions"
+import { tableToCSV, type ExportTableData } from "@/lib/export-utils"
 
 describe("data-export — CSV generation", () => {
   it("headers match column names", () => {

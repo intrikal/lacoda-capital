@@ -47,7 +47,7 @@ export default function BrandingSettingsPage() {
     async function load() {
       const result = await getOrgBranding()
       if ("error" in result) {
-        setError(result.error)
+        setError(result.error as string)
         setLoading(false)
         return
       }

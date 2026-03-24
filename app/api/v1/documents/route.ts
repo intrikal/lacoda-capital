@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
       entity_id: d.entityId,
       asset_id: d.assetId,
       name: d.name,
-      file_type: d.fileType,
+      file_type: d.mimeType,
       file_size: d.fileSize,
       status: d.status,
       metadata: d.metadata,

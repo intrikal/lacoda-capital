@@ -1,5 +1,3 @@
-"use server"
-
 import type { OrgMember } from "@/app/db/schema/org_members"
 
 /**

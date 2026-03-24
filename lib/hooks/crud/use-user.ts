@@ -4,7 +4,8 @@ import * as React from "react"
 import { useTransition } from "react"
 import { updateUserProfile } from "@/lib/actions/user.actions"
 import type { UpdateUserProfileInput } from "@/lib/validations/user.schema"
-import type { UserRecord } from "@/lib/types"
+// UserRecord is the return type of updateUserProfile
+type UserRecord = Awaited<ReturnType<typeof updateUserProfile>>
 
 /**
  * useUpdateUserProfile — Hook for updating user profile information.
