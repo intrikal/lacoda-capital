@@ -45,7 +45,7 @@ const PROTECTED_PREFIXES = ["/app", "/client", "/onboarding"]
  * Routes that handle their own authentication (API key auth, not session).
  * These are excluded from session-based redirect logic.
  */
-const SELF_AUTH_PREFIXES = ["/api/v1"]
+const SELF_AUTH_PREFIXES = ["/api/v1", "/portal"]
 
 /**
  * Routes that authenticated users should NOT visit.

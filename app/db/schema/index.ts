@@ -271,3 +271,13 @@ export type {
 // ============================================================================
 export { apiKeys, apiKeysRelations } from "./api_keys";
 export type { ApiKey, NewApiKey } from "./api_keys";
+
+// ============================================================================
+// Stakeholder Portals
+// ============================================================================
+export { stakeholderPortals, stakeholderPortalsRelations } from "./stakeholder_portals";
+export type {
+  StakeholderPortal,
+  NewStakeholderPortal,
+  PortalVisibility,
+} from "./stakeholder_portals";
