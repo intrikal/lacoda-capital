@@ -1,6 +1,6 @@
 "use server"
 
-import { eq, and, count } from "drizzle-orm"
+import { eq, and, count, isNull } from "drizzle-orm"
 import { db } from "@/app/db"
 import { orgs, orgMembers, users } from "@/app/db/schema"
 import { requireAuth, requireRole } from "@/lib/auth"
@@ -54,7 +54,12 @@ export async function getOrgMembers(params?: {
   const limit = Math.min(params?.limit ?? 100, 100)
   const offset = (page - 1) * limit
 
-  const where = eq(orgMembers.orgId, session.orgId!)
+  // Filter: only active members (deletedAt is null)
+  const where = and(
+    eq(orgMembers.orgId, session.orgId!),
+    isNull(orgMembers.deletedAt)
+  )
+
   const [items, [{ total }]] = await Promise.all([
     db.select().from(orgMembers).where(where).orderBy(orgMembers.createdAt).limit(limit).offset(offset),
     db.select({ total: count() }).from(orgMembers).where(where),
@@ -91,6 +96,16 @@ export async function inviteOrgMember(input: unknown): Promise<OrgMemberRecord> 
   })
   if (existing) throw new Error("User is already a member of this organization")
 
+  // GUARD: Can only grant roles equal to or below caller's own
+  const roleRank: Record<"admin" | "assistant" | "client", number> = {
+    client: 0,
+    assistant: 1,
+    admin: 2,
+  }
+  if (roleRank[parsed.role] > roleRank[session.role as "admin" | "assistant" | "client"]) {
+    throw new Error("Cannot grant a role higher than your own")
+  }
+
   const [created] = await db
     .insert(orgMembers)
     .values({
@@ -100,6 +115,21 @@ export async function inviteOrgMember(input: unknown): Promise<OrgMemberRecord> 
       clientId: parsed.clientId ?? null,
     })
     .returning()
+
+  // Log the invite action
+  const { createLedgerEvent } = await import("@/lib/actions/ledger")
+  await createLedgerEvent({
+    orgId: session.orgId!,
+    actorId: session.userId,
+    action: "permission_changed",
+    targetType: "user",
+    targetId: user.id,
+    metadata: {
+      action: "invited",
+      role: parsed.role,
+      email: parsed.email,
+    },
+  })
 
   return {
     ...created,
@@ -125,11 +155,54 @@ export async function updateOrgMemberRole(id: string, input: unknown): Promise<O
     throw new Error("Cannot change your own role")
   }
 
+  // GUARD: Cannot remove the last admin (prevent org lockout)
+  if (existing.role === "admin" && parsed.role !== "admin") {
+    const adminCount = await db
+      .select()
+      .from(orgMembers)
+      .where(
+        and(
+          eq(orgMembers.orgId, session.orgId!),
+          eq(orgMembers.role, "admin"),
+          // Don't count soft-deleted members
+          eq(orgMembers.deletedAt, null as any)
+        )
+      )
+    if (adminCount.length <= 1) {
+      throw new Error("Cannot remove the last admin from the organization")
+    }
+  }
+
+  // GUARD: Can only grant roles equal to or below caller's own
+  const roleRank: Record<"admin" | "assistant" | "client", number> = {
+    client: 0,
+    assistant: 1,
+    admin: 2,
+  }
+  if (roleRank[parsed.role] > roleRank[session.role as "admin" | "assistant" | "client"]) {
+    throw new Error("Cannot grant a role higher than your own")
+  }
+
   const [updated] = await db
     .update(orgMembers)
     .set({ role: parsed.role, clientId: parsed.clientId ?? existing.clientId })
     .where(eq(orgMembers.id, id))
     .returning()
+
+  // Log the role change
+  const { createLedgerEvent } = await import("@/lib/actions/ledger")
+  await createLedgerEvent({
+    orgId: session.orgId!,
+    actorId: session.userId,
+    action: "permission_changed",
+    targetType: "user",
+    targetId: updated.userId,
+    metadata: {
+      action: "role_changed",
+      oldRole: existing.role,
+      newRole: parsed.role,
+    },
+  })
 
   const user = await db.query.users.findFirst({ where: eq(users.id, updated.userId) })
   return {
@@ -151,6 +224,45 @@ export async function removeOrgMember(id: string): Promise<boolean> {
   })
   if (!existing) throw new Error("Member not found")
   if (existing.id === session.memberId) throw new Error("Cannot remove yourself from the organization")
-  await db.delete(orgMembers).where(eq(orgMembers.id, id))
+
+  // GUARD: Cannot remove the last admin (prevent org lockout)
+  if (existing.role === "admin") {
+    const adminCount = await db
+      .select()
+      .from(orgMembers)
+      .where(
+        and(
+          eq(orgMembers.orgId, session.orgId!),
+          eq(orgMembers.role, "admin"),
+          // Don't count soft-deleted members
+          eq(orgMembers.deletedAt, null as any)
+        )
+      )
+    if (adminCount.length <= 1) {
+      throw new Error("Cannot remove the last admin from the organization")
+    }
+  }
+
+  // SOFT DELETE: Set deletedAt instead of hard delete
+  // This preserves ledger integrity (ledger events still reference this member via ID)
+  await db
+    .update(orgMembers)
+    .set({ deletedAt: new Date() })
+    .where(eq(orgMembers.id, id))
+
+  // Log the removal
+  const { createLedgerEvent } = await import("@/lib/actions/ledger")
+  await createLedgerEvent({
+    orgId: session.orgId!,
+    actorId: session.userId,
+    action: "permission_changed",
+    targetType: "user",
+    targetId: existing.userId,
+    metadata: {
+      action: "removed",
+      role: existing.role,
+    },
+  })
+
   return true
 }
