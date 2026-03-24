@@ -500,6 +500,33 @@ export interface NotificationRecord {
   createdAt: string
 }
 
+// ─── Subscription ────────────────────────────────────────────────────────────
+
+export type SubscriptionPlan = "free" | "starter" | "professional" | "enterprise"
+
+export type SubscriptionStatus =
+  | "trialing"
+  | "active"
+  | "past_due"
+  | "cancelling"
+  | "cancelled"
+  | "unpaid"
+
+export interface SubscriptionRecord {
+  id: string
+  orgId: string
+  plan: SubscriptionPlan
+  status: SubscriptionStatus
+  stripeCustomerId: string | null
+  stripeSubscriptionId: string | null
+  currentPeriodStart: string | null
+  currentPeriodEnd: string | null
+  cancelAtPeriodEnd: boolean
+  trialEnd: string | null
+  createdAt: string
+  updatedAt: string
+}
+
 // ─── Pagination wrapper ───────────────────────────────────────────────────────
 
 /** Generic paginated list result returned by all list actions. */

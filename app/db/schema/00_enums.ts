@@ -543,6 +543,42 @@ export const premiumFrequencyEnum = pgEnum("premium_frequency", [
 ]);
 
 // ============================================================================
+// Subscriptions (Stripe SaaS Billing)
+// ============================================================================
+
+/**
+ * Subscription plan tier
+ * - free: No active subscription (read-only after trial/cancel)
+ * - starter: $499/mo — up to $25M AUM, 3 team members, 10GB storage
+ * - professional: $1,499/mo — up to $100M AUM, 10 team members, 100GB storage
+ * - enterprise: Custom pricing — unlimited everything
+ */
+export const subscriptionPlanEnum = pgEnum("subscription_plan", [
+  "free",
+  "starter",
+  "professional",
+  "enterprise",
+]);
+
+/**
+ * Subscription lifecycle status
+ * - trialing: 14-day free trial, full access
+ * - active: Paid and current
+ * - past_due: Payment failed, grace period
+ * - cancelling: User cancelled, active until period end
+ * - cancelled: Subscription ended, downgraded to free/read-only
+ * - unpaid: Multiple payment failures, access restricted
+ */
+export const subscriptionStatusEnum = pgEnum("subscription_status", [
+  "trialing",
+  "active",
+  "past_due",
+  "cancelling",
+  "cancelled",
+  "unpaid",
+]);
+
+// ============================================================================
 // Pipeline / Deals
 // ============================================================================
 

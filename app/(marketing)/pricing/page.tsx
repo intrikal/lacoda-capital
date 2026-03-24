@@ -3,7 +3,7 @@
 import * as React from "react"
 import Link from "next/link"
 import { useSpring, animated, config } from "@react-spring/web"
-import { ArrowRight, Check, X, HelpCircle, Minus } from "lucide-react"
+import { ArrowRight, Check, X, HelpCircle, Minus, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -15,10 +15,12 @@ import {
 } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 import { useReducedMotion } from "@/lib/hooks/use-reduced-motion"
+import { createCheckoutSession } from "@/lib/actions/subscription.actions"
 
 const plans = [
   {
     name: "Starter",
+    planKey: "starter" as const,
     description: "For smaller portfolios getting organized",
     price: "$499",
     period: "/month",
@@ -36,9 +38,11 @@ const plans = [
     ],
     cta: "Start Free Trial",
     ctaVariant: "outline" as const,
+    stripeCheckout: true,
   },
   {
     name: "Professional",
+    planKey: "professional" as const,
     description: "For growing firms and asset managers",
     price: "$1,499",
     period: "/month",
@@ -57,9 +61,11 @@ const plans = [
     ],
     cta: "Start Free Trial",
     ctaVariant: "glow" as const,
+    stripeCheckout: true,
   },
   {
     name: "Enterprise",
+    planKey: "enterprise" as const,
     description: "For large institutions with complex needs",
     price: "Custom",
     period: "",
@@ -77,6 +83,7 @@ const plans = [
     ],
     cta: "Contact Sales",
     ctaVariant: "outline" as const,
+    stripeCheckout: false,
   },
 ]
 
@@ -180,6 +187,21 @@ export default function PricingPage() {
   const reducedMotion = useReducedMotion()
   const [annual, setAnnual] = React.useState(false)
   const [expandedFaq, setExpandedFaq] = React.useState<number | null>(null)
+  const [checkoutLoading, setCheckoutLoading] = React.useState<string | null>(null)
+
+  const handleCheckout = async (planKey: "starter" | "professional") => {
+    setCheckoutLoading(planKey)
+    try {
+      const interval = annual ? "annual" : "monthly"
+      const { url } = await createCheckoutSession({ plan: planKey, interval })
+      window.location.href = url
+    } catch {
+      // If not logged in, redirect to login first
+      window.location.href = `/login?next=/pricing`
+    } finally {
+      setCheckoutLoading(null)
+    }
+  }
 
   const heroSpring = useSpring({
     from: { opacity: 0, transform: "translateY(20px)" },
@@ -326,13 +348,27 @@ export default function PricingPage() {
                       ))}
                     </ul>
 
-                    <Button
-                      variant={plan.ctaVariant}
-                      className="w-full"
-                      asChild
-                    >
-                      <Link href="/demo">{plan.cta}</Link>
-                    </Button>
+                    {plan.stripeCheckout ? (
+                      <Button
+                        variant={plan.ctaVariant}
+                        className="w-full"
+                        onClick={() => handleCheckout(plan.planKey as "starter" | "professional")}
+                        disabled={checkoutLoading !== null}
+                      >
+                        {checkoutLoading === plan.planKey && (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        )}
+                        {plan.cta}
+                      </Button>
+                    ) : (
+                      <Button
+                        variant={plan.ctaVariant}
+                        className="w-full"
+                        asChild
+                      >
+                        <Link href="/demo">{plan.cta}</Link>
+                      </Button>
+                    )}
                   </CardContent>
                 </Card>
               ))}

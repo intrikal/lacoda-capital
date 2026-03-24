@@ -46,6 +46,8 @@ export {
   taxDeductionCategoryEnum,
   taxDeductionTypeEnum,
   taxDeductionStatusEnum,
+  subscriptionPlanEnum,
+  subscriptionStatusEnum,
 } from "./00_enums";
 
 // ============================================================================
@@ -271,6 +273,16 @@ export type {
 // ============================================================================
 export { apiKeys, apiKeysRelations } from "./api_keys";
 export type { ApiKey, NewApiKey } from "./api_keys";
+
+// ============================================================================
+// Subscriptions (Stripe SaaS Billing)
+// ============================================================================
+export { subscriptions, subscriptionsRelations } from "./subscriptions";
+export type {
+  Subscription,
+  NewSubscription,
+  SubscriptionMetadata,
+} from "./subscriptions";
 
 // ============================================================================
 // Stakeholder Portals
