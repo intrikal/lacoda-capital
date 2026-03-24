@@ -23,7 +23,7 @@ const FROM_EMAIL = "Lacoda Capital <notifications@lacoda.capital>"
 // ─── Types ──────────────────────────────────────────────────────────────────
 
 interface EmailRequest {
-  type: "expiration_reminder" | "team_invite" | "weekly_digest"
+  type: "expiration_reminder" | "team_invite" | "weekly_digest" | "document_request_email" | "smart_alert_digest"
   to: string
   data: Record<string, unknown>
 }
@@ -225,6 +225,100 @@ function buildDigestEmail(data: DigestData): { subject: string; html: string } {
   return { subject, html }
 }
 
+// ─── Document Request Email Template ────────────────────────────────────────
+
+interface DocumentRequestEmailData {
+  subject: string
+  body: string
+}
+
+function buildDocumentRequestEmail(data: DocumentRequestEmailData): { subject: string; html: string } {
+  const bodyHtml = data.body
+    .split("\n")
+    .map((line) => (line.trim() === "" ? "<br>" : `<p style="color: #d4d4d8; font-size: 15px; margin: 0 0 8px 0;">${line}</p>`))
+    .join("")
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <body style="margin: 0; padding: 0; background-color: #09090b; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+      <div style="max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+        <div style="text-align: center; margin-bottom: 32px;">
+          <h1 style="color: #22d3ee; font-size: 20px; margin: 0;">Lacoda Capital</h1>
+        </div>
+        <div style="background-color: #18181b; border-radius: 12px; border: 1px solid #27272a; padding: 32px;">
+          ${bodyHtml}
+        </div>
+        <p style="color: #52525b; font-size: 12px; text-align: center; margin-top: 24px;">
+          This is an automated message from Lacoda Capital.
+        </p>
+      </div>
+    </body>
+    </html>`
+
+  return { subject: data.subject, html }
+}
+
+// ─── Smart Alert Digest Email Template ──────────────────────────────────────
+
+interface SmartAlertDigestData {
+  userName: string
+  orgName: string
+  executiveSummary: string
+  criticalCount: number
+  totalItems: number
+  alertRows: string
+}
+
+function buildSmartAlertDigestEmail(data: SmartAlertDigestData): { subject: string; html: string } {
+  const subject = data.criticalCount > 0
+    ? `🔴 ${data.criticalCount} critical alert${data.criticalCount === 1 ? "" : "s"} — ${data.orgName}`
+    : `Weekly Alert Digest — ${data.orgName}`
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <body style="margin: 0; padding: 0; background-color: #09090b; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+      <div style="max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+        <div style="text-align: center; margin-bottom: 32px;">
+          <h1 style="color: #22d3ee; font-size: 20px; margin: 0;">Lacoda Capital</h1>
+        </div>
+        <div style="background-color: #18181b; border-radius: 12px; border: 1px solid #27272a; padding: 32px;">
+          <h2 style="color: #f4f4f5; font-size: 18px; margin: 0 0 4px 0;">Smart Alert Digest</h2>
+          <p style="color: #a1a1aa; font-size: 14px; margin: 0 0 16px 0;">
+            Hi ${data.userName}, here's your AI-prioritized alert summary for ${data.orgName}.
+          </p>
+
+          <div style="background-color: #27272a; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
+            <p style="color: #f4f4f5; font-size: 14px; margin: 0; font-style: italic;">
+              "${data.executiveSummary}"
+            </p>
+            <p style="color: #a1a1aa; font-size: 12px; margin: 8px 0 0 0;">
+              ${data.totalItems} total items · ${data.criticalCount} critical
+            </p>
+          </div>
+
+          <table style="width: 100%; border-collapse: collapse;">
+            ${data.alertRows}
+          </table>
+
+          <div style="margin-top: 24px; text-align: center;">
+            <a href="https://app.lacoda.capital/app" style="display: inline-block; padding: 10px 24px; background-color: #0891b2; color: #fff; text-decoration: none; border-radius: 6px; font-weight: 500;">
+              View Dashboard
+            </a>
+          </div>
+        </div>
+        <p style="color: #52525b; font-size: 12px; text-align: center; margin-top: 24px;">
+          AI-powered alert digest.
+          <a href="https://app.lacoda.capital/app/settings" style="color: #0891b2;">Manage preferences</a>
+        </p>
+      </div>
+    </body>
+    </html>`
+
+  return { subject, html }
+}
+
 // ─── Send via Resend API with retry ─────────────────────────────────────────
 
 async function sendViaResend(
@@ -300,6 +394,18 @@ Deno.serve(async (req: Request) => {
       }
       case "weekly_digest": {
         const result = buildDigestEmail(data as unknown as DigestData)
+        subject = result.subject
+        html = result.html
+        break
+      }
+      case "document_request_email": {
+        const result = buildDocumentRequestEmail(data as unknown as DocumentRequestEmailData)
+        subject = result.subject
+        html = result.html
+        break
+      }
+      case "smart_alert_digest": {
+        const result = buildSmartAlertDigestEmail(data as unknown as SmartAlertDigestData)
         subject = result.subject
         html = result.html
         break
