@@ -5,7 +5,7 @@ import { db } from "@/app/db"
 import { users } from "@/app/db/schema"
 import { requireAuth } from "@/lib/auth"
 import { updateUserProfileSchema, type UpdateUserProfileInput } from "@/lib/validations/user.schema"
-import type { UserRecord } from "@/lib/types"
+type UserRecord = typeof users.$inferSelect
 
 /**
  * updateUserProfile — Updates user profile information.

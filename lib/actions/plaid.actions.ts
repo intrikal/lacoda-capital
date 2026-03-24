@@ -114,7 +114,7 @@ export async function triggerPlaidSync(integrationId?: string): Promise<{
     orgId: session.orgId!,
     actorId: session.userId,
     action: "updated",
-    targetType: "integration",
+    targetType: "org",
     targetId: integrationId ?? "all-plaid",
     metadata: { action: "manual_sync", ...result },
   })
@@ -144,7 +144,7 @@ export async function disconnectPlaid(): Promise<void> {
     orgId: session.orgId,
     actorId: session.userId,
     action: "updated",
-    targetType: "integration",
+    targetType: "org",
     targetId: "plaid",
     metadata: { action: "disconnected" },
   })

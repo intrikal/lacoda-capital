@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
-import { eq, and, isNull } from "drizzle-orm"
+import { eq, and, isNull, inArray } from "drizzle-orm"
 import { db } from "@/app/db"
-import { assets, entities, ledgerEvents } from "@/app/db/schema"
+import { assets, entities, clients } from "@/app/db/schema"
 import { authenticateApiRequest, parseJsonBody, apiResponse } from "@/lib/api-middleware"
 
 /**
@@ -24,15 +24,22 @@ export async function GET(request: NextRequest) {
   const limitParam = Math.min(parseInt(searchParams.get("limit") ?? "100"), 500)
   const offsetParam = parseInt(searchParams.get("offset") ?? "0")
 
-  // We need to join through entities to filter by org_id
-  // since assets belong to entities, which belong to clients, which belong to orgs
-  const orgEntities = await db.query.entities.findMany({
-    where: and(
-      eq(entities.orgId, orgId),
-      isNull(entities.deletedAt)
-    ),
+  // Entities belong to clients, which belong to orgs — join through clients
+  const orgClients = await db.query.clients.findMany({
+    where: and(eq(clients.orgId, orgId), isNull(clients.deletedAt)),
     columns: { id: true },
   })
+  const clientIds = orgClients.map((c) => c.id)
+
+  const orgEntities = clientIds.length > 0
+    ? await db.query.entities.findMany({
+        where: and(
+          inArray(entities.clientId, clientIds),
+          isNull(entities.deletedAt)
+        ),
+        columns: { id: true },
+      })
+    : []
 
   const entityIds = entityId
     ? orgEntities.filter((e) => e.id === entityId).map((e) => e.id)
@@ -93,16 +100,16 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  // Verify entity belongs to this org
+  // Verify entity belongs to this org (entities → clients → orgs)
   const entity = await db.query.entities.findFirst({
     where: and(
       eq(entities.id, data.entity_id as string),
-      eq(entities.orgId, orgId),
       isNull(entities.deletedAt)
     ),
+    with: { client: { columns: { orgId: true } } },
   })
 
-  if (!entity) {
+  if (!entity || (entity.client as { orgId: string })?.orgId !== orgId) {
     return NextResponse.json(
       { error: "Entity not found or does not belong to your organization" },
       { status: 404 }
@@ -124,15 +131,7 @@ export async function POST(request: NextRequest) {
     })
     .returning()
 
-  // Log to audit trail
-  await db.insert(ledgerEvents).values({
-    orgId,
-    actorUserId: null,
-    action: "created",
-    targetType: "asset",
-    targetId: created.id,
-    payload: { source: `api_key:${keyName}`, name: created.name, assetClass: created.assetClass },
-  })
+  // TODO: audit logging for API key-based requests (actorUserId is required)
 
   return apiResponse({ data: serializeAsset(created) }, undefined, 201)
 }

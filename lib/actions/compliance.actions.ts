@@ -220,11 +220,13 @@ export async function createComplianceEvidence(input: unknown): Promise<Complian
   })
   if (!control) throw new Error("Control not found")
 
+  if (!parsed.clientId) throw new Error("clientId is required")
+
   const [created] = await db
     .insert(complianceEvidence)
     .values({
       ...parsed,
-      clientId: parsed.clientId ?? null,
+      clientId: parsed.clientId,
       validFrom: parsed.validFrom ? new Date(parsed.validFrom) : null,
       validUntil: parsed.validUntil ? new Date(parsed.validUntil) : null,
     })

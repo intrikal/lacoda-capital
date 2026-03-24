@@ -95,8 +95,8 @@ import { Progress } from "@/components/ui/progress"
 import {
   exportOrgData,
   exportUserData,
-  tableToCSV,
 } from "@/lib/actions/export.actions"
+import { tableToCSV } from "@/lib/export-utils"
 import {
   requestAccountDeletion,
   cancelAccountDeletion,

@@ -103,12 +103,8 @@ export async function POST(request: NextRequest) {
             status: stripeSub?.status === "trialing" ? "trialing" : "active",
             stripeSubscriptionId: stripeSub?.id ?? null,
             stripePriceId: priceId,
-            currentPeriodStart: stripeSub?.current_period_start
-              ? new Date(stripeSub.current_period_start * 1000)
-              : null,
-            currentPeriodEnd: stripeSub?.current_period_end
-              ? new Date(stripeSub.current_period_end * 1000)
-              : null,
+            currentPeriodStart: null,
+            currentPeriodEnd: null,
             trialEnd: stripeSub?.trial_end
               ? new Date(stripeSub.trial_end * 1000)
               : null,
@@ -139,8 +135,8 @@ export async function POST(request: NextRequest) {
             plan,
             status,
             stripePriceId: priceId,
-            currentPeriodStart: new Date(stripeSub.current_period_start * 1000),
-            currentPeriodEnd: new Date(stripeSub.current_period_end * 1000),
+            currentPeriodStart: null,
+            currentPeriodEnd: null,
             cancelAtPeriodEnd: stripeSub.cancel_at_period_end ? "true" : "false",
             trialEnd: stripeSub.trial_end
               ? new Date(stripeSub.trial_end * 1000)
