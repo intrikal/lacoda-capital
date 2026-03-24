@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils"
 import { NotificationBell } from "@/components/dashboard/notification-bell"
 import { CommandSearch } from "@/components/dashboard/command-search"
 import { FirstLoginWizard } from "@/components/dashboard/first-login-wizard"
+import { UsageLimitBanner } from "@/components/dashboard/usage-limit-banner"
 
 export default function DashboardLayout({
   children,
@@ -35,7 +36,10 @@ export default function DashboardLayout({
           <FirstLoginWizard />
 
           {/* Page content */}
-          <div className="p-6">{children}</div>
+          <div className="p-6">
+            <UsageLimitBanner />
+            {children}
+          </div>
         </main>
       </div>
     </TooltipProvider>
