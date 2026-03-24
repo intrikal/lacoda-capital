@@ -46,7 +46,7 @@ export async function getTaxDeduction(id: string): Promise<TaxDeductionItem | nu
 }
 
 export async function createTaxDeduction(input: unknown): Promise<TaxDeductionItem> {
-  const session = await requireRole(["admin", "assistant"])
+  const session = await requireRole("assistant")
   const parsed = createTaxDeductionSchema.parse(input)
 
   const [created] = await db
@@ -62,7 +62,7 @@ export async function createTaxDeduction(input: unknown): Promise<TaxDeductionIt
 }
 
 export async function updateTaxDeduction(id: string, input: unknown): Promise<TaxDeductionItem> {
-  const session = await requireRole(["admin", "assistant"])
+  const session = await requireRole("assistant")
   const existing = await db.query.taxDeductions.findFirst({
     where: and(eq(taxDeductions.id, id), eq(taxDeductions.orgId, session.orgId!)),
   })
@@ -85,7 +85,7 @@ export async function updateTaxDeduction(id: string, input: unknown): Promise<Ta
 }
 
 export async function deleteTaxDeduction(id: string): Promise<boolean> {
-  const session = await requireRole(["admin"])
+  const session = await requireRole("admin")
   const existing = await db.query.taxDeductions.findFirst({
     where: and(eq(taxDeductions.id, id), eq(taxDeductions.orgId, session.orgId!)),
   })

@@ -44,7 +44,7 @@ export async function getCalendarEvent(id: string): Promise<CalendarEventRecord 
 }
 
 export async function createCalendarEvent(input: unknown): Promise<CalendarEventRecord> {
-  const session = await requireRole(["admin", "assistant"])
+  const session = await requireRole("assistant")
   const parsed = createCalendarEventSchema.parse(input)
 
   const [created] = await db
@@ -68,7 +68,7 @@ export async function createCalendarEvent(input: unknown): Promise<CalendarEvent
 }
 
 export async function updateCalendarEvent(id: string, input: unknown): Promise<CalendarEventRecord> {
-  const session = await requireRole(["admin", "assistant"])
+  const session = await requireRole("assistant")
   const existing = await db.query.calendarEvents.findFirst({
     where: and(eq(calendarEvents.id, id), eq(calendarEvents.orgId, session.orgId!)),
   })
@@ -91,7 +91,7 @@ export async function updateCalendarEvent(id: string, input: unknown): Promise<C
 }
 
 export async function deleteCalendarEvent(id: string): Promise<boolean> {
-  const session = await requireRole(["admin", "assistant"])
+  const session = await requireRole("assistant")
   const existing = await db.query.calendarEvents.findFirst({
     where: and(eq(calendarEvents.id, id), eq(calendarEvents.orgId, session.orgId!)),
   })

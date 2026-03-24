@@ -40,7 +40,7 @@ export async function getBenchmark(id: string): Promise<BenchmarkRecord | null> 
 }
 
 export async function createBenchmark(input: unknown): Promise<BenchmarkRecord> {
-  const session = await requireRole(["admin", "assistant"])
+  const session = await requireRole("assistant")
   const parsed = createBenchmarkSchema.parse(input)
 
   const [created] = await db
@@ -57,7 +57,7 @@ export async function createBenchmark(input: unknown): Promise<BenchmarkRecord> 
 }
 
 export async function updateBenchmark(id: string, input: unknown): Promise<BenchmarkRecord> {
-  const session = await requireRole(["admin", "assistant"])
+  const session = await requireRole("assistant")
   const existing = await db.query.benchmarks.findFirst({
     where: and(eq(benchmarks.id, id), eq(benchmarks.orgId, session.orgId!)),
   })
@@ -80,7 +80,7 @@ export async function updateBenchmark(id: string, input: unknown): Promise<Bench
 }
 
 export async function deleteBenchmark(id: string): Promise<boolean> {
-  const session = await requireRole(["admin"])
+  const session = await requireRole("admin")
   const existing = await db.query.benchmarks.findFirst({
     where: and(eq(benchmarks.id, id), eq(benchmarks.orgId, session.orgId!)),
   })

@@ -56,7 +56,7 @@ export async function getMessages(params: {
 }
 
 export async function createConversation(input: unknown): Promise<ConversationRecord> {
-  const session = await requireRole(["admin", "assistant"])
+  const session = await requireRole("assistant")
   const parsed = createConversationSchema.parse(input)
 
   const [created] = await db
@@ -73,7 +73,7 @@ export async function createConversation(input: unknown): Promise<ConversationRe
 }
 
 export async function sendMessage(input: unknown): Promise<MessageRecord> {
-  const session = await requireRole(["admin", "assistant"])
+  const session = await requireRole("assistant")
   const parsed = sendMessageSchema.parse(input)
 
   const conv = await db.query.conversations.findFirst({
@@ -126,7 +126,7 @@ export async function markConversationRead(id: string): Promise<ConversationReco
 }
 
 export async function deleteConversation(id: string): Promise<boolean> {
-  const session = await requireRole(["admin"])
+  const session = await requireRole("admin")
   const conv = await db.query.conversations.findFirst({
     where: and(eq(conversations.id, id), eq(conversations.orgId, session.orgId!)),
   })

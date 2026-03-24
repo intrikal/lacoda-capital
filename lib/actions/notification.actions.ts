@@ -51,6 +51,21 @@ export async function markNotificationRead(id: string): Promise<NotificationReco
   return updated as unknown as NotificationRecord
 }
 
+export async function getUnreadNotificationCount(): Promise<number> {
+  const session = await requireAuth()
+  const [result] = await db
+    .select({ value: count() })
+    .from(notifications)
+    .where(
+      and(
+        eq(notifications.userId, session.memberId!),
+        eq(notifications.orgId, session.orgId!),
+        isNull(notifications.readAt)
+      )
+    )
+  return result?.value ?? 0
+}
+
 export async function markAllNotificationsRead(): Promise<boolean> {
   const session = await requireAuth()
   await db

@@ -42,7 +42,7 @@ export async function getDocument(id: string): Promise<DocumentRecord | null> {
 }
 
 export async function createDocument(input: unknown): Promise<DocumentRecord> {
-  const session = await requireRole(["admin", "assistant"])
+  const session = await requireRole("assistant")
   const parsed = createDocumentSchema.parse(input)
 
   const [created] = await db
@@ -60,7 +60,7 @@ export async function createDocument(input: unknown): Promise<DocumentRecord> {
 }
 
 export async function updateDocument(id: string, input: unknown): Promise<DocumentRecord> {
-  const session = await requireRole(["admin", "assistant"])
+  const session = await requireRole("assistant")
   const existing = await db.query.documents.findFirst({
     where: and(eq(documents.id, id), eq(documents.orgId, session.orgId!)),
   })
@@ -81,7 +81,7 @@ export async function updateDocument(id: string, input: unknown): Promise<Docume
 }
 
 export async function deleteDocument(id: string): Promise<boolean> {
-  const session = await requireRole(["admin"])
+  const session = await requireRole("admin")
   const existing = await db.query.documents.findFirst({
     where: and(eq(documents.id, id), eq(documents.orgId, session.orgId!)),
   })

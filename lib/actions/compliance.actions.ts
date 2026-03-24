@@ -46,7 +46,7 @@ export async function getComplianceControls(params?: {
 }
 
 export async function createComplianceControl(input: unknown): Promise<ComplianceControlRecord> {
-  const session = await requireRole(["admin"])
+  const session = await requireRole("admin")
   const parsed = createComplianceControlSchema.parse(input)
 
   const [created] = await db
@@ -64,7 +64,7 @@ export async function createComplianceControl(input: unknown): Promise<Complianc
 }
 
 export async function updateComplianceControl(id: string, input: unknown): Promise<ComplianceControlRecord> {
-  const session = await requireRole(["admin"])
+  const session = await requireRole("admin")
   const existing = await db.query.complianceControls.findFirst({
     where: and(eq(complianceControls.id, id), eq(complianceControls.orgId, session.orgId!)),
   })
@@ -90,7 +90,7 @@ export async function updateComplianceControl(id: string, input: unknown): Promi
 }
 
 export async function deleteComplianceControl(id: string): Promise<boolean> {
-  const session = await requireRole(["admin"])
+  const session = await requireRole("admin")
   const existing = await db.query.complianceControls.findFirst({
     where: and(eq(complianceControls.id, id), eq(complianceControls.orgId, session.orgId!)),
   })
@@ -100,7 +100,7 @@ export async function deleteComplianceControl(id: string): Promise<boolean> {
 }
 
 export async function createComplianceEvidence(input: unknown): Promise<ComplianceEvidenceRecord> {
-  const session = await requireRole(["admin", "assistant"])
+  const session = await requireRole("assistant")
   const parsed = createComplianceEvidenceSchema.parse(input)
 
   const control = await db.query.complianceControls.findFirst({

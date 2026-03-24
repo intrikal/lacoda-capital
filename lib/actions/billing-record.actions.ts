@@ -40,7 +40,7 @@ export async function getBillingRecord(id: string): Promise<BillingRecordItem | 
 }
 
 export async function createBillingRecord(input: unknown): Promise<BillingRecordItem> {
-  const session = await requireRole(["admin", "assistant"])
+  const session = await requireRole("assistant")
   const parsed = createBillingRecordSchema.parse(input)
 
   const [created] = await db
@@ -56,7 +56,7 @@ export async function createBillingRecord(input: unknown): Promise<BillingRecord
 }
 
 export async function updateBillingRecord(id: string, input: unknown): Promise<BillingRecordItem> {
-  const session = await requireRole(["admin", "assistant"])
+  const session = await requireRole("assistant")
   const existing = await db.query.billingRecords.findFirst({
     where: and(eq(billingRecords.id, id), eq(billingRecords.orgId, session.orgId!)),
   })
@@ -79,7 +79,7 @@ export async function updateBillingRecord(id: string, input: unknown): Promise<B
 }
 
 export async function deleteBillingRecord(id: string): Promise<boolean> {
-  const session = await requireRole(["admin"])
+  const session = await requireRole("admin")
   const existing = await db.query.billingRecords.findFirst({
     where: and(eq(billingRecords.id, id), eq(billingRecords.orgId, session.orgId!)),
   })
