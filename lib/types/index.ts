@@ -106,6 +106,9 @@ export interface DocumentRecord {
   fileSize: string | null
   storagePath: string
   folder: string | null
+  version: number
+  previousVersionId: string | null
+  uploadedBy: string | null
   status: "pending" | "verified" | "expired" | "rejected"
   expiresAt: string | null
   verifiedAt: string | null
@@ -114,6 +117,7 @@ export interface DocumentRecord {
   metadata: Record<string, unknown> | null
   createdAt: string
   updatedAt: string
+  deletedAt: string | null
 }
 
 // ─── Document Request ─────────────────────────────────────────────────────────
@@ -127,7 +131,7 @@ export interface DocumentRequestRecord {
   title: string
   description: string | null
   documentType: string | null
-  status: "open" | "fulfilled" | "cancelled" | "overdue"
+  status: "pending" | "sent" | "received" | "reviewed" | "approved"
   priority: "low" | "medium" | "high" | "urgent"
   requestedBy: string | null
   assignedTo: string | null

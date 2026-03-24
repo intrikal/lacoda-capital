@@ -71,7 +71,7 @@ export async function updateDocumentRequest(id: string, input: unknown): Promise
   if (parsed.documentType !== undefined) setData.documentType = parsed.documentType ?? null
   if (parsed.status !== undefined) {
     setData.status = parsed.status
-    if (parsed.status === "fulfilled") setData.fulfilledAt = new Date()
+    if (parsed.status === "approved") setData.fulfilledAt = new Date()
   }
   if (parsed.priority !== undefined) setData.priority = parsed.priority
   if (parsed.dueDate !== undefined) setData.dueDate = parsed.dueDate ? new Date(parsed.dueDate) : null
