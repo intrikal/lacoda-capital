@@ -6,6 +6,7 @@ import { reports, reportVersions, assets, valuations, orgs } from "@/app/db/sche
 import { requireAuth, requireRole } from "@/lib/auth"
 import { createReportSchema, updateReportSchema } from "@/lib/validations/report.schema"
 import type { ReportRecord, ReportVersionRecord, AssetRecord, PaginatedResult } from "@/lib/types"
+import { captureServerEvent } from "@/lib/analytics/posthog-server"
 import { renderPDF, type PDFTemplateType } from "@/lib/pdf/render"
 import { createClient } from "@/utils/supabase/server"
 import { createLedgerEvent } from "@/lib/actions/ledger"
@@ -55,6 +56,11 @@ export async function createReport(input: unknown): Promise<ReportRecord> {
       parameters: parsed.parameters ?? {},
     })
     .returning()
+
+  captureServerEvent(session.userId, "report.generated", {
+    org_id: session.orgId,
+    report_type: parsed.reportType,
+  })
 
   return created as unknown as ReportRecord
 }

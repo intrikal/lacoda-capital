@@ -6,6 +6,7 @@ import { assets, entities, clients, valuations, documents } from "@/app/db/schem
 import { requireAuth, requireRole } from "@/lib/auth"
 import { createAssetSchema, updateAssetSchema } from "@/lib/validations/asset.schema"
 import { createLedgerEvent } from "@/lib/actions/ledger"
+import { captureServerEvent } from "@/lib/analytics/posthog-server"
 import type { AssetRecord, PaginatedResult } from "@/lib/types"
 
 // ─── List with filters ──────────────────────────────────────────────────────
@@ -142,6 +143,11 @@ export async function createAsset(input: unknown): Promise<AssetRecord> {
     targetType: "asset",
     targetId: created.id,
     metadata: { name: data.name, assetClass: data.assetClass },
+  })
+
+  captureServerEvent(session.userId, "asset.created", {
+    org_id: session.orgId,
+    asset_class: data.assetClass,
   })
 
   return {

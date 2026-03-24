@@ -4,6 +4,7 @@ import { db } from "@/app/db"
 import { assets, clients, entities, users } from "@/app/db/schema"
 import { DashboardOverviewClient } from "@/components/dashboard/dashboard-overview-client"
 import { getAllocationByAssetClass, getRecentActivity } from "@/lib/actions/dashboard.actions"
+import { getComplianceStats } from "@/lib/actions/compliance.actions"
 import type { KPIData } from "@/lib/types/mock"
 
 export default async function DashboardPage() {
@@ -11,7 +12,7 @@ export default async function DashboardPage() {
 
   // ── Parallel data fetches ─────────────────────────────────────────────────
 
-  const [userRow, clientCountRow, aumRow, assetCountRow, allocation, activity] =
+  const [userRow, clientCountRow, aumRow, assetCountRow, allocation, activity, complianceRaw] =
     await Promise.all([
       // User's display name
       db.query.users.findFirst({
@@ -59,6 +60,9 @@ export default async function DashboardPage() {
 
       // Recent activity from ledger events (real data)
       getRecentActivity(20),
+
+      // Compliance stats
+      getComplianceStats().catch(() => null),
     ])
 
   // ── Derived values ────────────────────────────────────────────────────────
@@ -70,6 +74,15 @@ export default async function DashboardPage() {
   const clientCount = clientCountRow?.value ?? 0
   const totalAUM = parseFloat(aumRow?.total ?? "0")
   const assetCount = assetCountRow?.value ?? 0
+  const complianceStats = complianceRaw
+    ? {
+        score: complianceRaw.active > 0 ? Math.round((complianceRaw.verified / complianceRaw.active) * 100) : 0,
+        active: complianceRaw.active,
+        verified: complianceRaw.verified,
+        overdue: complianceRaw.overdue,
+        byFramework: complianceRaw.byFramework,
+      }
+    : undefined
 
   // Build KPIs from real data
   const kpis: KPIData[] = [
@@ -112,6 +125,7 @@ export default async function DashboardPage() {
       kpis={kpis}
       allocation={allocation}
       activity={activity}
+      complianceStats={complianceStats}
     />
   )
 }

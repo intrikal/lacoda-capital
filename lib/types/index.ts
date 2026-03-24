@@ -229,8 +229,12 @@ export interface ComplianceControlRecord {
   name: string
   description: string | null
   category: string | null
+  framework: string | null
+  assigneeId: string | null
+  assigneeName?: string | null
+  dueDate: string | null
   isActive: boolean
-  status: "needs_attention" | "in_progress" | "compliant"
+  status: "not_started" | "in_progress" | "implemented" | "verified"
   frequency: string | null
   requiredDocumentTypes: string[]
   metadata: Record<string, unknown> | null

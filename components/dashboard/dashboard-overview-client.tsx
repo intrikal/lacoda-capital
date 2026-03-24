@@ -19,6 +19,7 @@ import { AlertsPanel } from "@/components/dashboard/alerts-panel"
 import { ActivityFeed } from "@/components/dashboard/activity-feed"
 import { QuickActions } from "@/components/dashboard/quick-actions"
 import { TasksPanel } from "@/components/dashboard/tasks-panel"
+import { ComplianceWidget } from "@/components/dashboard/compliance-widget"
 import { formatCurrency } from "@/lib/utils"
 import { useReducedMotion } from "@/lib/hooks/use-reduced-motion"
 import {
@@ -155,6 +156,13 @@ interface DashboardOverviewClientProps {
   kpis: KPIData[]
   allocation?: AllocationSlice[]
   activity?: ActivityEvent[]
+  complianceStats?: {
+    score: number
+    active: number
+    verified: number
+    overdue: number
+    byFramework: Record<string, { total: number; verified: number }>
+  }
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -166,6 +174,7 @@ export function DashboardOverviewClient({
   kpis,
   allocation = [],
   activity = [],
+  complianceStats,
 }: DashboardOverviewClientProps) {
   const reducedMotion = useReducedMotion()
   const today = new Date()
@@ -364,6 +373,16 @@ export function DashboardOverviewClient({
 
           {/* Right Column - Tabbed Sidebar */}
           <div className="space-y-6">
+            {complianceStats && (
+              <ComplianceWidget
+                score={complianceStats.score}
+                active={complianceStats.active}
+                verified={complianceStats.verified}
+                overdue={complianceStats.overdue}
+                byFramework={complianceStats.byFramework}
+              />
+            )}
+
             <InvestmentReturnsChart data={investmentReturnsData} />
 
             <Card>
