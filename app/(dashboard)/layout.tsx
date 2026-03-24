@@ -3,10 +3,10 @@
 import * as React from "react"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { Sidebar } from "@/components/dashboard/sidebar"
-import { Button } from "@/components/ui/button"
-import { Search } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { NotificationBell } from "@/components/dashboard/notification-bell"
+import { CommandSearch } from "@/components/dashboard/command-search"
+import { FirstLoginWizard } from "@/components/dashboard/first-login-wizard"
 
 export default function DashboardLayout({
   children,
@@ -27,11 +27,12 @@ export default function DashboardLayout({
         <main className={cn("min-h-screen transition-all duration-200", mainMargin)}>
           {/* Top bar */}
           <div className="sticky top-0 z-30 flex h-14 items-center justify-end gap-2 border-b border-zinc-800/60 bg-zinc-950/80 backdrop-blur-sm px-6">
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-400 hover:text-zinc-100">
-              <Search className="h-4 w-4" />
-            </Button>
+            <CommandSearch />
             <NotificationBell />
           </div>
+
+          {/* First-login onboarding wizard */}
+          <FirstLoginWizard />
 
           {/* Page content */}
           <div className="p-6">{children}</div>

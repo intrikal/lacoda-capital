@@ -458,6 +458,29 @@ export interface UserPreferences {
     defaultView?: string; // Which view to show by default ("grid", "list", etc.)
     widgetLayout?: string[]; // Order of dashboard widgets ["calendar", "tasks", ...]
   };
+
+  /**
+   * email_preferences?: { ... }
+   *
+   * Kevin, this controls WHICH transactional emails the user receives.
+   * Users can opt out of specific email types without losing in-app notifications.
+   *
+   * EXAMPLE:
+   *   A user who wants digest emails but NOT expiration reminders:
+   *   {
+   *     digest: "weekly",
+   *     expirationReminders: false,
+   *     teamInvites: true
+   *   }
+   */
+  email_preferences?: {
+    /** How often to receive the weekly digest: "weekly" | "daily" | "never" */
+    digest?: "weekly" | "daily" | "never";
+    /** Receive document expiration reminder emails? Default true */
+    expirationReminders?: boolean;
+    /** Receive team invite emails? Default true */
+    teamInvites?: boolean;
+  };
 }
 
 // ============================================================================

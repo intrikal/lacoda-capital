@@ -33,37 +33,33 @@ import {
 } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 import { useReducedMotion } from "@/lib/hooks/use-reduced-motion"
+import { getOnboardingChecklist, type OnboardingChecklist } from "@/lib/actions/onboarding.actions"
 
-const gettingStartedSteps = [
+// Fallback static steps (used while loading real checklist)
+const defaultSteps = [
   {
-    title: "Add your first asset",
-    description: "Import or manually add an asset to your portfolio",
-    completed: true,
-    link: "/app/assets",
-  },
-  {
-    title: "Upload key documents",
-    description: "Store important documents in your secure vault",
-    completed: true,
-    link: "/app/vault",
-  },
-  {
-    title: "Set up your team",
-    description: "Invite team members and configure permissions",
+    title: "Set up your organization",
+    description: "Confirm your org name, timezone, and currency",
     completed: false,
     link: "/app/settings",
   },
   {
-    title: "Generate your first report",
-    description: "Create a portfolio summary or performance report",
+    title: "Invite your team",
+    description: "Add team members and configure their roles",
     completed: false,
-    link: "/app/reports",
+    link: "/app/settings",
   },
   {
-    title: "Review compliance controls",
-    description: "Ensure your organization meets security standards",
+    title: "Add your first asset",
+    description: "Create or import an asset to start tracking",
     completed: false,
-    link: "/app/compliance",
+    link: "/app/assets",
+  },
+  {
+    title: "Upload a document",
+    description: "Store important documents in your secure vault",
+    completed: false,
+    link: "/app/vault",
   },
 ]
 
@@ -131,7 +127,19 @@ const faqs = [
 export default function HelpPage() {
   const [searchQuery, setSearchQuery] = React.useState("")
   const [supportSubmitted, setSupportSubmitted] = React.useState(false)
+  const [checklist, setChecklist] = React.useState<OnboardingChecklist | null>(null)
   const reducedMotion = useReducedMotion()
+
+  // Load real checklist from server
+  React.useEffect(() => {
+    getOnboardingChecklist()
+      .then(setChecklist)
+      .catch(() => setChecklist(null))
+  }, [])
+
+  const gettingStartedSteps = checklist
+    ? checklist.steps.map((s) => ({ title: s.label, description: s.description, completed: s.completed, link: s.href }))
+    : defaultSteps
 
   const completedSteps = gettingStartedSteps.filter((s) => s.completed).length
   const progressPercentage = (completedSteps / gettingStartedSteps.length) * 100
