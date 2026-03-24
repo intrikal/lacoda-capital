@@ -41,3 +41,17 @@ export const updateOrgMemberRoleSchema = z.object({
 })
 
 export type UpdateOrgMemberRoleInput = z.infer<typeof updateOrgMemberRoleSchema>
+
+/**
+ * updateOrgSettingsSchema — Validates input for updating org settings.
+ *
+ * Updates org.name, org.settings.timezone, org.settings.currency, org.settings.branding.logoUrl
+ */
+export const updateOrgSettingsSchema = z.object({
+  name: z.string().min(1, "Organization name is required").max(255).trim().optional(),
+  timezone: z.string().optional(),
+  currency: z.string().optional(),
+  logoUrl: z.string().url("Invalid URL").optional().nullable(),
+})
+
+export type UpdateOrgSettingsInput = z.infer<typeof updateOrgSettingsSchema>

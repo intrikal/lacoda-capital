@@ -6,7 +6,7 @@ import { documents } from "@/app/db/schema"
 import { requireAuth, requireRole } from "@/lib/auth"
 import { createDocumentSchema, updateDocumentSchema, uploadDocumentSchema } from "@/lib/validations/document.schema"
 import type { DocumentRecord, PaginatedResult } from "@/lib/types"
-import { createServerClient } from "@/utils/supabase/server"
+import { createClient } from "@/utils/supabase/server"
 
 export async function getDocuments(params?: {
   clientId?: string
@@ -93,7 +93,7 @@ export async function deleteDocument(id: string): Promise<boolean> {
 
 export async function getSignedUrl(storagePath: string): Promise<string> {
   const session = await requireAuth()
-  const supabase = await createServerClient()
+  const supabase = await createClient()
 
   const { data, error } = await supabase.storage
     .from("documents")

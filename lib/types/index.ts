@@ -190,6 +190,21 @@ export interface ReportRecord {
   updatedAt: string
 }
 
+// ─── ReportVersion ────────────────────────────────────────────────────────────
+
+export interface ReportVersionRecord {
+  id: string
+  reportId: string
+  versionNumber: number
+  storagePath: string | null
+  contentHash: string | null
+  parametersSnapshot: Record<string, unknown> | null
+  generatedBy: string | null
+  generatedAt: string
+  sharedAt: string | null
+  sharedWith: string[]
+}
+
 // ─── Compliance ───────────────────────────────────────────────────────────────
 
 export interface ComplianceEvidenceRecord {
