@@ -6,6 +6,7 @@ import {
   createReport,
   updateReport,
   deleteReport,
+  generateReport,
 } from "@/lib/actions/report.actions"
 import type { ReportRecord } from "@/lib/types"
 import type {
@@ -105,6 +106,29 @@ export function useDeleteReport() {
       startTransition(async () => {
         await deleteReport(id)
         options?.onSuccess?.()
+      })
+    },
+    []
+  )
+
+  return { mutate, isPending }
+}
+
+export function useGenerateReport() {
+  const [isPending, startTransition] = useTransition()
+
+  const mutate = useCallback(
+    (reportId: string, options?: { onSuccess?: (data: { downloadUrl: string }) => void }) => {
+      return new Promise<void>((resolve) => {
+        startTransition(async () => {
+          try {
+            const result = await generateReport(reportId)
+            options?.onSuccess?.(result)
+          } catch (error) {
+            console.error("Failed to generate report:", error)
+          }
+          resolve()
+        })
       })
     },
     []

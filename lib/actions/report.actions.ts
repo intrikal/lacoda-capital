@@ -1,11 +1,14 @@
 "use server"
 
-import { eq, and, count } from "drizzle-orm"
+import { eq, and, count, desc } from "drizzle-orm"
 import { db } from "@/app/db"
-import { reports } from "@/app/db/schema"
+import { reports, reportVersions, assets, valuations, orgs } from "@/app/db/schema"
 import { requireAuth, requireRole } from "@/lib/auth"
 import { createReportSchema, updateReportSchema } from "@/lib/validations/report.schema"
-import type { ReportRecord, PaginatedResult } from "@/lib/types"
+import type { ReportRecord, ReportVersionRecord, AssetRecord, PaginatedResult } from "@/lib/types"
+import { renderPDF, type PDFTemplateType } from "@/lib/pdf/render"
+import { createClient } from "@/utils/supabase/server"
+import { createLedgerEvent } from "@/lib/actions/ledger"
 
 export async function getReports(params?: {
   clientId?: string
@@ -83,3 +86,157 @@ export async function deleteReport(id: string): Promise<boolean> {
   await db.delete(reports).where(eq(reports.id, id))
   return true
 }
+
+/**
+ * generateReport — Generates a PDF version of a report.
+ *
+ * 1. Fetches the report and validates org ownership
+ * 2. Assembles portfolio data (assets + latest valuations)
+ * 3. Renders PDF via @react-pdf/renderer
+ * 4. Uploads to Supabase Storage under "reports" bucket
+ * 5. Creates reportVersions row
+ * 6. Updates reports.currentVersionId
+ * 7. Logs a ledger event
+ * 8. Returns signed download URL
+ */
+export async function generateReport(reportId: string): Promise<{ downloadUrl: string }> {
+  const session = await requireRole("assistant")
+
+  // 1. Fetch report and verify ownership
+  const report = await db.query.reports.findFirst({
+    where: and(eq(reports.id, reportId), eq(reports.orgId, session.orgId!)),
+  })
+  if (!report) throw new Error("Report not found")
+
+  // 2. Fetch assets and latest valuations scoped to org
+  const assetsList = await db
+    .select()
+    .from(assets)
+    .where(eq(assets.orgId, session.orgId!))
+
+  // Get latest valuation per asset
+  const assetData = await Promise.all(
+    assetsList.map(async (asset) => {
+      const latestValuation = await db.query.valuations.findFirst({
+        where: and(eq(valuations.assetId, asset.id), eq(valuations.orgId, session.orgId!)),
+        orderBy: desc(valuations.valuedAt),
+      })
+      return {
+        id: asset.id,
+        name: asset.name,
+        description: asset.description,
+        assetClass: asset.assetClass,
+        currentValue: latestValuation?.valuedAmount ?? 0,
+        acquisitionDate: asset.acquisitionDate?.toISOString() ?? null,
+        notes: asset.notes,
+      }
+    })
+  )
+
+  // Calculate total AUM
+  const totalAUM = assetData.reduce((sum, asset) => sum + asset.currentValue, 0)
+
+  // 3. Render PDF based on report type
+  let pdfBuffer: Buffer
+  try {
+    const templateType = report.reportType as PDFTemplateType
+
+    if (templateType === "holdings_detail") {
+      pdfBuffer = await renderPDF(templateType, {
+        orgName: (await db.query.orgs.findFirst({
+          where: eq(orgs.id, session.orgId!),
+        }))?.name ?? "Organization",
+        generatedAt: new Date(),
+        totalAUM,
+        assets: assetData,
+      })
+    } else {
+      pdfBuffer = await renderPDF(templateType, {
+        orgName: (await db.query.orgs.findFirst({
+          where: eq(orgs.id, session.orgId!),
+        }))?.name ?? "Organization",
+        generatedAt: new Date(),
+        totalAUM,
+        assetCount: assetData.length,
+        assets: assetData.map((a) => ({
+          id: a.id,
+          name: a.name,
+          assetClass: a.assetClass,
+          currentValue: a.currentValue,
+        })),
+      })
+    }
+  } catch (error) {
+    throw new Error(`Failed to render PDF: ${error instanceof Error ? error.message : String(error)}`)
+  }
+
+  // 4. Upload to Supabase Storage
+  const timestamp = Date.now()
+  const fileName = `${reportId}_v${(report.currentVersionNumber ?? 0) + 1}_${timestamp}.pdf`
+  const storagePath = `${session.orgId}/${reportId}/${fileName}`
+
+  let uploadError: string | null = null
+  try {
+    const supabase = await createClient()
+    const { error } = await supabase.storage.from("reports").upload(storagePath, pdfBuffer, {
+      contentType: "application/pdf",
+      upsert: false,
+    })
+    if (error) uploadError = error.message
+  } catch (error) {
+    uploadError = error instanceof Error ? error.message : String(error)
+  }
+
+  if (uploadError) throw new Error(`Failed to upload PDF: ${uploadError}`)
+
+  // 5. Create reportVersions row
+  const versionNumber = (report.currentVersionNumber ?? 0) + 1
+  const [newVersion] = await db
+    .insert(reportVersions)
+    .values({
+      reportId,
+      versionNumber,
+      storagePath,
+      generatedBy: session.memberId!,
+      parametersSnapshot: report.parameters ?? {},
+    })
+    .returning()
+
+  // 6. Update reports.currentVersionId
+  await db
+    .update(reports)
+    .set({
+      currentVersionId: newVersion.id,
+      currentVersionNumber: versionNumber,
+    })
+    .where(eq(reports.id, reportId))
+
+  // 7. Log ledger event
+  await createLedgerEvent({
+    orgId: session.orgId!,
+    actorId: session.userId,
+    action: "created",
+    targetType: "report",
+    targetId: reportId,
+    metadata: {
+      versionNumber,
+      reportType: report.reportType,
+      assetCount: assetData.length,
+      totalAUM,
+    },
+  })
+
+  // 8. Generate and return signed URL
+  try {
+    const supabase = await createClient()
+    const { data, error } = await supabase.storage
+      .from("reports")
+      .createSignedUrl(storagePath, 3600) // 1 hour expiry
+
+    if (error) throw new Error(error.message)
+    return { downloadUrl: data.signedUrl }
+  } catch (error) {
+    throw new Error(`Failed to generate signed URL: ${error instanceof Error ? error.message : String(error)}`)
+  }
+}
+
