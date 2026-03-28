@@ -489,7 +489,14 @@ export interface OrgSettings {
   };
   branding?: {
     logoUrl?: string;
-    primaryColor?: string;    // e.g., "#1a73e8"
+    primaryColor?: string;    // e.g., "#0D9488"
+    accentColor?: string;     // e.g., "#06b6d4"
+    customDomain?: string;    // e.g., "portal.acmecapital.com"
+    orgDisplayName?: string;  // Override org name in portal header
+  };
+  retention?: {
+    archiveRetentionMonths?: number;       // Auto-delete archived items after N months
+    deletedItemRetentionMonths?: number;   // Hard-delete soft-deleted items after N months
   };
 }
 

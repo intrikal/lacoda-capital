@@ -543,6 +543,42 @@ export const premiumFrequencyEnum = pgEnum("premium_frequency", [
 ]);
 
 // ============================================================================
+// Subscriptions (Stripe SaaS Billing)
+// ============================================================================
+
+/**
+ * Subscription plan tier
+ * - free: No active subscription (read-only after trial/cancel)
+ * - starter: $499/mo — up to $25M AUM, 3 team members, 10GB storage
+ * - professional: $1,499/mo — up to $100M AUM, 10 team members, 100GB storage
+ * - enterprise: Custom pricing — unlimited everything
+ */
+export const subscriptionPlanEnum = pgEnum("subscription_plan", [
+  "free",
+  "starter",
+  "professional",
+  "enterprise",
+]);
+
+/**
+ * Subscription lifecycle status
+ * - trialing: 14-day free trial, full access
+ * - active: Paid and current
+ * - past_due: Payment failed, grace period
+ * - cancelling: User cancelled, active until period end
+ * - cancelled: Subscription ended, downgraded to free/read-only
+ * - unpaid: Multiple payment failures, access restricted
+ */
+export const subscriptionStatusEnum = pgEnum("subscription_status", [
+  "trialing",
+  "active",
+  "past_due",
+  "cancelling",
+  "cancelled",
+  "unpaid",
+]);
+
+// ============================================================================
 // Pipeline / Deals
 // ============================================================================
 
@@ -697,5 +733,37 @@ export const notificationTypeEnum = pgEnum("notification_type", [
   "document_requested",
   "report_ready",
   "compliance_alert",
+  "capital_call_due",
+  "capital_call_overdue",
   "system",
+]);
+
+// ============================================================================
+// Capital Events (PE/VC)
+// ============================================================================
+
+/**
+ * Capital event type — the kind of PE/VC capital activity
+ * - capital_call: GP requests LP to fund committed capital
+ * - distribution: GP returns capital/profits to LP
+ * - recallable: distribution that can be recalled by GP for re-investment
+ */
+export const capitalEventTypeEnum = pgEnum("capital_event_type", [
+  "capital_call",
+  "distribution",
+  "recallable",
+]);
+
+/**
+ * Capital event status — lifecycle of a capital call or distribution
+ * - pending: event created, not yet settled
+ * - paid: capital call has been funded by LP
+ * - received: distribution has been received by LP
+ * - overdue: past due_date and still pending (set by pg_cron)
+ */
+export const capitalEventStatusEnum = pgEnum("capital_event_status", [
+  "pending",
+  "paid",
+  "received",
+  "overdue",
 ]);

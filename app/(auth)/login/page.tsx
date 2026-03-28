@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Logo } from "@/components/marketing/logo"
 import { loginAction, getOAuthUrlAction, demoLoginAction } from "@/lib/actions/auth.actions"
+import { checkDomainSso } from "@/lib/actions/sso.actions"
 
 // Social login icons
 function GoogleIcon({ className }: { className?: string }) {
@@ -52,6 +53,14 @@ function LoginForm() {
     e.preventDefault()
     setError("")
     setIsLoading(true)
+
+    // Check if this email domain has SSO enforced
+    const ssoResult = await checkDomainSso(email)
+    if (ssoResult.enforced) {
+      setError("Your organization requires single sign-on (SSO). Please use the SSO login button or contact your IT admin.")
+      setIsLoading(false)
+      return
+    }
 
     const result = await loginAction(email, password, next)
     // If we reach here, the action returned an error (redirect throws, not returns)

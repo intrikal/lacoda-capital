@@ -12,6 +12,11 @@ export interface PortfolioSummaryData {
     assetClass: string
     currentValue: number
   }>
+  /** Org branding — logo URL and primary color for white-label reports */
+  branding?: {
+    logoUrl?: string
+    primaryColor?: string
+  }
 }
 
 const styles = StyleSheet.create({

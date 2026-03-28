@@ -237,7 +237,7 @@ export async function executeCSVImport(
             status: "active",
             currency: row.data.currency ?? "USD",
             currentValue: row.data.value?.toString() ?? null,
-            metadata: row.data.address ? { address: row.data.address } : {},
+            metadata: row.data.address ? { propertyAddress: { street: row.data.address } } : {},
           })
           .returning()
 

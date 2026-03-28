@@ -67,6 +67,7 @@ import {
   Archive,
   Tag,
   FileJson,
+  PenLine,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -119,8 +120,9 @@ import {
   type DocumentRecord,
 } from "@/lib/hooks/crud/use-documents"
 import { DocumentFormDialog } from "@/components/forms/document-form-dialog"
+import { SendForSignatureButton } from "@/components/dashboard/send-for-signature-button"
 import { createClient } from "@/utils/supabase/client"
-import { uploadDocumentSchema } from "@/lib/validations/document.schema"
+import { createDocumentSchema } from "@/lib/validations/document.schema"
 
 // ─── TYPES & CONFIG ────────────────────────────────────────────────────────
 
@@ -245,13 +247,12 @@ function UploadDocumentDialog({
 
       if (error) throw error
 
-      // Parse and call uploadDocument action
-      const validatedInput = uploadDocumentSchema.parse({
+      // Parse and call createDocument action with the storage path from the upload
+      const validatedInput = createDocumentSchema.parse({
         name: docName.trim(),
-        fileName,
+        storagePath: data.path,
         folder: folder || null,
         mimeType: file.type || null,
-        sizeBytes: file.size,
         tags: tags
           .split(",")
           .map((t) => t.trim())
@@ -901,6 +902,28 @@ export default function VaultPage() {
                             <DropdownMenuItem>
                               <Star className="h-4 w-4 mr-2" />
                               Add to starred
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => {
+                                const signerEmail = window.prompt("Signer email:")
+                                const signerName = window.prompt("Signer name:")
+                                if (signerEmail && signerName) {
+                                  import("@/lib/actions/docusign.actions").then(({ sendForSignature }) => {
+                                    sendForSignature({
+                                      documentRequestId: doc.id,
+                                      signerEmail,
+                                      signerName,
+                                      documentName: doc.name,
+                                    }).then((result) => {
+                                      if (result.signingUrl) window.open(result.signingUrl, "_blank")
+                                      else alert(`Envelope created: ${result.envelopeId}`)
+                                    }).catch((err: Error) => alert(err.message))
+                                  })
+                                }
+                              }}
+                            >
+                              <PenLine className="h-4 w-4 mr-2" />
+                              Send for Signature
                             </DropdownMenuItem>
                             <DropdownMenuSeparator className="bg-zinc-800" />
                             <DropdownMenuItem

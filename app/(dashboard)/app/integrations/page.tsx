@@ -3,6 +3,8 @@
 import * as React from "react"
 import { useSpring, animated, config } from "@react-spring/web"
 import {
+  Landmark,
+  PenLine,
   CreditCard,
   Mail,
   Cloud,
@@ -399,7 +401,7 @@ export default function IntegrationsPage() {
         >
           All
         </Button>
-        {categories.map((category) => (
+        {allCategories.map((category) => (
           <Button
             key={category}
             variant={categoryFilter === category ? "default" : "outline"}
@@ -440,7 +442,7 @@ export default function IntegrationsPage() {
         </div>
       )}
 
-      {/* Connect Dialog */}
+      {/* Connect Dialog (static integrations) */}
       <Dialog open={connectDialogOpen} onOpenChange={setConnectDialogOpen}>
         <DialogContent>
           <DialogHeader>

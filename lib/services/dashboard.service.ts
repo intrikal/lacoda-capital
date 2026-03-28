@@ -18,8 +18,12 @@ import type {
   DashboardSummary,
 } from "@/lib/types/mock"
 
-export async function getDashboardSummary(): Promise<DashboardSummary> {
+export async function getDashboardSummary(
+  orgCurrency?: string
+): Promise<DashboardSummary> {
   // Aggregate total portfolio value from assets.currentValue
+  // When orgCurrency is provided, values are summed in their original currency
+  // (currency conversion happens at the caller level for mixed-currency portfolios)
   const [assetAgg] = await db
     .select({
       totalValue: sql<number>`COALESCE(SUM(CAST(${assets.currentValue} AS DOUBLE PRECISION)), 0)`,

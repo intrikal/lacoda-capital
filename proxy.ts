@@ -42,6 +42,12 @@ import { createMiddlewareClient } from "@/utils/supabase/middleware"
 const PROTECTED_PREFIXES = ["/app", "/client", "/onboarding"]
 
 /**
+ * Routes that handle their own authentication (API key auth, not session).
+ * These are excluded from session-based redirect logic.
+ */
+const SELF_AUTH_PREFIXES = ["/api/v1", "/portal"]
+
+/**
  * Routes that authenticated users should NOT visit.
  * Visiting /login while logged in redirects to /app.
  */
@@ -64,6 +70,12 @@ export async function proxy(request: NextRequest) {
   } = await supabase.auth.getUser()
 
   const isAuthenticated = !!user
+
+  // ── Skip: API routes handle their own auth ───────────────────────────────
+  const isSelfAuth = SELF_AUTH_PREFIXES.some((prefix) =>
+    pathname.startsWith(prefix)
+  )
+  if (isSelfAuth) return response
 
   // ── Guard: Protected routes ──────────────────────────────────────────────
   const isProtected = PROTECTED_PREFIXES.some((prefix) =>

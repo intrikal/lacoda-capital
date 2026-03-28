@@ -60,7 +60,7 @@ export async function createDocument(input: unknown): Promise<DocumentRecord> {
 
   captureServerEvent(session.userId, "document.uploaded", {
     org_id: session.orgId,
-    document_type: parsed.documentType,
+    document_type: parsed.mimeType ?? "unknown",
   })
 
   return created as unknown as DocumentRecord
@@ -154,15 +154,17 @@ export async function uploadDocument(input: UploadDocumentInput): Promise<Docume
   const timestamp = Date.now()
   const storagePath = `${session.orgId}/${folder}/${timestamp}_${input.fileName}`
 
+  const { fileName: _fileName, sizeBytes, ...rest } = input
+
   const [created] = await db
     .insert(documents)
     .values({
-      ...input,
+      ...rest,
       orgId: session.orgId!,
       uploadedBy: session.memberId!,
       storagePath,
       version,
-      previousVersionId,
+      sizeBytes: BigInt(sizeBytes),
       expiresAt: input.expiresAt ? new Date(input.expiresAt) : null,
       tags: input.tags ?? [],
       metadata: {},
@@ -206,13 +208,14 @@ export async function getDocumentsSearch(
 ): Promise<DocumentRecord[]> {
   const session = await requireAuth()
 
+  const searchCondition = query
+    ? or(ilike(documents.name, `%${query}%`), ilike(documents.description, `%${query}%`))
+    : undefined
+
   const conditions = [
     eq(documents.orgId, session.orgId!),
     isNull(documents.deletedAt),
-    or(
-      ilike(documents.name, `%${query}%`),
-      query === "" ? undefined : ilike(documents.description, `%${query}%`)
-    ).filter(Boolean)[0] || ilike(documents.name, `%${query}%`)
+    ...(searchCondition ? [searchCondition] : []),
   ]
 
   const rows = await db

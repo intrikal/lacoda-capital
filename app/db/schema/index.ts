@@ -46,6 +46,10 @@ export {
   taxDeductionCategoryEnum,
   taxDeductionTypeEnum,
   taxDeductionStatusEnum,
+  subscriptionPlanEnum,
+  subscriptionStatusEnum,
+  capitalEventTypeEnum,
+  capitalEventStatusEnum,
 } from "./00_enums";
 
 // ============================================================================
@@ -255,3 +259,66 @@ export type {
   NewTaxDeduction,
   TaxDeductionMetadata,
 } from "./tax_deductions";
+
+// ============================================================================
+// SAML Providers (SSO)
+// ============================================================================
+export { samlProviders, samlProvidersRelations } from "./saml_providers";
+export type {
+  SamlProvider,
+  NewSamlProvider,
+  SamlAttributeMapping,
+} from "./saml_providers";
+
+// ============================================================================
+// API Keys
+// ============================================================================
+export { apiKeys, apiKeysRelations } from "./api_keys";
+export type { ApiKey, NewApiKey } from "./api_keys";
+
+// ============================================================================
+// Subscriptions (Stripe SaaS Billing)
+// ============================================================================
+export { subscriptions, subscriptionsRelations } from "./subscriptions";
+export type {
+  Subscription,
+  NewSubscription,
+  SubscriptionMetadata,
+} from "./subscriptions";
+
+// ============================================================================
+// Stakeholder Portals
+// ============================================================================
+export { stakeholderPortals, stakeholderPortalsRelations } from "./stakeholder_portals";
+export type {
+  StakeholderPortal,
+  NewStakeholderPortal,
+  PortalVisibility,
+} from "./stakeholder_portals";
+
+// ============================================================================
+// Deletion Requests (GDPR)
+// ============================================================================
+export { deletionRequests, deletionRequestsRelations } from "./deletion_requests";
+export type {
+  DeletionRequest,
+  NewDeletionRequest,
+} from "./deletion_requests";
+
+// ============================================================================
+// AI Call Log
+// ============================================================================
+export { aiCallLog, aiCallLogRelations } from "./ai_call_log";
+export type { AiCallLog, NewAiCallLog } from "./ai_call_log";
+
+// ============================================================================
+// Exchange Rates
+// ============================================================================
+export { exchangeRates, exchangeRatesRelations } from "./exchange_rates";
+export type { ExchangeRate, NewExchangeRate } from "./exchange_rates";
+
+// ============================================================================
+// Capital Events (PE/VC)
+// ============================================================================
+export { capitalEvents, capitalEventsRelations } from "./capital_events";
+export type { CapitalEvent, NewCapitalEvent } from "./capital_events";

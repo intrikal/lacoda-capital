@@ -39,7 +39,7 @@ export const updateUserProfileSchema = z.object({
       dashboard: z
         .object({
           defaultView: z.string().optional(),
-          widgetLayout: z.record(z.unknown()).optional(),
+          widgetLayout: z.record(z.string(), z.unknown()).optional(),
         })
         .optional(),
     })

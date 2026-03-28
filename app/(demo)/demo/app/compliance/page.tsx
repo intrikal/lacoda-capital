@@ -108,7 +108,7 @@ export default function DemoCompliancePage() {
           {demoControls.map((control) => {
             const status = statusConfig[control.status]
             const StatusIcon = status.icon
-            const isOverdue = control.dueDate && new Date(control.dueDate) < new Date() && control.status !== "verified"
+            const isOverdue = control.dueDate && new Date(control.dueDate) < new Date() && (control.status as string) !== "verified"
 
             return (
               <div
