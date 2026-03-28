@@ -646,17 +646,27 @@ export const integrationStatusEnum = pgEnum("integration_status", [
 
 /**
  * Known integration providers
+ * - stripe:       Payment processing and billing (invoices, subscriptions)
+ * - plaid:        Financial data aggregation (bank accounts, holdings, transactions)
+ * - docusign:     Electronic signature service (send docs for signing)
+ * - quickbooks:   Accounting software sync (invoices, chart of accounts)
+ * - google_drive: Cloud document storage (import/export documents)
+ * - dropbox:      Cloud document storage (import/export documents)
+ * - salesforce:   Enterprise CRM (client data sync — enterprise only)
+ * - hubspot:      Marketing/sales CRM (client data sync — enterprise only)
+ * - other:        Catch-all for unlisted providers
+ *
+ * REMOVED: yodlee (redundant with Plaid), xero (US market uses QuickBooks)
  */
 export const integrationProviderEnum = pgEnum("integration_provider", [
+  "stripe",
   "plaid",
-  "yodlee",
+  "docusign",
   "quickbooks",
-  "xero",
-  "salesforce",
-  "hubspot",
   "google_drive",
   "dropbox",
-  "docusign",
+  "salesforce",
+  "hubspot",
   "other",
 ]);
 

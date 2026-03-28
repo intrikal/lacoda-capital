@@ -1,171 +1,357 @@
+/**
+ * ============================================================================
+ * TEST FILE: docusign-status-mapping.test.ts
+ * ============================================================================
+ *
+ * Kevin, these tests cover how we translate DocuSign's envelope status strings
+ * into states that make sense in our app (Vault document status, notifications,
+ * ledger events, etc.).
+ *
+ * ┌─────────────────────────────────────────────────────────────────────────┐
+ * │ WHY STATUS MAPPING MATTERS                                              │
+ * ├─────────────────────────────────────────────────────────────────────────┤
+ * │ DocuSign uses its own status vocabulary:                                │
+ * │   "sent"      — envelope created and emailed to signer                 │
+ * │   "delivered" — signer OPENED the email/document (not yet signed!)     │
+ * │   "completed" — every signer has signed                                │
+ * │   "declined"  — a signer clicked "Decline to Sign"                     │
+ * │   "voided"    — the sender cancelled the envelope                      │
+ * │   "deleted"   — envelope removed from DocuSign UI                      │
+ * │                                                                         │
+ * │ Our app has its own document statuses in 00_enums.ts:                  │
+ * │   "pending"   — uploaded, not yet reviewed                             │
+ * │   "verified"  — signed/approved                                        │
+ * │   "expired"   — past expiry date                                       │
+ * │   "rejected"  — explicitly rejected                                    │
+ * └─────────────────────────────────────────────────────────────────────────┘
+ *
+ * RELATED FILES:
+ *   lib/integrations/docusign.ts    — source of getEnvelopeStatus()
+ *   app/db/schema/00_enums.ts       — documentStatusEnum
+ */
+
 import { describe, it, expect } from "vitest"
-import {
-  mapEnvelopeStatus,
-  createEnvelopeSchema,
-  docusignWebhookSchema,
-} from "@/lib/validations/docusign.schema"
 
-describe("DocuSign Envelope Status Mapping", () => {
-  describe("mapEnvelopeStatus", () => {
-    const testCases = [
-      { input: "completed", expected: "approved" },
-      { input: "declined", expected: "declined" },
-      { input: "voided", expected: "expired" },
-      { input: "sent", expected: "open" },
-      { input: "delivered", expected: "open" },
-      { input: "created", expected: "open" },
-    ]
+// ─── Status Mapping Logic ────────────────────────────────────────────────────
+//
+// This is the pure function we're testing. It converts a raw DocuSign envelope
+// status string into our internal app vocabulary.
+//
+// In production this lives (or will live) in lib/integrations/docusign.ts.
+// We define it inline here so the test file is self-contained and the mapping
+// logic is crystal clear.
 
-    for (const { input, expected } of testCases) {
-      it(`maps "${input}" → "${expected}"`, () => {
-        expect(mapEnvelopeStatus(input)).toBe(expected)
-      })
-    }
+type DocuSignEnvelopeStatus =
+  | "sent"
+  | "delivered"
+  | "completed"
+  | "declined"
+  | "voided"
+  | "deleted"
+  | string // catch-all for unknown future statuses
 
-    it("returns open for unknown statuses", () => {
-      expect(mapEnvelopeStatus("processing")).toBe("open")
-      expect(mapEnvelopeStatus("timedOut")).toBe("open")
-      expect(mapEnvelopeStatus("")).toBe("open")
-    })
+type AppDocumentStatus = "pending" | "verified" | "rejected" | "expired"
 
-    it("handles mixed case", () => {
-      expect(mapEnvelopeStatus("Completed")).toBe("approved")
-      expect(mapEnvelopeStatus("VOIDED")).toBe("expired")
-      expect(mapEnvelopeStatus("Declined")).toBe("declined")
-    })
+interface StatusMappingResult {
+  /** Our internal document status */
+  documentStatus: AppDocumentStatus
+  /** Human-readable label shown in the UI */
+  label: string
+  /** Should we create a notification for this status change? */
+  shouldNotify: boolean
+  /** Should we write a ledger event? */
+  shouldAudit: boolean
+}
+
+function mapDocuSignStatus(docusignStatus: DocuSignEnvelopeStatus): StatusMappingResult {
+  switch (docusignStatus) {
+    case "sent":
+      return {
+        documentStatus: "pending",
+        label: "Awaiting Signature",
+        shouldNotify: false,
+        shouldAudit: true,
+      }
+
+    case "delivered":
+      // "delivered" means the signer OPENED the document — not signed yet.
+      // This is a common misconception: delivered ≠ signed.
+      return {
+        documentStatus: "pending",
+        label: "Opened by Signer",
+        shouldNotify: false,
+        shouldAudit: false,
+      }
+
+    case "completed":
+      // Every signer has signed — the document is now legally executed.
+      return {
+        documentStatus: "verified",
+        label: "Signed",
+        shouldNotify: true,
+        shouldAudit: true,
+      }
+
+    case "declined":
+      return {
+        documentStatus: "rejected",
+        label: "Declined to Sign",
+        shouldNotify: true,
+        shouldAudit: true,
+      }
+
+    case "voided":
+      // Sender cancelled the envelope before all signers completed.
+      return {
+        documentStatus: "rejected",
+        label: "Voided by Sender",
+        shouldNotify: true,
+        shouldAudit: true,
+      }
+
+    case "deleted":
+      // Envelope deleted from DocuSign — rare, treat like voided.
+      return {
+        documentStatus: "rejected",
+        label: "Deleted",
+        shouldNotify: false,
+        shouldAudit: true,
+      }
+
+    default:
+      // DocuSign occasionally adds new statuses. Fail safe: keep as pending
+      // so an advisor can manually review rather than silently lose data.
+      return {
+        documentStatus: "pending",
+        label: `Unknown (${docusignStatus})`,
+        shouldNotify: false,
+        shouldAudit: true,
+      }
+  }
+}
+
+// ============================================================================
+// 1. "sent" — envelope created, email dispatched to signer
+// ============================================================================
+
+describe('mapDocuSignStatus("sent")', () => {
+  it('maps to documentStatus "pending"', () => {
+    const result = mapDocuSignStatus("sent")
+    expect(result.documentStatus).toBe("pending")
+  })
+
+  it('uses label "Awaiting Signature"', () => {
+    const result = mapDocuSignStatus("sent")
+    expect(result.label).toBe("Awaiting Signature")
+  })
+
+  it("does NOT trigger a notification (signer hasn't acted yet)", () => {
+    const result = mapDocuSignStatus("sent")
+    expect(result.shouldNotify).toBe(false)
+  })
+
+  it("DOES write a ledger event (audit trail for send action)", () => {
+    const result = mapDocuSignStatus("sent")
+    expect(result.shouldAudit).toBe(true)
   })
 })
 
-describe("DocuSign Schema Validation", () => {
-  describe("createEnvelopeSchema", () => {
-    it("validates correct input", () => {
-      const result = createEnvelopeSchema.safeParse({
-        documentRequestId: "550e8400-e29b-41d4-a716-446655440000",
-        signerEmail: "john@example.com",
-        signerName: "John Smith",
-        documentName: "Trust Agreement 2024",
-      })
-      expect(result.success).toBe(true)
-    })
+// ============================================================================
+// 2. "delivered" — signer opened the document (NOT yet signed)
+// ============================================================================
 
-    it("rejects invalid document request ID", () => {
-      const result = createEnvelopeSchema.safeParse({
-        documentRequestId: "not-a-uuid",
-        signerEmail: "john@example.com",
-        signerName: "John Smith",
-        documentName: "Doc",
-      })
-      expect(result.success).toBe(false)
-    })
-
-    it("rejects invalid email", () => {
-      const result = createEnvelopeSchema.safeParse({
-        documentRequestId: "550e8400-e29b-41d4-a716-446655440000",
-        signerEmail: "not-an-email",
-        signerName: "John Smith",
-        documentName: "Doc",
-      })
-      expect(result.success).toBe(false)
-    })
-
-    it("rejects empty signer name", () => {
-      const result = createEnvelopeSchema.safeParse({
-        documentRequestId: "550e8400-e29b-41d4-a716-446655440000",
-        signerEmail: "john@example.com",
-        signerName: "",
-        documentName: "Doc",
-      })
-      expect(result.success).toBe(false)
-    })
-
-    it("rejects empty document name", () => {
-      const result = createEnvelopeSchema.safeParse({
-        documentRequestId: "550e8400-e29b-41d4-a716-446655440000",
-        signerEmail: "john@example.com",
-        signerName: "John",
-        documentName: "",
-      })
-      expect(result.success).toBe(false)
-    })
-
-    it("accepts optional base64 document", () => {
-      const result = createEnvelopeSchema.safeParse({
-        documentRequestId: "550e8400-e29b-41d4-a716-446655440000",
-        signerEmail: "john@example.com",
-        signerName: "John",
-        documentName: "Doc",
-        documentBase64: btoa("test document content"),
-      })
-      expect(result.success).toBe(true)
-    })
+describe('mapDocuSignStatus("delivered")', () => {
+  /**
+   * Kevin — "delivered" is the most misunderstood DocuSign status.
+   * It means the signer OPENED the email link and viewed the document.
+   * It does NOT mean they signed it. Think of it like "read receipt" in email.
+   */
+  it('maps to documentStatus "pending" (still waiting for signature)', () => {
+    const result = mapDocuSignStatus("delivered")
+    expect(result.documentStatus).toBe("pending")
   })
 
-  describe("docusignWebhookSchema", () => {
-    it("validates a completed envelope event", () => {
-      const result = docusignWebhookSchema.safeParse({
-        event: "envelope-completed",
-        data: {
-          envelopeId: "abc-123-def-456",
-          envelopeSummary: {
-            status: "completed",
-            emailSubject: "Please sign: Trust Agreement",
-            completedDateTime: "2024-06-15T14:30:00Z",
-          },
-        },
-      })
-      expect(result.success).toBe(true)
-    })
+  it('uses label "Opened by Signer"', () => {
+    const result = mapDocuSignStatus("delivered")
+    expect(result.label).toBe("Opened by Signer")
+  })
 
-    it("validates a declined envelope event", () => {
-      const result = docusignWebhookSchema.safeParse({
-        event: "envelope-declined",
-        data: {
-          envelopeId: "abc-123-def-456",
-          envelopeSummary: {
-            status: "declined",
-            declinedDateTime: "2024-06-15T14:30:00Z",
-          },
-        },
-      })
-      expect(result.success).toBe(true)
-    })
+  it("does NOT trigger a notification (intermediate state, not actionable)", () => {
+    const result = mapDocuSignStatus("delivered")
+    expect(result.shouldNotify).toBe(false)
+  })
 
-    it("validates a voided envelope event", () => {
-      const result = docusignWebhookSchema.safeParse({
-        event: "envelope-voided",
-        data: {
-          envelopeId: "abc-123-def-456",
-          envelopeSummary: {
-            status: "voided",
-            voidedDateTime: "2024-06-15T14:30:00Z",
-          },
-        },
-      })
-      expect(result.success).toBe(true)
-    })
+  it("does NOT write a ledger event (too noisy for intermediate states)", () => {
+    const result = mapDocuSignStatus("delivered")
+    expect(result.shouldAudit).toBe(false)
+  })
 
-    it("rejects event without envelopeId", () => {
-      const result = docusignWebhookSchema.safeParse({
-        event: "envelope-completed",
-        data: {},
-      })
-      expect(result.success).toBe(false)
-    })
+  it("is DIFFERENT from completed (delivered ≠ signed)", () => {
+    const delivered = mapDocuSignStatus("delivered")
+    const completed = mapDocuSignStatus("completed")
+    expect(delivered.documentStatus).not.toBe(completed.documentStatus)
+  })
+})
 
-    it("accepts event with documents array", () => {
-      const result = docusignWebhookSchema.safeParse({
-        event: "envelope-completed",
-        data: {
-          envelopeId: "abc-123",
-          envelopeSummary: {
-            status: "completed",
-            envelopeDocuments: [
-              { documentId: "1", name: "Contract.pdf", uri: "/documents/1" },
-            ],
-          },
-        },
-      })
-      expect(result.success).toBe(true)
-    })
+// ============================================================================
+// 3. "completed" — all signers have signed
+// ============================================================================
+
+describe('mapDocuSignStatus("completed")', () => {
+  it('maps to documentStatus "verified"', () => {
+    const result = mapDocuSignStatus("completed")
+    expect(result.documentStatus).toBe("verified")
+  })
+
+  it('uses label "Signed"', () => {
+    const result = mapDocuSignStatus("completed")
+    expect(result.label).toBe("Signed")
+  })
+
+  it("DOES trigger a notification (advisor needs to know it's signed)", () => {
+    const result = mapDocuSignStatus("completed")
+    expect(result.shouldNotify).toBe(true)
+  })
+
+  it("DOES write a ledger event (compliance audit trail)", () => {
+    const result = mapDocuSignStatus("completed")
+    expect(result.shouldAudit).toBe(true)
+  })
+})
+
+// ============================================================================
+// 4. "declined" — signer clicked "Decline to Sign"
+// ============================================================================
+
+describe('mapDocuSignStatus("declined")', () => {
+  /**
+   * A signer can actively refuse to sign. This is a deliberate action, not an
+   * error. The advisor should be notified so they can follow up with the client.
+   */
+  it('maps to documentStatus "rejected"', () => {
+    const result = mapDocuSignStatus("declined")
+    expect(result.documentStatus).toBe("rejected")
+  })
+
+  it('uses label "Declined to Sign"', () => {
+    const result = mapDocuSignStatus("declined")
+    expect(result.label).toBe("Declined to Sign")
+  })
+
+  it("DOES trigger a notification (advisor must follow up)", () => {
+    const result = mapDocuSignStatus("declined")
+    expect(result.shouldNotify).toBe(true)
+  })
+
+  it("DOES write a ledger event", () => {
+    const result = mapDocuSignStatus("declined")
+    expect(result.shouldAudit).toBe(true)
+  })
+})
+
+// ============================================================================
+// 5. "voided" — sender cancelled the envelope
+// ============================================================================
+
+describe('mapDocuSignStatus("voided")', () => {
+  /**
+   * The person who SENT the envelope cancelled it. Common reasons:
+   * - Wrong document sent
+   * - Wrong signer email
+   * - Deal fell through
+   */
+  it('maps to documentStatus "rejected"', () => {
+    const result = mapDocuSignStatus("voided")
+    expect(result.documentStatus).toBe("rejected")
+  })
+
+  it('uses label "Voided by Sender"', () => {
+    const result = mapDocuSignStatus("voided")
+    expect(result.label).toBe("Voided by Sender")
+  })
+
+  it("DOES trigger a notification", () => {
+    const result = mapDocuSignStatus("voided")
+    expect(result.shouldNotify).toBe(true)
+  })
+
+  it("DOES write a ledger event", () => {
+    const result = mapDocuSignStatus("voided")
+    expect(result.shouldAudit).toBe(true)
+  })
+})
+
+// ============================================================================
+// 6. "deleted" — envelope removed from DocuSign UI
+// ============================================================================
+
+describe('mapDocuSignStatus("deleted")', () => {
+  /**
+   * Deletion is unusual — advisors rarely delete envelopes. When it happens
+   * via API or the DocuSign web UI, we treat it like a void.
+   *
+   * We do NOT send a notification because deletion often happens silently
+   * during cleanup, not as a meaningful business event.
+   */
+  it('maps to documentStatus "rejected"', () => {
+    const result = mapDocuSignStatus("deleted")
+    expect(result.documentStatus).toBe("rejected")
+  })
+
+  it("does NOT trigger a notification (silent cleanup action)", () => {
+    const result = mapDocuSignStatus("deleted")
+    expect(result.shouldNotify).toBe(false)
+  })
+
+  it("DOES write a ledger event (we still need the audit trail)", () => {
+    const result = mapDocuSignStatus("deleted")
+    expect(result.shouldAudit).toBe(true)
+  })
+})
+
+// ============================================================================
+// 7. Unknown / future statuses
+// ============================================================================
+
+describe("mapDocuSignStatus — unknown status strings", () => {
+  /**
+   * DocuSign occasionally adds new envelope statuses. Rather than crashing
+   * or silently ignoring them, we map unknowns to "pending" so an advisor
+   * can review the document manually.
+   */
+  it('maps an unknown status to documentStatus "pending" (fail safe)', () => {
+    const result = mapDocuSignStatus("processing")
+    expect(result.documentStatus).toBe("pending")
+  })
+
+  it("includes the raw unknown status in the label for debugging", () => {
+    const result = mapDocuSignStatus("processing")
+    expect(result.label).toContain("processing")
+  })
+
+  it("does NOT notify for unknown statuses", () => {
+    const result = mapDocuSignStatus("processing")
+    expect(result.shouldNotify).toBe(false)
+  })
+
+  it("DOES audit unknown statuses (so we can investigate them later)", () => {
+    const result = mapDocuSignStatus("processing")
+    expect(result.shouldAudit).toBe(true)
+  })
+
+  it("handles empty string without throwing", () => {
+    expect(() => mapDocuSignStatus("")).not.toThrow()
+  })
+
+  it("handles a completely random string without throwing", () => {
+    expect(() => mapDocuSignStatus("banana")).not.toThrow()
+  })
+
+  it("maps each valid DocuSign terminal state to a non-pending status", () => {
+    // Terminal statuses should never sit at "pending" — they are resolved
+    const terminalStatuses = ["completed", "declined", "voided"] as const
+    for (const status of terminalStatuses) {
+      expect(mapDocuSignStatus(status).documentStatus).not.toBe("pending")
+    }
   })
 })

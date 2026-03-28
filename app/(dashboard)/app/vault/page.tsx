@@ -44,7 +44,7 @@
 "use client"
 
 import * as React from "react"
-import { format, differenceInDays } from "date-fns"
+import { format, differenceInCalendarDays } from "date-fns"
 import {
   Search,
   Upload,
@@ -151,7 +151,7 @@ const statusIcons: Record<DocumentStatus, LucideIcon> = {
  */
 function getExpirationBadge(expiresAt: string | null): { label: string; variant: "yellow" | "red" } | null {
   if (!expiresAt) return null
-  const daysLeft = differenceInDays(new Date(expiresAt), new Date())
+  const daysLeft = differenceInCalendarDays(new Date(expiresAt), new Date())
   if (daysLeft < 0) return { label: "Expired", variant: "red" }
   if (daysLeft <= 30) return { label: `Expires in ${daysLeft}d`, variant: "yellow" }
   return null
