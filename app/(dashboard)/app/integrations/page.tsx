@@ -5,19 +5,22 @@ import { useSpring, animated, config } from "@react-spring/web"
 import {
   CreditCard,
   Mail,
-  Calendar,
-  Users,
   Cloud,
   Database,
   FileSpreadsheet,
-  Key,
+  PenTool,
+  Landmark,
   CheckCircle2,
   XCircle,
+  AlertTriangle,
   ExternalLink,
   Settings,
   ArrowRight,
   Zap,
   Lock,
+  RefreshCw,
+  Loader2,
+  Unplug,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -30,80 +33,88 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { cn } from "@/lib/utils"
 import { useReducedMotion } from "@/lib/hooks/use-reduced-motion"
+import {
+  useIntegrations,
+  useDisconnectIntegration,
+  usePlaidConnect,
+  useStripeConnect,
+  useOAuthConnect,
+} from "@/lib/hooks/crud/use-integrations"
+import type { IntegrationRecord, ProviderStatus } from "@/lib/hooks/crud/use-integrations"
 
 import type { LucideIcon } from "lucide-react"
 
-interface Integration {
+// ─── Provider Catalog ───────────────────────────────────────────────────────
+// Static metadata for each provider — icons, descriptions, features, categories.
+// Live connection status comes from the useIntegrations() hook.
+
+interface ProviderMeta {
   id: string
   name: string
   description: string
   icon: LucideIcon
   category: string
-  status: "connected" | "not_connected" | "coming_soon"
-  connectedAt?: string
   features: string[]
+  connectType: "plaid_link" | "stripe_key" | "oauth" | "env_only" | "coming_soon"
 }
 
-const integrations: Integration[] = [
+const PROVIDER_CATALOG: ProviderMeta[] = [
   {
     id: "stripe",
     name: "Stripe",
-    description: "Process payments and manage billing for your clients",
+    description: "Collect advisory fee payments, generate invoices, and manage client billing",
     icon: CreditCard,
     category: "Payments",
-    status: "connected",
-    connectedAt: "2024-01-10",
-    features: [
-      "Invoice generation",
-      "Payment tracking",
-      "Subscription management",
-      "Automatic reconciliation",
-    ],
+    features: ["Invoice generation", "Payment collection", "Subscription billing", "Automatic reconciliation"],
+    connectType: "stripe_key",
   },
   {
-    id: "resend",
-    name: "Resend",
-    description: "Send transactional emails and notifications",
-    icon: Mail,
-    category: "Communication",
-    status: "connected",
-    connectedAt: "2024-01-05",
-    features: [
-      "Email notifications",
-      "Document delivery",
-      "Client communications",
-      "Custom templates",
-    ],
+    id: "plaid",
+    name: "Plaid",
+    description: "Connect bank accounts to auto-sync balances, holdings, and transactions",
+    icon: Landmark,
+    category: "Financial Data",
+    features: ["Account balances", "Investment holdings", "Transaction history", "Multi-bank support"],
+    connectType: "plaid_link",
   },
   {
-    id: "google-calendar",
-    name: "Google Calendar",
-    description: "Sync meetings and deadlines with your calendar",
-    icon: Calendar,
-    category: "Productivity",
-    status: "not_connected",
-    features: [
-      "Meeting scheduling",
-      "Deadline reminders",
-      "Task due dates",
-      "Team availability",
-    ],
+    id: "docusign",
+    name: "DocuSign",
+    description: "Send documents for electronic signature and track signing status",
+    icon: PenTool,
+    category: "E-Signatures",
+    features: ["Send for signature", "Status tracking", "Signed PDF download", "Webhook notifications"],
+    connectType: "oauth",
   },
   {
-    id: "salesforce",
-    name: "Salesforce",
-    description: "Sync client data with your CRM",
-    icon: Users,
-    category: "CRM",
-    status: "not_connected",
-    features: [
-      "Contact sync",
-      "Activity logging",
-      "Pipeline tracking",
-      "Custom fields",
-    ],
+    id: "quickbooks",
+    name: "QuickBooks",
+    description: "Sync billing records and invoices with your accounting system",
+    icon: FileSpreadsheet,
+    category: "Accounting",
+    features: ["Invoice sync", "Chart of accounts", "Customer matching", "Payment reconciliation"],
+    connectType: "oauth",
+  },
+  {
+    id: "google_drive",
+    name: "Google Drive",
+    description: "Import and sync documents from Google Drive into your vault",
+    icon: Cloud,
+    category: "Storage",
+    features: ["Document import", "Folder browsing", "Shared drives", "On-demand sync"],
+    connectType: "oauth",
   },
   {
     id: "dropbox",
@@ -111,94 +122,65 @@ const integrations: Integration[] = [
     description: "Import and sync documents from Dropbox",
     icon: Cloud,
     category: "Storage",
-    status: "not_connected",
-    features: [
-      "Document import",
-      "Automatic sync",
-      "Folder mapping",
-      "Version tracking",
-    ],
+    features: ["Document import", "Automatic sync", "Folder mapping", "Version tracking"],
+    connectType: "coming_soon",
   },
   {
-    id: "google-drive",
-    name: "Google Drive",
-    description: "Connect your Google Drive for document storage",
-    icon: Cloud,
-    category: "Storage",
-    status: "connected",
-    connectedAt: "2024-01-08",
-    features: [
-      "Document import",
-      "Folder sync",
-      "Shared drives",
-      "Real-time updates",
-    ],
-  },
-  {
-    id: "quickbooks",
-    name: "QuickBooks",
-    description: "Sync financial data and transactions",
-    icon: FileSpreadsheet,
-    category: "Accounting",
-    status: "not_connected",
-    features: [
-      "Transaction import",
-      "Account balances",
-      "Report generation",
-      "Reconciliation",
-    ],
-  },
-  {
-    id: "okta",
-    name: "Okta",
-    description: "Enterprise SSO and identity management",
-    icon: Key,
-    category: "Security",
-    status: "coming_soon",
-    features: [
-      "Single Sign-On",
-      "User provisioning",
-      "MFA integration",
-      "Access policies",
-    ],
+    id: "resend",
+    name: "Resend",
+    description: "Transactional emails — invitations, expiration alerts, weekly digests",
+    icon: Mail,
+    category: "Communication",
+    features: ["Email notifications", "Document expiration alerts", "Team invitations", "Weekly digests"],
+    connectType: "env_only",
   },
 ]
 
-const categories = Array.from(new Set(integrations.map((i) => i.category)))
+const categories = Array.from(new Set(PROVIDER_CATALOG.map((p) => p.category)))
+
+// ─── Status Helpers ─────────────────────────────────────────────────────────
+
+function getProviderDisplayStatus(
+  provider: ProviderMeta,
+  providerStatus: ProviderStatus | undefined,
+  liveIntegration: IntegrationRecord | undefined,
+): "connected" | "available" | "not_configured" | "error" | "coming_soon" {
+  if (provider.connectType === "coming_soon") return "coming_soon"
+  if (provider.connectType === "env_only") {
+    return providerStatus?.configured ? "connected" : "not_configured"
+  }
+  if (liveIntegration?.status === "error") return "error"
+  if (liveIntegration?.status === "connected") return "connected"
+  if (providerStatus?.configured) return "available"
+  return "not_configured"
+}
+
+const STATUS_CONFIG = {
+  connected: { label: "Connected", icon: CheckCircle2, color: "text-emerald-400", bg: "bg-emerald-400/10" },
+  available: { label: "Available", icon: ArrowRight, color: "text-tiffany-400", bg: "bg-tiffany-400/10" },
+  not_configured: { label: "Not Configured", icon: XCircle, color: "text-zinc-400", bg: "bg-zinc-400/10" },
+  error: { label: "Error", icon: AlertTriangle, color: "text-red-400", bg: "bg-red-400/10" },
+  coming_soon: { label: "Coming Soon", icon: Zap, color: "text-amber-400", bg: "bg-amber-400/10" },
+}
+
+// ─── Integration Card ───────────────────────────────────────────────────────
 
 function IntegrationCard({
-  integration,
+  provider,
+  displayStatus,
+  liveIntegration,
   onConnect,
-  onConfigure,
+  onManage,
 }: {
-  integration: Integration
-  onConnect: (id: string) => void
-  onConfigure: (id: string) => void
+  provider: ProviderMeta
+  displayStatus: "connected" | "available" | "not_configured" | "error" | "coming_soon"
+  liveIntegration?: IntegrationRecord
+  onConnect: (provider: ProviderMeta) => void
+  onManage: (provider: ProviderMeta, integration: IntegrationRecord) => void
 }) {
-  const statusConfig = {
-    connected: {
-      label: "Connected",
-      icon: CheckCircle2,
-      color: "text-emerald-400",
-      bg: "bg-emerald-400/10",
-    },
-    not_connected: {
-      label: "Not Connected",
-      icon: XCircle,
-      color: "text-zinc-400",
-      bg: "bg-zinc-400/10",
-    },
-    coming_soon: {
-      label: "Coming Soon",
-      icon: Zap,
-      color: "text-amber-400",
-      bg: "bg-amber-400/10",
-    },
-  }
-
-  const status = statusConfig[integration.status]
+  const status = STATUS_CONFIG[displayStatus]
   const StatusIcon = status.icon
-  const IntegrationIcon = integration.icon
+  const ProviderIcon = provider.icon
 
   return (
     <Card className="group hover:border-zinc-700 transition-colors">
@@ -206,60 +188,67 @@ function IntegrationCard({
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-4">
             <div className="p-3 rounded-lg bg-zinc-800 group-hover:bg-zinc-750 transition-colors">
-              <IntegrationIcon className="h-6 w-6 text-tiffany-500" />
+              <ProviderIcon className="h-6 w-6 text-tiffany-500" />
             </div>
             <div>
-              <h3 className="font-semibold text-zinc-100">{integration.name}</h3>
-              <p className="text-sm text-zinc-500">{integration.category}</p>
+              <h3 className="font-semibold text-zinc-100">{provider.name}</h3>
+              <p className="text-sm text-zinc-500">{provider.category}</p>
             </div>
           </div>
           <div className={cn("flex items-center gap-1.5 px-2 py-1 rounded-full", status.bg)}>
             <StatusIcon className={cn("h-3.5 w-3.5", status.color)} />
-            <span className={cn("text-xs font-medium", status.color)}>
-              {status.label}
-            </span>
+            <span className={cn("text-xs font-medium", status.color)}>{status.label}</span>
           </div>
         </div>
 
-        <p className="mt-4 text-sm text-zinc-400">{integration.description}</p>
+        <p className="mt-4 text-sm text-zinc-400">{provider.description}</p>
+
+        {/* Error message */}
+        {displayStatus === "error" && liveIntegration?.statusMessage && (
+          <p className="mt-2 text-xs text-red-400">{liveIntegration.statusMessage}</p>
+        )}
 
         <div className="mt-4 flex flex-wrap gap-2">
-          {integration.features.slice(0, 2).map((feature) => (
+          {provider.features.slice(0, 2).map((feature) => (
             <Badge key={feature} variant="outline" className="text-xs">
               {feature}
             </Badge>
           ))}
-          {integration.features.length > 2 && (
+          {provider.features.length > 2 && (
             <Badge variant="outline" className="text-xs">
-              +{integration.features.length - 2} more
+              +{provider.features.length - 2} more
             </Badge>
           )}
         </div>
 
+        {/* Last sync info */}
+        {liveIntegration?.lastSyncAt && (
+          <p className="mt-3 text-xs text-zinc-500">
+            Last synced: {new Date(liveIntegration.lastSyncAt).toLocaleString()}
+          </p>
+        )}
+
         <div className="mt-6 flex gap-2">
-          {integration.status === "connected" ? (
+          {displayStatus === "connected" ? (
             <>
               <Button
                 variant="outline"
                 size="sm"
                 className="flex-1"
-                onClick={() => onConfigure(integration.id)}
+                onClick={() => liveIntegration && onManage(provider, liveIntegration)}
               >
                 <Settings className="h-4 w-4 mr-1" />
-                Configure
-              </Button>
-              <Button variant="ghost" size="sm">
-                <ExternalLink className="h-4 w-4" />
+                Manage
               </Button>
             </>
-          ) : integration.status === "not_connected" ? (
-            <Button
-              size="sm"
-              className="flex-1"
-              onClick={() => onConnect(integration.id)}
-            >
-              Connect
+          ) : displayStatus === "available" || displayStatus === "error" ? (
+            <Button size="sm" className="flex-1" onClick={() => onConnect(provider)}>
+              {displayStatus === "error" ? "Reconnect" : "Connect"}
               <ArrowRight className="h-4 w-4 ml-1" />
+            </Button>
+          ) : displayStatus === "not_configured" ? (
+            <Button variant="outline" size="sm" className="flex-1" disabled>
+              Not Configured
             </Button>
           ) : (
             <Button variant="outline" size="sm" className="flex-1" disabled>
@@ -272,34 +261,90 @@ function IntegrationCard({
   )
 }
 
+// ─── Main Page ──────────────────────────────────────────────────────────────
+
 export default function IntegrationsPage() {
-  const [connectDialogOpen, setConnectDialogOpen] = React.useState(false)
-  const [selectedIntegration, setSelectedIntegration] = React.useState<Integration | null>(null)
+  const { integrations: liveIntegrations, providers, isLoading, stats, refetch } = useIntegrations()
+  const { mutate: disconnect, isPending: isDisconnecting } = useDisconnectIntegration()
+  const { connect: plaidConnect, exchangeToken: plaidExchange, isPending: isPlaidPending } = usePlaidConnect()
+  const { connect: stripeConnect, isPending: isStripePending } = useStripeConnect()
+  const { connect: oauthConnect, isPending: isOAuthPending } = useOAuthConnect()
+
   const [categoryFilter, setCategoryFilter] = React.useState<string>("all")
+  const [connectDialogOpen, setConnectDialogOpen] = React.useState(false)
+  const [manageDialogOpen, setManageDialogOpen] = React.useState(false)
+  const [disconnectDialogOpen, setDisconnectDialogOpen] = React.useState(false)
+  const [selectedProvider, setSelectedProvider] = React.useState<ProviderMeta | null>(null)
+  const [selectedIntegration, setSelectedIntegration] = React.useState<IntegrationRecord | null>(null)
+
   const reducedMotion = useReducedMotion()
 
-  const filteredIntegrations =
+  const filteredProviders =
     categoryFilter === "all"
-      ? integrations
-      : integrations.filter((i) => i.category === categoryFilter)
+      ? PROVIDER_CATALOG
+      : PROVIDER_CATALOG.filter((p) => p.category === categoryFilter)
 
-  const connectedCount = integrations.filter((i) => i.status === "connected").length
+  // ─── Handlers ───────────────────────────────────────────────────────
 
-  const handleConnect = (id: string) => {
-    const integration = integrations.find((i) => i.id === id)
-    if (integration) {
-      setSelectedIntegration(integration)
-      setConnectDialogOpen(true)
+  const handleConnect = (provider: ProviderMeta) => {
+    setSelectedProvider(provider)
+    setConnectDialogOpen(true)
+  }
+
+  const handleManage = (provider: ProviderMeta, integration: IntegrationRecord) => {
+    setSelectedProvider(provider)
+    setSelectedIntegration(integration)
+    setManageDialogOpen(true)
+  }
+
+  const executeConnect = () => {
+    if (!selectedProvider) return
+
+    switch (selectedProvider.connectType) {
+      case "stripe_key":
+        stripeConnect({
+          onSuccess: () => {
+            setConnectDialogOpen(false)
+            refetch()
+          },
+        })
+        break
+
+      case "plaid_link":
+        plaidConnect({
+          onLinkToken: (token) => {
+            // In production, this would open Plaid Link with the token
+            // For now, close the dialog and show the token
+            console.log("Plaid Link Token:", token)
+            setConnectDialogOpen(false)
+            // TODO: Open Plaid Link component with this token
+          },
+        })
+        break
+
+      case "oauth":
+        oauthConnect(
+          selectedProvider.id as "docusign" | "google_drive" | "quickbooks",
+          {
+            onError: (e) => console.error("OAuth connect failed:", e),
+          },
+        )
+        break
     }
   }
 
-  const handleConfigure = (id: string) => {
-    const integration = integrations.find((i) => i.id === id)
-    if (integration) {
-      setSelectedIntegration(integration)
-      setConnectDialogOpen(true)
-    }
+  const handleDisconnect = () => {
+    if (!selectedIntegration) return
+    disconnect(selectedIntegration.id, {
+      onSuccess: () => {
+        setDisconnectDialogOpen(false)
+        setManageDialogOpen(false)
+        refetch()
+      },
+    })
   }
+
+  // ─── Render ─────────────────────────────────────────────────────────
 
   const spring = useSpring({
     from: { opacity: 0, transform: "translateY(20px)" },
@@ -308,6 +353,8 @@ export default function IntegrationsPage() {
     immediate: reducedMotion,
   })
 
+  const isPending = isPlaidPending || isStripePending || isOAuthPending
+
   return (
     <animated.div style={spring} className="space-y-6">
       {/* Header */}
@@ -315,26 +362,29 @@ export default function IntegrationsPage() {
         <div>
           <h1 className="text-2xl font-bold text-zinc-100">Integrations</h1>
           <p className="text-zinc-400 mt-1">
-            Connect your favorite tools and services
+            Connect external services to automate your workflow
           </p>
         </div>
-        <Badge variant="outline" className="w-fit">
-          {connectedCount} of {integrations.length} connected
-        </Badge>
+        <div className="flex items-center gap-3">
+          <Badge variant="outline" className="w-fit">
+            {stats.connected} of {PROVIDER_CATALOG.length} connected
+          </Badge>
+          <Button variant="ghost" size="sm" onClick={refetch} disabled={isLoading}>
+            <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} />
+          </Button>
+        </div>
       </div>
 
-      {/* OAuth Disclaimer */}
+      {/* Security Note */}
       <Card className="border-tiffany-500/20 bg-tiffany-500/5">
         <CardContent className="p-4 flex items-start gap-3">
           <Lock className="h-5 w-5 text-tiffany-500 flex-shrink-0 mt-0.5" />
           <div>
-            <p className="text-sm font-medium text-zinc-100">
-              Secure OAuth Connections
-            </p>
+            <p className="text-sm font-medium text-zinc-100">Secure Connections</p>
             <p className="text-xs text-zinc-400 mt-1">
-              All integrations use industry-standard OAuth 2.0 authentication. We
-              never store your third-party credentials. You can revoke access at
-              any time from your connected service&apos;s settings.
+              All integrations use OAuth 2.0 or API key authentication. Credentials
+              are encrypted and stored in Supabase Vault — never in the database.
+              You can disconnect any integration at any time.
             </p>
           </div>
         </CardContent>
@@ -361,81 +411,75 @@ export default function IntegrationsPage() {
         ))}
       </div>
 
+      {/* Loading State */}
+      {isLoading && (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-zinc-500" />
+        </div>
+      )}
+
       {/* Integrations Grid */}
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredIntegrations.map((integration) => (
-          <IntegrationCard
-            key={integration.id}
-            integration={integration}
-            onConnect={handleConnect}
-            onConfigure={handleConfigure}
-          />
-        ))}
-      </div>
+      {!isLoading && (
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredProviders.map((provider) => {
+            const providerStatus = providers[provider.id]
+            const liveIntegration = liveIntegrations.find((i) => i.provider === provider.id)
+            const displayStatus = getProviderDisplayStatus(provider, providerStatus, liveIntegration)
+
+            return (
+              <IntegrationCard
+                key={provider.id}
+                provider={provider}
+                displayStatus={displayStatus}
+                liveIntegration={liveIntegration}
+                onConnect={handleConnect}
+                onManage={handleManage}
+              />
+            )
+          })}
+        </div>
+      )}
 
       {/* Connect Dialog */}
       <Dialog open={connectDialogOpen} onOpenChange={setConnectDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-3">
-              {selectedIntegration && (() => {
-                const SelectedIcon = selectedIntegration.icon
+              {selectedProvider && (() => {
+                const SelectedIcon = selectedProvider.icon
                 return (
                   <>
                     <div className="p-2 rounded-lg bg-zinc-800">
                       <SelectedIcon className="h-5 w-5 text-tiffany-500" />
                     </div>
-                    {selectedIntegration.status === "connected"
-                      ? `Configure ${selectedIntegration.name}`
-                      : `Connect ${selectedIntegration.name}`}
+                    Connect {selectedProvider.name}
                   </>
                 )
               })()}
             </DialogTitle>
             <DialogDescription>
-              {selectedIntegration?.status === "connected"
-                ? "Manage your integration settings and permissions."
-                : "Securely connect your account using OAuth."}
+              {selectedProvider?.connectType === "plaid_link"
+                ? "Connect your bank account securely through Plaid."
+                : selectedProvider?.connectType === "stripe_key"
+                  ? "Activate Stripe to start collecting payments."
+                  : "You'll be redirected to authorize access."}
             </DialogDescription>
           </DialogHeader>
 
-          {selectedIntegration && (
+          {selectedProvider && (
             <div className="space-y-4 py-4">
+              <p className="text-sm text-zinc-400">{selectedProvider.description}</p>
               <div>
-                <p className="text-sm text-zinc-400 mb-3">
-                  {selectedIntegration.description}
-                </p>
-                <p className="text-sm font-medium text-zinc-100 mb-2">
-                  Features included:
-                </p>
+                <p className="text-sm font-medium text-zinc-100 mb-2">Features included:</p>
                 <ul className="space-y-2">
-                  {selectedIntegration.features.map((feature) => (
-                    <li
-                      key={feature}
-                      className="flex items-center gap-2 text-sm text-zinc-400"
-                    >
+                  {selectedProvider.features.map((feature) => (
+                    <li key={feature} className="flex items-center gap-2 text-sm text-zinc-400">
                       <CheckCircle2 className="h-4 w-4 text-tiffany-500" />
                       {feature}
                     </li>
                   ))}
                 </ul>
               </div>
-
-              {selectedIntegration.status === "connected" && (
-                <div className="p-4 rounded-lg bg-zinc-800/50">
-                  <p className="text-sm text-zinc-500">Connected on</p>
-                  <p className="text-sm font-medium text-zinc-100">
-                    {new Date(selectedIntegration.connectedAt!).toLocaleDateString(
-                      "en-US",
-                      {
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric",
-                      }
-                    )}
-                  </p>
-                </div>
-              )}
             </div>
           )}
 
@@ -443,22 +487,121 @@ export default function IntegrationsPage() {
             <Button variant="outline" onClick={() => setConnectDialogOpen(false)}>
               Cancel
             </Button>
-            {selectedIntegration?.status === "connected" ? (
-              <Button
-                variant="destructive"
-                onClick={() => setConnectDialogOpen(false)}
-              >
-                Disconnect
-              </Button>
-            ) : (
-              <Button onClick={() => setConnectDialogOpen(false)}>
-                Connect with OAuth
-                <ExternalLink className="h-4 w-4 ml-2" />
-              </Button>
-            )}
+            <Button onClick={executeConnect} disabled={isPending}>
+              {isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {selectedProvider?.connectType === "plaid_link"
+                ? "Open Plaid Link"
+                : selectedProvider?.connectType === "stripe_key"
+                  ? "Activate Stripe"
+                  : "Connect with OAuth"}
+              {!isPending && <ExternalLink className="h-4 w-4 ml-2" />}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Manage Dialog */}
+      <Dialog open={manageDialogOpen} onOpenChange={setManageDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-3">
+              {selectedProvider && (() => {
+                const SelectedIcon = selectedProvider.icon
+                return (
+                  <>
+                    <div className="p-2 rounded-lg bg-zinc-800">
+                      <SelectedIcon className="h-5 w-5 text-tiffany-500" />
+                    </div>
+                    {selectedProvider.name}
+                  </>
+                )
+              })()}
+            </DialogTitle>
+            <DialogDescription>Manage your integration connection and settings.</DialogDescription>
+          </DialogHeader>
+
+          {selectedIntegration && (
+            <div className="space-y-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-4 rounded-lg bg-zinc-800/50">
+                  <p className="text-xs text-zinc-500">Status</p>
+                  <p className="text-sm font-medium text-emerald-400 mt-1">Connected</p>
+                </div>
+                <div className="p-4 rounded-lg bg-zinc-800/50">
+                  <p className="text-xs text-zinc-500">Connected on</p>
+                  <p className="text-sm font-medium text-zinc-100 mt-1">
+                    {selectedIntegration.connectedAt
+                      ? new Date(selectedIntegration.connectedAt).toLocaleDateString("en-US", {
+                          year: "numeric",
+                          month: "short",
+                          day: "numeric",
+                        })
+                      : "—"}
+                  </p>
+                </div>
+              </div>
+
+              {selectedIntegration.lastSyncAt && (
+                <div className="p-4 rounded-lg bg-zinc-800/50">
+                  <p className="text-xs text-zinc-500">Last synced</p>
+                  <p className="text-sm font-medium text-zinc-100 mt-1">
+                    {new Date(selectedIntegration.lastSyncAt).toLocaleString()}
+                  </p>
+                </div>
+              )}
+
+              {selectedIntegration.name && (
+                <div className="p-4 rounded-lg bg-zinc-800/50">
+                  <p className="text-xs text-zinc-500">Connection name</p>
+                  <p className="text-sm font-medium text-zinc-100 mt-1">
+                    {selectedIntegration.name}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setManageDialogOpen(false)}>
+              Close
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                setManageDialogOpen(false)
+                setDisconnectDialogOpen(true)
+              }}
+            >
+              <Unplug className="h-4 w-4 mr-1" />
+              Disconnect
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Disconnect Confirmation */}
+      <AlertDialog open={disconnectDialogOpen} onOpenChange={setDisconnectDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Disconnect {selectedProvider?.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will revoke access and stop all data syncing. You can reconnect at
+              any time, but historical sync data may need to be re-fetched.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDisconnect}
+              className="bg-red-600 hover:bg-red-700"
+              disabled={isDisconnecting}
+            >
+              {isDisconnecting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Disconnect
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* API Section */}
       <Card>

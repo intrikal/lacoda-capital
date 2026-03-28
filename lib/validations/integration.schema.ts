@@ -1,15 +1,14 @@
 import { z } from "zod"
 
 export const integrationProviderEnum = z.enum([
+  "stripe",
   "plaid",
-  "yodlee",
+  "docusign",
   "quickbooks",
-  "xero",
-  "salesforce",
-  "hubspot",
   "google_drive",
   "dropbox",
-  "docusign",
+  "salesforce",
+  "hubspot",
   "other",
 ])
 
@@ -17,7 +16,7 @@ export const integrationStatusEnum = z.enum(["connected", "disconnected", "error
 
 export const createIntegrationSchema = z.object({
   provider: integrationProviderEnum,
-  name: z.string().min(1, "Name is required").max(255).trim(),
+  name: z.string().trim().min(1, "Name is required").max(255),
   status: integrationStatusEnum.default("disconnected"),
   externalAccountId: z.string().max(255).nullable().optional(),
   externalItemId: z.string().max(255).nullable().optional(),
@@ -27,7 +26,7 @@ export const createIntegrationSchema = z.object({
 export type CreateIntegrationInput = z.infer<typeof createIntegrationSchema>
 
 export const updateIntegrationSchema = z.object({
-  name: z.string().min(1).max(255).trim().optional(),
+  name: z.string().trim().min(1).max(255).optional(),
   status: integrationStatusEnum.optional(),
   statusMessage: z.string().max(500).nullable().optional(),
   externalAccountId: z.string().max(255).nullable().optional(),

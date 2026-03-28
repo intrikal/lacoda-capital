@@ -13,7 +13,7 @@
 import { describe, it, expect } from "vitest"
 import { uploadDocumentSchema } from "@/lib/validations/document.schema"
 import { updateDocumentRequestSchema } from "@/lib/validations/document-request.schema"
-import { differenceInDays, subDays, addDays } from "date-fns"
+import { differenceInCalendarDays, subDays, addDays } from "date-fns"
 
 // ─── File Validation Tests ─────────────────────────────────────────────────
 
@@ -134,7 +134,7 @@ describe("version increment logic", () => {
 describe("expiration badge logic", () => {
   function getExpirationBadge(expiresAt: string | null): { label: string; variant: "yellow" | "red" } | null {
     if (!expiresAt) return null
-    const daysLeft = differenceInDays(new Date(expiresAt), new Date())
+    const daysLeft = differenceInCalendarDays(new Date(expiresAt), new Date())
     if (daysLeft < 0) return { label: "Expired", variant: "red" }
     if (daysLeft <= 30) return { label: `Expires in ${daysLeft}d`, variant: "yellow" }
     return null
