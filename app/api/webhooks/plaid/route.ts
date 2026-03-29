@@ -122,7 +122,7 @@ export async function POST(req: NextRequest) {
             console.warn(`[plaid-webhook] User revoked permission for ${item_id}`)
             await db
               .update(integrations)
-              .set({ status: "disconnected", disconnectedAt: new Date() })
+              .set({ status: "disconnected" })
               .where(eq(integrations.id, integration.id))
             break
         }

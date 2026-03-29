@@ -28,6 +28,7 @@ These power the key workflows — payments, financial data, signatures, accounti
 | **DocuSign** | [docusign-setup.md](docusign-setup.md) | Electronic signatures on documents | Yes |
 | **QuickBooks** | [quickbooks-setup.md](quickbooks-setup.md) | Accounting sync (invoices, chart of accounts) | No |
 | **Google Drive** | [google-drive-setup.md](google-drive-setup.md) | Import documents from Google Drive | No |
+| **Salesforce** | [salesforce-setup.md](salesforce-setup.md) | CRM sync (clients, deals, activity) | No |
 
 ---
 
@@ -104,6 +105,9 @@ All environment variables are documented in `.env.example` with links to the rel
 | `QUICKBOOKS_CLIENT_ID` | [QuickBooks](quickbooks-setup.md) |
 | `QUICKBOOKS_CLIENT_SECRET` | [QuickBooks](quickbooks-setup.md) |
 | `QUICKBOOKS_ENV` | [QuickBooks](quickbooks-setup.md) |
+| `SALESFORCE_CLIENT_ID` | [Salesforce](salesforce-setup.md) |
+| `SALESFORCE_CLIENT_SECRET` | [Salesforce](salesforce-setup.md) |
+| `SALESFORCE_LOGIN_URL` | [Salesforce](salesforce-setup.md) |
 
 ### Supporting
 

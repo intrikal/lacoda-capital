@@ -11,7 +11,6 @@ import {
   Database,
   FileSpreadsheet,
   PenTool,
-  Landmark,
   CheckCircle2,
   XCircle,
   AlertTriangle,
@@ -116,6 +115,15 @@ const PROVIDER_CATALOG: ProviderMeta[] = [
     icon: Cloud,
     category: "Storage",
     features: ["Document import", "Folder browsing", "Shared drives", "On-demand sync"],
+    connectType: "oauth",
+  },
+  {
+    id: "salesforce",
+    name: "Salesforce",
+    description: "Bi-directional CRM sync — clients, deals, and activity data",
+    icon: Database,
+    category: "CRM",
+    features: ["Client sync", "Deal pipeline", "Activity feed", "Field mapping"],
     connectType: "oauth",
   },
   {
@@ -326,7 +334,7 @@ export default function IntegrationsPage() {
 
       case "oauth":
         oauthConnect(
-          selectedProvider.id as "docusign" | "google_drive" | "quickbooks",
+          selectedProvider.id as "docusign" | "google_drive" | "quickbooks" | "salesforce",
           {
             onError: (e) => console.error("OAuth connect failed:", e),
           },
@@ -401,7 +409,7 @@ export default function IntegrationsPage() {
         >
           All
         </Button>
-        {allCategories.map((category) => (
+        {categories.map((category) => (
           <Button
             key={category}
             variant={categoryFilter === category ? "default" : "outline"}

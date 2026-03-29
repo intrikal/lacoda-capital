@@ -13,6 +13,7 @@ import { isStripeConfigured } from "@/lib/integrations/stripe"
 import { isDocuSignConfigured } from "@/lib/integrations/docusign"
 import { isGoogleDriveConfigured } from "@/lib/integrations/google-drive"
 import { isQuickBooksConfigured } from "@/lib/integrations/quickbooks"
+import { isSalesforceConfigured } from "@/lib/integrations/salesforce"
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -27,7 +28,6 @@ export interface IntegrationRecord {
   externalItemId: string | null
   connectedBy: string | null
   connectedAt: Date | null
-  disconnectedAt: Date | null
   lastSyncAt: Date | null
   settings: Record<string, unknown> | null
   createdAt: Date
@@ -60,7 +60,7 @@ export async function getAvailableProviders(): Promise<
     google_drive: { configured: isGoogleDriveConfigured(), connected: connectedProviders.has("google_drive") },
     quickbooks: { configured: isQuickBooksConfigured(), connected: connectedProviders.has("quickbooks") },
     dropbox: { configured: false, connected: connectedProviders.has("dropbox") },
-    salesforce: { configured: false, connected: connectedProviders.has("salesforce") },
+    salesforce: { configured: isSalesforceConfigured(), connected: connectedProviders.has("salesforce") },
   }
 }
 
@@ -118,7 +118,6 @@ export async function disconnectIntegration(id: string): Promise<void> {
     .update(integrations)
     .set({
       status: "disconnected",
-      disconnectedAt: new Date(),
       settings: {},
     })
     .where(and(eq(integrations.id, id), eq(integrations.orgId, session.orgId)))
@@ -198,6 +197,13 @@ export async function getQuickBooksAuthUrl(): Promise<string> {
   const session = await requireRole("assistant")
   const { getAuthorizationUrl } = await import("@/lib/integrations/quickbooks")
   const redirectUri = `${process.env.NEXT_PUBLIC_SITE_URL}/api/webhooks/quickbooks/callback`
+  return getAuthorizationUrl(redirectUri, session.orgId)
+}
+
+export async function getSalesforceAuthUrl(): Promise<string> {
+  const session = await requireRole("assistant")
+  const { getAuthorizationUrl } = await import("@/lib/integrations/salesforce")
+  const redirectUri = `${process.env.NEXT_PUBLIC_SITE_URL}/api/webhooks/salesforce/callback`
   return getAuthorizationUrl(redirectUri, session.orgId)
 }
 
