@@ -1,5 +1,3 @@
-"use server"
-
 /**
  * Plaid Integration — Financial Data Aggregation
  *
@@ -274,7 +272,6 @@ export async function disconnectPlaidItem(integrationId: string): Promise<void> 
     .update(integrations)
     .set({
       status: "disconnected",
-      disconnectedAt: new Date(),
       settings: {},
     })
     .where(eq(integrations.id, integrationId))

@@ -1,5 +1,3 @@
-"use server"
-
 /**
  * QuickBooks Integration — Accounting Sync
  *
