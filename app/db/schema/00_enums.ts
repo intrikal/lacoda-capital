@@ -650,10 +650,11 @@ export const integrationStatusEnum = pgEnum("integration_status", [
  * - plaid:        Financial data aggregation (bank accounts, holdings, transactions)
  * - docusign:     Electronic signature service (send docs for signing)
  * - quickbooks:   Accounting software sync (invoices, chart of accounts)
- * - google_drive: Cloud document storage (import/export documents)
- * - dropbox:      Cloud document storage (import/export documents)
- * - salesforce:   Enterprise CRM (client data sync — enterprise only)
- * - other:        Catch-all for unlisted providers
+ * - google_drive:    Cloud document storage (import/export documents)
+ * - google_calendar: Google Calendar sync (pull/push events)
+ * - dropbox:         Cloud document storage (import/export documents)
+ * - salesforce:      Enterprise CRM (client data sync — enterprise only)
+ * - other:           Catch-all for unlisted providers
  *
  * REMOVED: yodlee (redundant with Plaid), xero (US market uses QuickBooks),
  *          hubspot (replaced by Salesforce for enterprise CRM)
@@ -664,6 +665,7 @@ export const integrationProviderEnum = pgEnum("integration_provider", [
   "docusign",
   "quickbooks",
   "google_drive",
+  "google_calendar",
   "dropbox",
   "salesforce",
   "other",

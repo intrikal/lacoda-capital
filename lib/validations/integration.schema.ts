@@ -6,6 +6,7 @@ export const integrationProviderEnum = z.enum([
   "docusign",
   "quickbooks",
   "google_drive",
+  "google_calendar",
   "dropbox",
   "salesforce",
   "other",
