@@ -15,6 +15,7 @@ import { isGoogleDriveConfigured } from "@/lib/integrations/google-drive"
 import { isQuickBooksConfigured } from "@/lib/integrations/quickbooks"
 import { isSalesforceConfigured } from "@/lib/integrations/salesforce"
 import { isDropboxConfigured } from "@/lib/integrations/dropbox"
+import { isGoogleCalendarConfigured } from "@/lib/integrations/google-calendar"
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -60,6 +61,7 @@ export async function getAvailableProviders(): Promise<
     docusign: { configured: isDocuSignConfigured(), connected: connectedProviders.has("docusign") },
     google_drive: { configured: isGoogleDriveConfigured(), connected: connectedProviders.has("google_drive") },
     quickbooks: { configured: isQuickBooksConfigured(), connected: connectedProviders.has("quickbooks") },
+    google_calendar: { configured: isGoogleCalendarConfigured(), connected: connectedProviders.has("google_calendar") },
     dropbox: { configured: isDropboxConfigured(), connected: connectedProviders.has("dropbox") },
     salesforce: { configured: isSalesforceConfigured(), connected: connectedProviders.has("salesforce") },
   }
@@ -205,6 +207,13 @@ export async function getSalesforceAuthUrl(): Promise<string> {
   const session = await requireRole("assistant")
   const { getAuthorizationUrl } = await import("@/lib/integrations/salesforce")
   const redirectUri = `${process.env.NEXT_PUBLIC_SITE_URL}/api/webhooks/salesforce/callback`
+  return getAuthorizationUrl(redirectUri, session.orgId)
+}
+
+export async function getGoogleCalendarAuthUrl(): Promise<string> {
+  const session = await requireRole("assistant")
+  const { getAuthorizationUrl } = await import("@/lib/integrations/google-calendar")
+  const redirectUri = `${process.env.NEXT_PUBLIC_SITE_URL}/api/webhooks/google-calendar/callback`
   return getAuthorizationUrl(redirectUri, session.orgId)
 }
 

@@ -127,6 +127,15 @@ const PROVIDER_CATALOG: ProviderMeta[] = [
     connectType: "oauth",
   },
   {
+    id: "google_calendar",
+    name: "Google Calendar",
+    description: "Sync meetings and events between your calendar and client dashboards",
+    icon: Cloud,
+    category: "Scheduling",
+    features: ["Event sync", "Two-way updates", "Meeting scheduling", "Upcoming calls widget"],
+    connectType: "oauth",
+  },
+  {
     id: "dropbox",
     name: "Dropbox",
     description: "Import and sync documents from Dropbox",
