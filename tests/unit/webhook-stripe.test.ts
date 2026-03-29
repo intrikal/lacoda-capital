@@ -1,0 +1,336 @@
+/**
+ * ============================================================================
+ * TEST FILE: webhook-stripe.test.ts
+ * ============================================================================
+ *
+ * Kevin, this tests the Stripe webhook route handler at
+ * /api/webhooks/stripe/route.ts.
+ *
+ * ┌─────────────────────────────────────────────────────────────────────────┐
+ * │ HOW STRIPE WEBHOOKS WORK                                               │
+ * ├─────────────────────────────────────────────────────────────────────────┤
+ * │ 1. Something happens in Stripe (invoice paid, subscription changed)    │
+ * │ 2. Stripe POSTs a JSON "event" to our /api/webhooks/stripe endpoint   │
+ * │ 3. The POST includes a "Stripe-Signature" header for verification     │
+ * │ 4. Our handler parses the event, checks the type, and acts on it      │
+ * │                                                                        │
+ * │ We test:                                                               │
+ * │   • Missing signature → 400                                           │
+ * │   • Missing webhook secret env var → 500                              │
+ * │   • Invalid JSON body → 400                                           │
+ * │   • Each event type (invoice.paid, invoice.payment_failed, etc.)      │
+ * │   • Unhandled event type → 200 (acknowledge receipt, no crash)        │
+ * │   • Missing metadata → silent skip (no crash)                         │
+ * └─────────────────────────────────────────────────────────────────────────┘
+ *
+ * RELATED FILES:
+ *   app/api/webhooks/stripe/route.ts — route handler under test
+ */
+
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
+
+// ─── Mock DB before importing route ─────────────────────────────────────────
+
+vi.mock("@/app/db", () => ({
+  db: { query: {}, select: vi.fn(), update: vi.fn(), insert: vi.fn() },
+}))
+
+vi.mock("drizzle-orm", () => ({
+  eq: vi.fn(),
+}))
+
+vi.mock("@/app/db/schema", () => ({
+  integrations: {},
+}))
+
+// ─── Import the handler ─────────────────────────────────────────────────────
+
+import { POST } from "@/app/api/webhooks/stripe/route"
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+/** Build a minimal NextRequest-like object for the route handler. */
+function makeRequest(body: string, headers: Record<string, string> = {}): Request {
+  return new Request("http://localhost/api/webhooks/stripe", {
+    method: "POST",
+    body,
+    headers,
+  })
+}
+
+/** Build a Stripe event JSON string. */
+function makeStripeEvent(
+  type: string,
+  data: Record<string, unknown> = {},
+): string {
+  return JSON.stringify({
+    type,
+    data: {
+      object: {
+        id: `evt_${Date.now()}`,
+        metadata: {},
+        ...data,
+      },
+    },
+  })
+}
+
+// ─── Env setup ──────────────────────────────────────────────────────────────
+
+const ORIGINAL_ENV = { ...process.env }
+
+beforeEach(() => {
+  vi.clearAllMocks()
+  process.env.STRIPE_WEBHOOK_SECRET = "whsec_test_secret_123"
+})
+
+afterEach(() => {
+  process.env = { ...ORIGINAL_ENV }
+})
+
+// ============================================================================
+// 1. Missing Stripe-Signature header → 400
+// ============================================================================
+
+describe("Stripe webhook — missing signature", () => {
+  it("returns 400 when Stripe-Signature header is absent", async () => {
+    const body = makeStripeEvent("invoice.paid")
+    const req = makeRequest(body) // no headers
+
+    const res = await POST(req as never)
+    expect(res.status).toBe(400)
+
+    const json = await res.json()
+    expect(json.error).toContain("Missing")
+  })
+})
+
+// ============================================================================
+// 2. Missing STRIPE_WEBHOOK_SECRET env var → 500
+// ============================================================================
+
+describe("Stripe webhook — missing webhook secret", () => {
+  it("returns 500 when STRIPE_WEBHOOK_SECRET is not set", async () => {
+    delete process.env.STRIPE_WEBHOOK_SECRET
+
+    const body = makeStripeEvent("invoice.paid")
+    const req = makeRequest(body, { "stripe-signature": "sig_fake" })
+
+    const res = await POST(req as never)
+    expect(res.status).toBe(500)
+
+    const json = await res.json()
+    expect(json.error).toContain("not configured")
+  })
+})
+
+// ============================================================================
+// 3. Invalid JSON body → 400
+// ============================================================================
+
+describe("Stripe webhook — invalid JSON", () => {
+  it("returns 400 when body is not valid JSON", async () => {
+    const req = makeRequest("this is not json {{{", {
+      "stripe-signature": "sig_test",
+    })
+
+    const res = await POST(req as never)
+    expect(res.status).toBe(400)
+
+    const json = await res.json()
+    expect(json.error).toContain("Invalid JSON")
+  })
+
+  it("returns 400 for an empty body", async () => {
+    const req = makeRequest("", {
+      "stripe-signature": "sig_test",
+    })
+
+    const res = await POST(req as never)
+    expect(res.status).toBe(400)
+  })
+})
+
+// ============================================================================
+// 4. invoice.paid — processes successfully
+// ============================================================================
+
+describe("Stripe webhook — invoice.paid", () => {
+  it("returns 200 with { received: true } for valid invoice.paid event", async () => {
+    const body = makeStripeEvent("invoice.paid", {
+      metadata: { lacoda_billing_record_id: "billing-001" },
+    })
+    const req = makeRequest(body, { "stripe-signature": "sig_test" })
+
+    const res = await POST(req as never)
+    expect(res.status).toBe(200)
+
+    const json = await res.json()
+    expect(json.received).toBe(true)
+  })
+
+  it("returns 200 even when metadata has no billing record id (silent skip)", async () => {
+    const body = makeStripeEvent("invoice.paid", {
+      metadata: {},
+    })
+    const req = makeRequest(body, { "stripe-signature": "sig_test" })
+
+    const res = await POST(req as never)
+    expect(res.status).toBe(200)
+    expect((await res.json()).received).toBe(true)
+  })
+
+  it("returns 200 when metadata is missing entirely", async () => {
+    const body = JSON.stringify({
+      type: "invoice.paid",
+      data: { object: { id: "inv_123" } },
+    })
+    const req = makeRequest(body, { "stripe-signature": "sig_test" })
+
+    const res = await POST(req as never)
+    expect(res.status).toBe(200)
+  })
+})
+
+// ============================================================================
+// 5. invoice.payment_failed — processes successfully
+// ============================================================================
+
+describe("Stripe webhook — invoice.payment_failed", () => {
+  it("returns 200 for payment_failed with billing record id", async () => {
+    const body = makeStripeEvent("invoice.payment_failed", {
+      metadata: { lacoda_billing_record_id: "billing-002" },
+    })
+    const req = makeRequest(body, { "stripe-signature": "sig_test" })
+
+    const res = await POST(req as never)
+    expect(res.status).toBe(200)
+    expect((await res.json()).received).toBe(true)
+  })
+
+  it("returns 200 for payment_failed without billing record id (silent skip)", async () => {
+    const body = makeStripeEvent("invoice.payment_failed", {
+      metadata: {},
+    })
+    const req = makeRequest(body, { "stripe-signature": "sig_test" })
+
+    const res = await POST(req as never)
+    expect(res.status).toBe(200)
+  })
+})
+
+// ============================================================================
+// 6. checkout.session.completed — processes successfully
+// ============================================================================
+
+describe("Stripe webhook — checkout.session.completed", () => {
+  it("returns 200 for checkout session completed", async () => {
+    const body = makeStripeEvent("checkout.session.completed", {
+      id: "cs_test_123",
+      payment_status: "paid",
+      amount_total: 9900,
+      currency: "usd",
+    })
+    const req = makeRequest(body, { "stripe-signature": "sig_test" })
+
+    const res = await POST(req as never)
+    expect(res.status).toBe(200)
+    expect((await res.json()).received).toBe(true)
+  })
+})
+
+// ============================================================================
+// 7. Unhandled event type → 200 (acknowledge, don't crash)
+// ============================================================================
+
+describe("Stripe webhook — unhandled event types", () => {
+  /**
+   * Kevin, Stripe sends MANY event types. Our handler only cares about a few.
+   * For all others, we return 200 so Stripe stops retrying.
+   * Returning 4xx/5xx would make Stripe keep retrying for hours.
+   */
+  it("returns 200 for customer.subscription.created (unhandled)", async () => {
+    const body = makeStripeEvent("customer.subscription.created")
+    const req = makeRequest(body, { "stripe-signature": "sig_test" })
+
+    const res = await POST(req as never)
+    expect(res.status).toBe(200)
+    expect((await res.json()).received).toBe(true)
+  })
+
+  it("returns 200 for payment_intent.succeeded (unhandled)", async () => {
+    const body = makeStripeEvent("payment_intent.succeeded")
+    const req = makeRequest(body, { "stripe-signature": "sig_test" })
+
+    const res = await POST(req as never)
+    expect(res.status).toBe(200)
+  })
+
+  it("returns 200 for a completely unknown event type", async () => {
+    const body = makeStripeEvent("some.future.event.type")
+    const req = makeRequest(body, { "stripe-signature": "sig_test" })
+
+    const res = await POST(req as never)
+    expect(res.status).toBe(200)
+  })
+})
+
+// ============================================================================
+// 8. Realistic multi-event scenarios
+// ============================================================================
+
+describe("Stripe webhook — realistic payloads", () => {
+  it("handles a full invoice.paid payload with nested objects", async () => {
+    const body = JSON.stringify({
+      type: "invoice.paid",
+      data: {
+        object: {
+          id: "in_1NxTestInvoice",
+          object: "invoice",
+          amount_paid: 4999,
+          currency: "usd",
+          customer: "cus_OrgCustomer123",
+          subscription: "sub_OrgSub456",
+          status: "paid",
+          metadata: {
+            lacoda_billing_record_id: "billing-rec-abc",
+            orgId: "org-123",
+          },
+          lines: {
+            data: [
+              {
+                description: "Lacoda Capital Pro Plan",
+                amount: 4999,
+                currency: "usd",
+              },
+            ],
+          },
+        },
+      },
+    })
+    const req = makeRequest(body, { "stripe-signature": "sig_test" })
+
+    const res = await POST(req as never)
+    expect(res.status).toBe(200)
+  })
+
+  it("handles a checkout.session.completed with subscription mode", async () => {
+    const body = JSON.stringify({
+      type: "checkout.session.completed",
+      data: {
+        object: {
+          id: "cs_test_session789",
+          mode: "subscription",
+          subscription: "sub_new_456",
+          customer: "cus_new_123",
+          metadata: { orgId: "org-456" },
+          payment_status: "paid",
+        },
+      },
+    })
+    const req = makeRequest(body, { "stripe-signature": "sig_test" })
+
+    const res = await POST(req as never)
+    expect(res.status).toBe(200)
+  })
+})
