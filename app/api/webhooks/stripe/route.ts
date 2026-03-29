@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/app/db"
 import { integrations } from "@/app/db/schema"
 import { eq } from "drizzle-orm"
+import { dispatchAlert } from "@/lib/alerts"
 
 /**
  * Stripe Webhook Handler
@@ -85,6 +86,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ received: true })
   } catch (err) {
     console.error("[stripe-webhook] Processing error:", err)
+
+    dispatchAlert({
+      title: "Stripe webhook processing failed",
+      description: `Error processing ${event.type}: ${err instanceof Error ? err.message : String(err)}`,
+      severity: "critical",
+      source: "stripe-webhook",
+    }).catch(() => {})
+
     return NextResponse.json({ error: "Webhook processing failed" }, { status: 500 })
   }
 }

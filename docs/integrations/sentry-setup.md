@@ -169,6 +169,43 @@ After connecting, configure these in the Sentry dashboard:
 
 ---
 
+## 9. Sentry vs App Alerts — When to Use Which
+
+Lacoda Capital has **two** alerting systems that serve different purposes:
+
+### Sentry — Code-Level Error Tracking
+
+- **What it catches**: Unhandled exceptions, JavaScript errors, API route crashes, edge runtime errors
+- **Who it's for**: Developers debugging production issues
+- **How it works**: Automatic capture — errors are sent to Sentry without any manual code
+- **Examples**: `TypeError: Cannot read property of undefined`, `500 Internal Server Error`, unhandled promise rejections
+- **Dashboard**: [sentry.io](https://sentry.io) project dashboard with stack traces, breadcrumbs, and session replays
+
+### App Alerts — Business Logic Monitoring
+
+- **What it catches**: Operational conditions that need human attention but aren't code errors
+- **Who it's for**: Operations team, advisors, admins
+- **How it works**: Explicit `dispatchAlert()` calls in business logic
+- **Examples**: Plaid sync stale for 24h, plan limit at 80%, compliance deadline in 3 days, new user signup
+- **Channels**: Discord webhooks, email via Resend, in-app notification bell
+- **Setup**: See [alerts-setup.md](../alerts-setup.md)
+
+### Quick Decision Guide
+
+| Situation | System |
+|-----------|--------|
+| Code threw an exception | Sentry (automatic) |
+| Plaid API returned an error we handle gracefully | App Alert (manual dispatch) |
+| React component crashed | Sentry (automatic via Error Boundary) |
+| Document expires in 2 days | App Alert (from check-expirations cron) |
+| Database connection dropped | Sentry (automatic) |
+| Plan usage at 90% | App Alert (from checkPlanLimitAlerts) |
+| Webhook handler crashed unexpectedly | **Both** — Sentry captures the error, App Alert notifies ops |
+
+When a webhook catch block fires, it **both** logs to Sentry (automatic) and dispatches an App Alert (explicit). This is intentional: Sentry gives developers the stack trace, while the App Alert gives ops the business context and immediate visibility.
+
+---
+
 ## Sentry Free Tier
 
 - **5,000 errors/month**

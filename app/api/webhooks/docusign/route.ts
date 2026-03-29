@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/app/db"
 import { documents } from "@/app/db/schema"
 import { eq } from "drizzle-orm"
+import { dispatchAlert } from "@/lib/alerts"
 
 /**
  * DocuSign Webhook Handler (Connect)
@@ -102,6 +103,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ received: true })
   } catch (err) {
     console.error("[docusign-webhook] Processing error:", err)
+
+    dispatchAlert({
+      title: "DocuSign webhook processing failed",
+      description: `Error processing envelope: ${err instanceof Error ? err.message : String(err)}`,
+      severity: "critical",
+      source: "docusign-webhook",
+    }).catch(() => {})
+
     return NextResponse.json({ error: "Webhook processing failed" }, { status: 500 })
   }
 }

@@ -27,6 +27,52 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!
 const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
 const sendEmailUrl = `${supabaseUrl}/functions/v1/send-email`
+const DISCORD_WEBHOOK_URL = Deno.env.get("DISCORD_WEBHOOK_URL")
+
+/** Inline alert dispatch for critical expirations. */
+async function dispatchExpirationAlert(alert: {
+  title: string; description: string; orgId?: string
+}) {
+  if (!DISCORD_WEBHOOK_URL) return
+  try {
+    await fetch(DISCORD_WEBHOOK_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        embeds: [{
+          title: alert.title,
+          description: alert.description,
+          color: 0xef4444,
+          fields: [
+            { name: "Severity", value: "CRITICAL", inline: true },
+            { name: "Source", value: "check-expirations", inline: true },
+          ],
+          footer: { text: "Lacoda Capital Alerts" },
+          timestamp: new Date().toISOString(),
+        }],
+      }),
+    })
+  } catch (e) { console.error("[check-expirations] Discord alert failed:", e) }
+
+  // Also send email alert
+  const recipients = (Deno.env.get("ALERT_EMAIL_RECIPIENTS") ?? "").split(",").map(e => e.trim()).filter(Boolean)
+  for (const to of recipients) {
+    try {
+      await fetch(sendEmailUrl, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${supabaseServiceKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          type: "operational_alert",
+          to,
+          data: { title: alert.title, description: alert.description, severity: "critical", source: "check-expirations" },
+        }),
+      })
+    } catch (e) { console.error("[check-expirations] Email alert failed:", e) }
+  }
+}
 
 Deno.serve(async (req: Request) => {
   try {
@@ -138,6 +184,25 @@ Deno.serve(async (req: Request) => {
           }),
         })
         emailsSent++
+      }
+    }
+
+    // Dispatch critical alerts for documents expiring today or tomorrow
+    const urgentDocs = expiringDocs.filter((d: Record<string, unknown>) => {
+      const expiresAt = new Date(d.expires_at as string)
+      const daysUntil = Math.ceil((expiresAt.getTime() - now.getTime()) / (24 * 60 * 60 * 1000))
+      return daysUntil <= 1
+    })
+
+    if (urgentDocs.length > 0) {
+      const orgIds = [...new Set(urgentDocs.map((d: Record<string, unknown>) => d.org_id as string))]
+      for (const orgId of orgIds) {
+        const orgDocs = urgentDocs.filter((d: Record<string, unknown>) => d.org_id === orgId)
+        await dispatchExpirationAlert({
+          title: `${orgDocs.length} document${orgDocs.length === 1 ? "" : "s"} expiring imminently`,
+          description: orgDocs.map((d: Record<string, unknown>) => d.name).join(", "),
+          orgId,
+        })
       }
     }
 

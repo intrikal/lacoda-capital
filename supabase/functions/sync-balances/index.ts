@@ -17,6 +17,57 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 const PLAID_CLIENT_ID = Deno.env.get("PLAID_CLIENT_ID")!
 const PLAID_SECRET = Deno.env.get("PLAID_SECRET")!
 const PLAID_ENV = Deno.env.get("PLAID_ENV") ?? "sandbox"
+const DISCORD_WEBHOOK_URL = Deno.env.get("DISCORD_WEBHOOK_URL")
+const ALERT_EMAIL_RECIPIENTS = Deno.env.get("ALERT_EMAIL_RECIPIENTS")
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+
+/** Inline alert dispatcher for edge function context. */
+async function dispatchCriticalAlert(alert: {
+  title: string; description: string; source: string; orgId?: string
+}) {
+  // Discord
+  if (DISCORD_WEBHOOK_URL) {
+    try {
+      await fetch(DISCORD_WEBHOOK_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          embeds: [{
+            title: alert.title,
+            description: alert.description,
+            color: 0xef4444,
+            fields: [
+              { name: "Severity", value: "CRITICAL", inline: true },
+              { name: "Source", value: alert.source, inline: true },
+            ],
+            footer: { text: "Lacoda Capital Alerts" },
+            timestamp: new Date().toISOString(),
+          }],
+        }),
+      })
+    } catch (e) { console.error("[sync-balances] Discord alert failed:", e) }
+  }
+
+  // Email
+  const recipients = ALERT_EMAIL_RECIPIENTS?.split(",").map(e => e.trim()).filter(Boolean) ?? []
+  for (const to of recipients) {
+    try {
+      await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          type: "operational_alert",
+          to,
+          data: { title: alert.title, description: alert.description, severity: "critical", source: alert.source },
+        }),
+      })
+    } catch (e) { console.error("[sync-balances] Email alert failed:", e) }
+  }
+}
 
 const PLAID_BASE_URL: Record<string, string> = {
   sandbox: "https://sandbox.plaid.com",
@@ -290,6 +341,14 @@ Deno.serve(async (req: Request) => {
           status: "failed",
           accountsSynced: 0,
           error: err instanceof Error ? err.message : "Unknown error",
+        })
+
+        // Dispatch critical alert on sync failure
+        await dispatchCriticalAlert({
+          title: `Plaid sync failed: ${integration.name}`,
+          description: `Balance sync failed for integration ${integration.name}. Error: ${err instanceof Error ? err.message : "Unknown error"}`,
+          source: "sync-balances",
+          orgId: integration.org_id,
         })
       }
     }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/app/db"
 import { integrations } from "@/app/db/schema"
 import { eq } from "drizzle-orm"
+import { dispatchAlert } from "@/lib/alerts"
 
 /**
  * Plaid Webhook Handler
@@ -105,6 +106,15 @@ export async function POST(req: NextRequest) {
                 statusMessage: event.error?.error_message ?? "Connection error",
               })
               .where(eq(integrations.id, integration.id))
+
+            dispatchAlert({
+              title: `Plaid connection error: ${integration.name}`,
+              description: event.error?.error_message ?? "Connection error occurred.",
+              severity: "warning",
+              source: "plaid-webhook",
+              orgId: integration.orgId,
+              actionUrl: "/app/settings/integrations",
+            }).catch(() => {})
             break
 
           case "PENDING_EXPIRATION":
@@ -116,6 +126,15 @@ export async function POST(req: NextRequest) {
                 statusMessage: "Bank login needs to be re-verified — click to reconnect",
               })
               .where(eq(integrations.id, integration.id))
+
+            dispatchAlert({
+              title: `Plaid login expiring: ${integration.name}`,
+              description: "Bank login needs to be re-verified. Balances will stop syncing if not reconnected.",
+              severity: "warning",
+              source: "plaid-webhook",
+              orgId: integration.orgId,
+              actionUrl: "/app/settings/integrations",
+            }).catch(() => {})
             break
 
           case "USER_PERMISSION_REVOKED":
@@ -136,6 +155,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ received: true })
   } catch (err) {
     console.error("[plaid-webhook] Processing error:", err)
+
+    dispatchAlert({
+      title: "Plaid webhook processing failed",
+      description: `Error: ${err instanceof Error ? err.message : String(err)}`,
+      severity: "critical",
+      source: "plaid-webhook",
+    }).catch(() => {})
+
     return NextResponse.json({ error: "Webhook processing failed" }, { status: 500 })
   }
 }
