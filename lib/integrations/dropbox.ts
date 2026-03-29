@@ -373,7 +373,7 @@ export async function uploadFile(
       }),
       "Content-Type": "application/octet-stream",
     },
-    body: content,
+    body: new Uint8Array(content),
   })
 
   if (!res.ok) {

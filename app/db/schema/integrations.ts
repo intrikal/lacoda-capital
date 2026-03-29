@@ -1222,6 +1222,18 @@ export interface IntegrationSettings {
    * Example: "Connected by Alice on Jan 15. Uses sandbox credentials for testing."
    */
   notes?: string;
+
+  /**
+   * Index signature for provider-specific secret fields.
+   *
+   * Every OAuth integration stores tokens and metadata as extra keys:
+   *   _access_token, _refresh_token, expires_at, environment, etc.
+   *
+   * Keys starting with "_" are secrets (stripped by stripSecrets() before
+   * being sent to the browser). The index signature lets each provider
+   * store its own fields without listing every possible key here.
+   */
+  [key: string]: unknown;
 }
 
 /**
