@@ -14,6 +14,7 @@ import { isDocuSignConfigured } from "@/lib/integrations/docusign"
 import { isGoogleDriveConfigured } from "@/lib/integrations/google-drive"
 import { isQuickBooksConfigured } from "@/lib/integrations/quickbooks"
 import { isSalesforceConfigured } from "@/lib/integrations/salesforce"
+import { isDropboxConfigured } from "@/lib/integrations/dropbox"
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -59,7 +60,7 @@ export async function getAvailableProviders(): Promise<
     docusign: { configured: isDocuSignConfigured(), connected: connectedProviders.has("docusign") },
     google_drive: { configured: isGoogleDriveConfigured(), connected: connectedProviders.has("google_drive") },
     quickbooks: { configured: isQuickBooksConfigured(), connected: connectedProviders.has("quickbooks") },
-    dropbox: { configured: false, connected: connectedProviders.has("dropbox") },
+    dropbox: { configured: isDropboxConfigured(), connected: connectedProviders.has("dropbox") },
     salesforce: { configured: isSalesforceConfigured(), connected: connectedProviders.has("salesforce") },
   }
 }
@@ -204,6 +205,13 @@ export async function getSalesforceAuthUrl(): Promise<string> {
   const session = await requireRole("assistant")
   const { getAuthorizationUrl } = await import("@/lib/integrations/salesforce")
   const redirectUri = `${process.env.NEXT_PUBLIC_SITE_URL}/api/webhooks/salesforce/callback`
+  return getAuthorizationUrl(redirectUri, session.orgId)
+}
+
+export async function getDropboxAuthUrl(): Promise<string> {
+  const session = await requireRole("assistant")
+  const { getAuthorizationUrl } = await import("@/lib/integrations/dropbox")
+  const redirectUri = `${process.env.NEXT_PUBLIC_SITE_URL}/api/webhooks/dropbox/callback`
   return getAuthorizationUrl(redirectUri, session.orgId)
 }
 

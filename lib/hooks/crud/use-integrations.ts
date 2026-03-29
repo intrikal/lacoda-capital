@@ -14,6 +14,7 @@ import {
   getGoogleDriveAuthUrl,
   getQuickBooksAuthUrl,
   getSalesforceAuthUrl,
+  getDropboxAuthUrl,
 } from "@/lib/actions/integration.actions"
 import type { IntegrationRecord } from "@/lib/actions/integration.actions"
 
@@ -209,7 +210,7 @@ export function useOAuthConnect() {
   const [isPending, startTransition] = useTransition()
 
   const connect = (
-    provider: "docusign" | "google_drive" | "quickbooks" | "salesforce",
+    provider: "docusign" | "google_drive" | "quickbooks" | "salesforce" | "dropbox",
     options?: { onError?: (e: Error) => void },
   ) => {
     startTransition(async () => {
@@ -227,6 +228,9 @@ export function useOAuthConnect() {
             break
           case "salesforce":
             url = await getSalesforceAuthUrl()
+            break
+          case "dropbox":
+            url = await getDropboxAuthUrl()
             break
         }
         // Redirect to OAuth provider

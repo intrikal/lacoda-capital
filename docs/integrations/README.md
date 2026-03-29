@@ -28,6 +28,7 @@ These power the key workflows — payments, financial data, signatures, accounti
 | **DocuSign** | [docusign-setup.md](docusign-setup.md) | Electronic signatures on documents | Yes |
 | **QuickBooks** | [quickbooks-setup.md](quickbooks-setup.md) | Accounting sync (invoices, chart of accounts) | No |
 | **Google Drive** | [google-drive-setup.md](google-drive-setup.md) | Import documents from Google Drive | No |
+| **Dropbox** | [dropbox-setup.md](dropbox-setup.md) | Import and sync documents from Dropbox | No |
 | **Salesforce** | [salesforce-setup.md](salesforce-setup.md) | CRM sync (clients, deals, activity) | No |
 
 ---
@@ -108,6 +109,8 @@ All environment variables are documented in `.env.example` with links to the rel
 | `SALESFORCE_CLIENT_ID` | [Salesforce](salesforce-setup.md) |
 | `SALESFORCE_CLIENT_SECRET` | [Salesforce](salesforce-setup.md) |
 | `SALESFORCE_LOGIN_URL` | [Salesforce](salesforce-setup.md) |
+| `DROPBOX_APP_KEY` | [Dropbox](dropbox-setup.md) |
+| `DROPBOX_APP_SECRET` | [Dropbox](dropbox-setup.md) |
 
 ### Supporting
 

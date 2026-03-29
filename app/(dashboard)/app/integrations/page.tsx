@@ -133,7 +133,7 @@ const PROVIDER_CATALOG: ProviderMeta[] = [
     icon: Cloud,
     category: "Storage",
     features: ["Document import", "Automatic sync", "Folder mapping", "Version tracking"],
-    connectType: "coming_soon",
+    connectType: "oauth",
   },
   {
     id: "resend",
@@ -334,7 +334,7 @@ export default function IntegrationsPage() {
 
       case "oauth":
         oauthConnect(
-          selectedProvider.id as "docusign" | "google_drive" | "quickbooks" | "salesforce",
+          selectedProvider.id as "docusign" | "google_drive" | "quickbooks" | "salesforce" | "dropbox",
           {
             onError: (e) => console.error("OAuth connect failed:", e),
           },
