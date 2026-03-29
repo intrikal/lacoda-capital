@@ -61,7 +61,6 @@ export async function getAvailableProviders(): Promise<
     quickbooks: { configured: isQuickBooksConfigured(), connected: connectedProviders.has("quickbooks") },
     dropbox: { configured: false, connected: connectedProviders.has("dropbox") },
     salesforce: { configured: false, connected: connectedProviders.has("salesforce") },
-    hubspot: { configured: false, connected: connectedProviders.has("hubspot") },
   }
 }
 
@@ -191,7 +190,7 @@ export async function getDocuSignAuthUrl(): Promise<string> {
 export async function getGoogleDriveAuthUrl(): Promise<string> {
   const session = await requireRole("assistant")
   const { getAuthorizationUrl } = await import("@/lib/integrations/google-drive")
-  const redirectUri = `${process.env.NEXT_PUBLIC_SITE_URL}/api/webhooks/docusign/callback`
+  const redirectUri = `${process.env.NEXT_PUBLIC_SITE_URL}/api/webhooks/google-drive/callback`
   return getAuthorizationUrl(redirectUri, session.orgId)
 }
 
