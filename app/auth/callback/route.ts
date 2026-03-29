@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { eq } from "drizzle-orm";
 import { db } from "@/app/db";
 import { users, orgs, orgMembers } from "@/app/db/schema";
+import { dispatchAlert } from "@/lib/alerts";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -153,6 +154,13 @@ export async function GET(request: NextRequest) {
     // New user without an org → onboarding flow
     role = "pending";
     redirectTo = "/onboarding";
+
+    dispatchAlert({
+      title: "New user signup",
+      description: `${user.email} signed up and is pending onboarding.`,
+      severity: "info",
+      source: "auth-callback",
+    }).catch(() => {});
   }
 
   // ─── Step 5: Set role cookie ───────────────────────────────────────────────

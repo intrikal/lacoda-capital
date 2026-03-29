@@ -23,7 +23,7 @@ const FROM_EMAIL = "Lacoda Capital <notifications@lacoda.capital>"
 // ─── Types ──────────────────────────────────────────────────────────────────
 
 interface EmailRequest {
-  type: "expiration_reminder" | "team_invite" | "weekly_digest" | "document_request_email" | "smart_alert_digest"
+  type: "expiration_reminder" | "team_invite" | "weekly_digest" | "document_request_email" | "smart_alert_digest" | "operational_alert"
   to: string
   data: Record<string, unknown>
 }
@@ -319,6 +319,72 @@ function buildSmartAlertDigestEmail(data: SmartAlertDigestData): { subject: stri
   return { subject, html }
 }
 
+// ─── Operational Alert Email Template ───────────────────────────────────────
+
+interface OperationalAlertData {
+  title: string
+  description: string
+  severity: "critical" | "warning" | "info"
+  source: string
+  actionUrl?: string
+}
+
+function buildOperationalAlertEmail(data: OperationalAlertData): { subject: string; html: string } {
+  const severityConfig: Record<string, { label: string; color: string; bg: string }> = {
+    critical: { label: "CRITICAL", color: "#ef4444", bg: "#3b1113" },
+    warning: { label: "WARNING", color: "#f59e0b", bg: "#3b2f0e" },
+    info: { label: "INFO", color: "#3b82f6", bg: "#0e1f3b" },
+  }
+
+  const config = severityConfig[data.severity] ?? severityConfig.info
+
+  const subject = data.severity === "critical"
+    ? `🔴 CRITICAL: ${data.title}`
+    : data.severity === "warning"
+    ? `⚠️ ${data.title}`
+    : `ℹ️ ${data.title}`
+
+  const actionButton = data.actionUrl
+    ? `<div style="margin-top: 24px; text-align: center;">
+        <a href="${data.actionUrl}" style="display: inline-block; padding: 10px 24px; background-color: #0891b2; color: #fff; text-decoration: none; border-radius: 6px; font-weight: 500;">
+          View Details
+        </a>
+      </div>`
+    : ""
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <body style="margin: 0; padding: 0; background-color: #09090b; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+      <div style="max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+        <div style="text-align: center; margin-bottom: 32px;">
+          <h1 style="color: #22d3ee; font-size: 20px; margin: 0;">Lacoda Capital</h1>
+        </div>
+        <div style="background-color: #18181b; border-radius: 12px; border: 1px solid #27272a; padding: 32px;">
+          <div style="display: inline-block; padding: 4px 12px; border-radius: 4px; background-color: ${config.bg}; border: 1px solid ${config.color}; margin-bottom: 16px;">
+            <span style="color: ${config.color}; font-weight: 700; font-size: 12px; letter-spacing: 1px;">${config.label}</span>
+          </div>
+          <h2 style="color: #f4f4f5; font-size: 18px; margin: 0 0 12px 0;">${data.title}</h2>
+          <p style="color: #a1a1aa; font-size: 14px; margin: 0 0 16px 0; line-height: 1.5;">
+            ${data.description}
+          </p>
+          <div style="background-color: #27272a; border-radius: 6px; padding: 12px 16px; margin-bottom: 8px;">
+            <span style="color: #71717a; font-size: 12px;">Source:</span>
+            <span style="color: #d4d4d8; font-size: 13px; margin-left: 4px;">${data.source}</span>
+          </div>
+          ${actionButton}
+        </div>
+        <p style="color: #52525b; font-size: 12px; text-align: center; margin-top: 24px;">
+          Operational alert from Lacoda Capital.
+          <a href="https://app.lacoda.capital/app/settings" style="color: #0891b2;">Manage preferences</a>
+        </p>
+      </div>
+    </body>
+    </html>`
+
+  return { subject, html }
+}
+
 // ─── Send via Resend API with retry ─────────────────────────────────────────
 
 async function sendViaResend(
@@ -406,6 +472,12 @@ Deno.serve(async (req: Request) => {
       }
       case "smart_alert_digest": {
         const result = buildSmartAlertDigestEmail(data as unknown as SmartAlertDigestData)
+        subject = result.subject
+        html = result.html
+        break
+      }
+      case "operational_alert": {
+        const result = buildOperationalAlertEmail(data as unknown as OperationalAlertData)
         subject = result.subject
         html = result.html
         break

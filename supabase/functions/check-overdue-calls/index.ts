@@ -20,6 +20,30 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
 
+/** Inline dispatch for overdue capital call warnings. */
+async function dispatchOverdueAlert(alert: {
+  title: string; description: string; orgId?: string
+}) {
+  // Email
+  const recipients = (Deno.env.get("ALERT_EMAIL_RECIPIENTS") ?? "").split(",").map(e => e.trim()).filter(Boolean)
+  for (const to of recipients) {
+    try {
+      await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          type: "operational_alert",
+          to,
+          data: { title: alert.title, description: alert.description, severity: "warning", source: "check-overdue-calls" },
+        }),
+      })
+    } catch (e) { console.error("[check-overdue-calls] Email alert failed:", e) }
+  }
+}
+
 Deno.serve(async () => {
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
@@ -104,6 +128,13 @@ Deno.serve(async () => {
         })
         notificationCount++
       }
+
+      // Dispatch warning alert for overdue capital call
+      await dispatchOverdueAlert({
+        title: `Capital call overdue: ${assetName}`,
+        description: `${formattedAmount} capital call is ${daysOverdue} day${daysOverdue === 1 ? "" : "s"} past due`,
+        orgId: call.org_id,
+      })
     }
 
     return new Response(

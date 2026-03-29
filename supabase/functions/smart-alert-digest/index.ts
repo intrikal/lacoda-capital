@@ -24,6 +24,32 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
 const SEND_EMAIL_URL = `${SUPABASE_URL}/functions/v1/send-email`
 const MODEL = "claude-sonnet-4-20250514"
+const DISCORD_WEBHOOK_URL = Deno.env.get("DISCORD_WEBHOOK_URL")
+
+/** Send a digest summary to Discord when critical alerts exist. */
+async function dispatchDigestToDiscord(orgName: string, criticalCount: number, totalItems: number, summary: string) {
+  if (!DISCORD_WEBHOOK_URL || criticalCount === 0) return
+  try {
+    await fetch(DISCORD_WEBHOOK_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        embeds: [{
+          title: `Weekly Digest: ${criticalCount} critical alert${criticalCount === 1 ? "" : "s"} — ${orgName}`,
+          description: summary.slice(0, 2000),
+          color: 0xef4444,
+          fields: [
+            { name: "Total Items", value: String(totalItems), inline: true },
+            { name: "Critical", value: String(criticalCount), inline: true },
+            { name: "Source", value: "smart-alert-digest", inline: true },
+          ],
+          footer: { text: "Lacoda Capital Alerts" },
+          timestamp: new Date().toISOString(),
+        }],
+      }),
+    })
+  } catch (e) { console.error("[smart-alert-digest] Discord alert failed:", e) }
+}
 
 const SYSTEM_PROMPT = `You are an alert prioritization agent for Lacoda Capital, a wealth management platform.
 Analyze the provided list of upcoming deadlines, expirations, and compliance items, then prioritize them by urgency.
@@ -318,6 +344,14 @@ Deno.serve(async () => {
         status: "success",
         target_type: "digest",
       })
+
+      // Dispatch critical summary to Discord
+      await dispatchDigestToDiscord(
+        org.name,
+        digest.critical_count ?? 0,
+        digest.total_items ?? items.length,
+        digest.executive_summary ?? "",
+      )
 
       // Build HTML email for top 10 alerts
       const topAlerts = alerts.slice(0, 10)
