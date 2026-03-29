@@ -653,10 +653,10 @@ export const integrationStatusEnum = pgEnum("integration_status", [
  * - google_drive: Cloud document storage (import/export documents)
  * - dropbox:      Cloud document storage (import/export documents)
  * - salesforce:   Enterprise CRM (client data sync — enterprise only)
- * - hubspot:      Marketing/sales CRM (client data sync — enterprise only)
  * - other:        Catch-all for unlisted providers
  *
- * REMOVED: yodlee (redundant with Plaid), xero (US market uses QuickBooks)
+ * REMOVED: yodlee (redundant with Plaid), xero (US market uses QuickBooks),
+ *          hubspot (replaced by Salesforce for enterprise CRM)
  */
 export const integrationProviderEnum = pgEnum("integration_provider", [
   "stripe",
@@ -666,7 +666,6 @@ export const integrationProviderEnum = pgEnum("integration_provider", [
   "google_drive",
   "dropbox",
   "salesforce",
-  "hubspot",
   "other",
 ]);
 

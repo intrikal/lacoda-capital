@@ -740,7 +740,7 @@ export default function SecurityPage() {
               },
               {
                 q: "Do you support SSO?",
-                a: "Yes, we support SAML 2.0 and OpenID Connect (OIDC) for single sign-on integration. We have pre-built integrations with Okta, Azure AD, Google Workspace, and OneLogin. Custom IdP configurations are supported on Enterprise plans.",
+                a: "Yes, we support SAML 2.0 and OpenID Connect (OIDC) for single sign-on integration. We have pre-built integrations with Azure AD and Google Workspace. Custom SAML IdP configurations are supported on Enterprise plans.",
               },
               {
                 q: "How do you handle security incidents?",

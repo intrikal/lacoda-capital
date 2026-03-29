@@ -170,7 +170,7 @@ const faqs: FAQItem[] = [
     category: "getting-started",
     question: "What integrations are available?",
     answer:
-      "Lacoda integrates with QuickBooks, Yardi, Salesforce, DocuSign, and major cloud storage providers (Dropbox, Google Drive, OneDrive, Box). We also offer a REST API for custom integrations. Enterprise customers can request specific integrations.",
+      "Lacoda integrates with Plaid, Stripe, QuickBooks, Salesforce, DocuSign, Google Drive, and Dropbox. We also offer a REST API for custom integrations. Enterprise customers can request specific integrations.",
   },
   {
     category: "getting-started",
@@ -188,7 +188,7 @@ const faqs: FAQItem[] = [
     category: "getting-started",
     question: "Can I import documents from other systems?",
     answer:
-      "Yes, you can bulk import documents from your computer, cloud storage (Dropbox, Google Drive, OneDrive), or other document management systems. Our import tools preserve folder structures and support automatic tagging based on file names.",
+      "Yes, you can bulk import documents from your computer, cloud storage (Dropbox, Google Drive), or other document management systems. Our import tools preserve folder structures and support automatic tagging based on file names.",
   },
 ]
 

@@ -8,7 +8,6 @@ export const integrationProviderEnum = z.enum([
   "google_drive",
   "dropbox",
   "salesforce",
-  "hubspot",
   "other",
 ])
 

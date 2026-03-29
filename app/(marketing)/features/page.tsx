@@ -295,16 +295,14 @@ const assetClasses = [
 
 // Integrations
 const integrations = [
-  "QuickBooks",
-  "Yardi",
-  "Salesforce",
-  "DocuSign",
-  "Dropbox",
-  "Google Drive",
-  "OneDrive",
-  "Box",
+  "Stripe",
   "Plaid",
-  "Bloomberg",
+  "DocuSign",
+  "QuickBooks",
+  "Salesforce",
+  "Google Drive",
+  "Dropbox",
+  "Google Calendar",
 ]
 
 // ─────────────────────────────────────────────────────────────────────────────

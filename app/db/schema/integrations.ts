@@ -99,8 +99,10 @@ import {
  *   Used for the "status" column - tracks whether the integration is working.
  *
  * integrationProviderEnum:
- *   Allowed values: "plaid", "yodlee", "quickbooks", "xero", "salesforce",
- *                   "hubspot", "google_drive", "dropbox", "docusign", "other"
+ *   Allowed values: "stripe", "plaid", "docusign", "quickbooks", "google_drive",
+ *                   "dropbox", "salesforce", "other"
+ *   Removed: "yodlee" (redundant with Plaid), "xero" (US market uses QuickBooks),
+ *            "hubspot" (replaced by Salesforce for enterprise CRM)
  *   Used for the "provider" column - identifies which external service this is.
  *
  * WHERE: "./00_enums" means the file at app/db/schema/00_enums.ts.
@@ -150,9 +152,10 @@ import { users } from "./users";
  *   share data.
  *
  * REAL-WORLD EXAMPLES:
- *   - Plaid / Yodlee:    Connect to bank accounts to pull financial data
- *   - QuickBooks / Xero: Sync accounting data (invoices, transactions)
- *   - Salesforce / HubSpot: Sync CRM client data
+ *   - Plaid:             Connect to bank accounts to pull financial data
+ *   - Stripe:            Payment processing and billing
+ *   - QuickBooks:        Sync accounting data (invoices, transactions)
+ *   - Salesforce:        Sync CRM client data (enterprise only)
  *   - Google Drive / Dropbox: Store and retrieve documents
  *   - DocuSign:          Send documents for electronic signature
  *
