@@ -19,7 +19,6 @@ import {
   Upload,
   Zap,
   Eye,
-  Quote,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -179,24 +178,24 @@ function HeroSection() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function StatsSection() {
-  const stats = [
-    { value: "$4.2B+", label: "Assets Managed" },
-    { value: "150+", label: "Enterprise Clients" },
-    { value: "200+", label: "Integrations" },
-    { value: "85%", label: "Time Saved" },
+  const capabilities = [
+    { value: "8 Asset Classes", label: "Real estate, equities, PE, VC, fixed income, crypto, commodities & cash" },
+    { value: "Bank-Grade", label: "AES-256 encryption at rest, TLS 1.3 in transit" },
+    { value: "8 Integrations", label: "Plaid, Stripe, DocuSign, Salesforce & more" },
+    { value: "Real-Time", label: "Portfolio updates across all asset classes" },
   ]
 
   return (
     <section className="py-16 border-y border-zinc-800/50 bg-zinc-950">
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
-          {stats.map((stat) => (
-            <FadeInSection key={stat.label}>
+          {capabilities.map((cap) => (
+            <FadeInSection key={cap.value}>
               <div className="text-center">
-                <p className="text-3xl sm:text-4xl font-bold text-tiffany-500">
-                  {stat.value}
+                <p className="text-2xl sm:text-3xl font-bold text-tiffany-500">
+                  {cap.value}
                 </p>
-                <p className="mt-2 text-sm text-zinc-400">{stat.label}</p>
+                <p className="mt-2 text-sm text-zinc-400">{cap.label}</p>
               </div>
             </FadeInSection>
           ))}
@@ -353,7 +352,7 @@ function HowItWorksSection() {
       icon: Upload,
       title: "Connect Your Assets",
       description:
-        "Link your accounts, upload documents, or let our team handle the migration for a service fee. We support 200+ integrations.",
+        "Link your accounts, upload documents, or let our team handle the migration for a service fee. We support integrations with Plaid, Stripe, DocuSign, QuickBooks, Salesforce, Google Drive, and more.",
     },
     {
       number: "02",
@@ -575,8 +574,7 @@ function CTASection() {
             Ready to unify your portfolio?
           </h2>
           <p className="mt-6 text-lg text-zinc-400 max-w-2xl mx-auto">
-            Join leading institutions and asset managers who&apos;ve made the
-            switch to clarity.
+            See how Lacoda can unify your portfolio. Book a 30-minute walkthrough.
           </p>
 
           <div className="mt-10 flex items-center justify-center gap-4 flex-wrap">
