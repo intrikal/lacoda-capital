@@ -19,6 +19,7 @@
 // Deno is the runtime for Supabase Edge Functions (similar to Node.js but different)
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY")!
 const FROM_EMAIL = "Lacoda Capital <notifications@lacoda.capital>"
+const APP_URL = Deno.env.get("APP_URL") ?? "${APP_URL}"
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -99,14 +100,14 @@ function buildExpirationEmail(data: ExpirationData): { subject: string; html: st
             ${rows}
           </table>
           <div style="margin-top: 24px; text-align: center;">
-            <a href="https://app.lacoda.capital/app/vault" style="display: inline-block; padding: 10px 24px; background-color: #0891b2; color: #fff; text-decoration: none; border-radius: 6px; font-weight: 500;">
+            <a href="${APP_URL}/app/vault" style="display: inline-block; padding: 10px 24px; background-color: #0891b2; color: #fff; text-decoration: none; border-radius: 6px; font-weight: 500;">
               View in Vault
             </a>
           </div>
         </div>
         <p style="color: #52525b; font-size: 12px; text-align: center; margin-top: 24px;">
           You're receiving this because you have expiration alerts enabled.
-          <a href="https://app.lacoda.capital/app/settings" style="color: #0891b2;">Manage preferences</a>
+          <a href="${APP_URL}/app/settings" style="color: #0891b2;">Manage preferences</a>
         </p>
       </div>
     </body>
@@ -209,14 +210,14 @@ function buildDigestEmail(data: DigestData): { subject: string; html: string } {
           <ul style="margin: 0 0 20px 0; padding-left: 20px;">${deadlineRows}</ul>
 
           <div style="margin-top: 24px; text-align: center;">
-            <a href="https://app.lacoda.capital/app" style="display: inline-block; padding: 10px 24px; background-color: #0891b2; color: #fff; text-decoration: none; border-radius: 6px; font-weight: 500;">
+            <a href="${APP_URL}/app" style="display: inline-block; padding: 10px 24px; background-color: #0891b2; color: #fff; text-decoration: none; border-radius: 6px; font-weight: 500;">
               Open Dashboard
             </a>
           </div>
         </div>
         <p style="color: #52525b; font-size: 12px; text-align: center; margin-top: 24px;">
           You're receiving this weekly digest.
-          <a href="https://app.lacoda.capital/app/settings" style="color: #0891b2;">Change frequency or unsubscribe</a>
+          <a href="${APP_URL}/app/settings" style="color: #0891b2;">Change frequency or unsubscribe</a>
         </p>
       </div>
     </body>
@@ -303,14 +304,14 @@ function buildSmartAlertDigestEmail(data: SmartAlertDigestData): { subject: stri
           </table>
 
           <div style="margin-top: 24px; text-align: center;">
-            <a href="https://app.lacoda.capital/app" style="display: inline-block; padding: 10px 24px; background-color: #0891b2; color: #fff; text-decoration: none; border-radius: 6px; font-weight: 500;">
+            <a href="${APP_URL}/app" style="display: inline-block; padding: 10px 24px; background-color: #0891b2; color: #fff; text-decoration: none; border-radius: 6px; font-weight: 500;">
               View Dashboard
             </a>
           </div>
         </div>
         <p style="color: #52525b; font-size: 12px; text-align: center; margin-top: 24px;">
           AI-powered alert digest.
-          <a href="https://app.lacoda.capital/app/settings" style="color: #0891b2;">Manage preferences</a>
+          <a href="${APP_URL}/app/settings" style="color: #0891b2;">Manage preferences</a>
         </p>
       </div>
     </body>
@@ -376,7 +377,7 @@ function buildOperationalAlertEmail(data: OperationalAlertData): { subject: stri
         </div>
         <p style="color: #52525b; font-size: 12px; text-align: center; margin-top: 24px;">
           Operational alert from Lacoda Capital.
-          <a href="https://app.lacoda.capital/app/settings" style="color: #0891b2;">Manage preferences</a>
+          <a href="${APP_URL}/app/settings" style="color: #0891b2;">Manage preferences</a>
         </p>
       </div>
     </body>
