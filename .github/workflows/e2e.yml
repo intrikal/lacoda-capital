@@ -72,10 +72,10 @@ jobs:
 
       # STEP 4 — Install Playwright browsers
       # `--with-deps` also installs OS-level dependencies (libglib, nss, etc.)
-      # that Chromium needs to run on bare Ubuntu. We install only `chromium`
-      # (not firefox/webkit) to keep this step fast.
-      - name: Install Playwright Chromium
-        run: npx playwright install --with-deps chromium
+      # that each browser needs to run on bare Ubuntu. Installs all 3 browsers
+      # (chromium, firefox, webkit) to match the projects in playwright.config.ts.
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
 
       # STEP 5 — Build the Next.js app
       # playwright.config.ts `webServer` runs `next start`, which requires a
