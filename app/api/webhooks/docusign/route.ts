@@ -2,9 +2,11 @@ import { NextRequest, NextResponse } from "next/server"
 import { createHmac, timingSafeEqual } from "crypto"
 import * as Sentry from "@sentry/nextjs"
 import { db } from "@/app/db"
-import { documents } from "@/app/db/schema"
-import { eq } from "drizzle-orm"
+import { documents, integrations, ledgerEvents, complianceEvidence, orgMembers } from "@/app/db/schema"
+import { eq, and, sql, inArray } from "drizzle-orm"
 import { dispatchAlert } from "@/lib/alerts"
+import { downloadSignedDocument, getAccessToken } from "@/lib/integrations/docusign"
+import { createClient } from "@/utils/supabase/server"
 
 /**
  * DocuSign Webhook Handler (Connect)
@@ -87,17 +89,119 @@ export async function POST(req: NextRequest) {
 
     console.log(`[docusign-webhook] Envelope ${envelopeId}: ${status}`)
 
+    // Find the document linked to this envelope via metadata
+    const doc = await db.query.documents.findFirst({
+      where: sql`${documents.metadata}->'customFields'->>'docusign_envelope_id' = ${envelopeId}`,
+    })
+
     switch (status) {
       case "completed": {
-        // All signers have signed — mark document as verified
-        // TODO: Download signed document and store in Supabase Storage
-        // TODO: Update document record linked to this envelope
-        console.log(`[docusign-webhook] Envelope ${envelopeId} completed — downloading signed document`)
+        if (doc) {
+          // Download signed PDF and store in Supabase Storage
+          try {
+            const docuSignIntegration = await db.query.integrations.findFirst({
+              where: and(
+                eq(integrations.orgId, doc.orgId),
+                eq(integrations.provider, "docusign"),
+                eq(integrations.status, "connected"),
+              ),
+            })
 
-        // Find document linked to this envelope ID
-        // Documents store envelope ID in their metadata
-        // TODO: Query documents where metadata->>'docusign_envelope_id' = envelopeId
-        // and update status to "verified"
+            if (docuSignIntegration) {
+              const accessToken = await getAccessToken(docuSignIntegration.id)
+              const signedPdf = await downloadSignedDocument(accessToken, envelopeId)
+
+              const signedPath = doc.storagePath.replace(/(\.[^.]+)$/, `_signed$1`)
+              const supabase = await createClient()
+              await supabase.storage
+                .from("documents")
+                .upload(signedPath, Buffer.from(signedPdf), {
+                  contentType: "application/pdf",
+                  upsert: true,
+                })
+
+              await db
+                .update(documents)
+                .set({
+                  status: "verified",
+                  verifiedAt: new Date(),
+                  storagePath: signedPath,
+                  metadata: {
+                    ...(doc.metadata as Record<string, unknown> ?? {}),
+                    sourceSystem: "docusign",
+                    customFields: {
+                      ...((doc.metadata as Record<string, unknown>)?.customFields as Record<string, unknown> ?? {}),
+                      docusign_envelope_id: envelopeId,
+                      signed_at: event.data.envelopeSummary.completedDateTime,
+                    },
+                  },
+                })
+                .where(eq(documents.id, doc.id))
+            } else {
+              // No DocuSign integration — still mark as verified but skip download
+              await db
+                .update(documents)
+                .set({ status: "verified", verifiedAt: new Date() })
+                .where(eq(documents.id, doc.id))
+            }
+          } catch (downloadErr) {
+            console.error(`[docusign-webhook] Download/store failed for ${envelopeId}:`, downloadErr)
+            // Still mark as verified even if download fails
+            await db
+              .update(documents)
+              .set({ status: "verified", verifiedAt: new Date() })
+              .where(eq(documents.id, doc.id))
+          }
+
+          // Create compliance evidence if document is linked to a client
+          if (doc.clientId) {
+            try {
+              // Find a compliance control that could be satisfied by this document
+              const controls = await db.query.complianceControls.findMany({
+                where: eq(sql`${sql.raw("org_id")}`, doc.orgId),
+              })
+              for (const control of controls) {
+                const requiredTypes = (control.requiredDocumentTypes as string[]) ?? []
+                const docMeta = doc.metadata as Record<string, unknown>
+                const docType = (docMeta?.documentType as string) ?? ""
+                if (requiredTypes.includes(docType)) {
+                  await db.insert(complianceEvidence).values({
+                    controlId: control.id,
+                    documentId: doc.id,
+                    clientId: doc.clientId,
+                    status: "pending",
+                    validFrom: new Date(),
+                  })
+                }
+              }
+            } catch (compErr) {
+              console.error(`[docusign-webhook] Compliance evidence creation failed:`, compErr)
+            }
+          }
+
+          // Write ledger event
+          const admin = await db.query.orgMembers.findFirst({
+            where: and(
+              eq(orgMembers.orgId, doc.orgId),
+              inArray(orgMembers.role, ["admin"]),
+            ),
+          })
+          if (admin) {
+            await db.insert(ledgerEvents).values({
+              orgId: doc.orgId,
+              actorUserId: admin.userId,
+              targetType: "document",
+              targetId: doc.id,
+              action: "document_verified",
+              payload: {
+                documentName: doc.name,
+                documentPath: doc.storagePath,
+                reason: "DocuSign envelope completed",
+                notes: `Envelope ${envelopeId} signed by all parties`,
+              },
+            })
+          }
+        }
         break
       }
 
@@ -105,16 +209,82 @@ export async function POST(req: NextRequest) {
         const decliner = event.data.envelopeSummary.recipients?.signers?.find(
           (s) => s.status === "declined",
         )
-        console.log(
-          `[docusign-webhook] Envelope ${envelopeId} declined by ${decliner?.name ?? "unknown"}`,
-        )
-        // TODO: Update document status and notify advisor
+
+        if (doc) {
+          await db
+            .update(documents)
+            .set({ status: "rejected" })
+            .where(eq(documents.id, doc.id))
+
+          const admin = await db.query.orgMembers.findFirst({
+            where: and(
+              eq(orgMembers.orgId, doc.orgId),
+              inArray(orgMembers.role, ["admin"]),
+            ),
+          })
+          if (admin) {
+            await db.insert(ledgerEvents).values({
+              orgId: doc.orgId,
+              actorUserId: admin.userId,
+              targetType: "document",
+              targetId: doc.id,
+              action: "updated",
+              payload: {
+                documentName: doc.name,
+                reason: `DocuSign envelope declined by ${decliner?.name ?? "unknown"}`,
+                after: { status: "rejected" },
+              },
+            })
+          }
+
+          dispatchAlert({
+            title: `Document signing declined: ${doc.name}`,
+            description: `${decliner?.name ?? "A signer"} declined to sign "${doc.name}". Review and resend if needed.`,
+            severity: "warning",
+            source: "docusign-webhook",
+            orgId: doc.orgId,
+            actionUrl: `/app/documents/${doc.id}`,
+          }).catch(() => {})
+        }
         break
       }
 
       case "voided": {
-        console.log(`[docusign-webhook] Envelope ${envelopeId} voided`)
-        // TODO: Update document status
+        if (doc) {
+          await db
+            .update(documents)
+            .set({ status: "rejected" })
+            .where(eq(documents.id, doc.id))
+
+          const admin = await db.query.orgMembers.findFirst({
+            where: and(
+              eq(orgMembers.orgId, doc.orgId),
+              inArray(orgMembers.role, ["admin"]),
+            ),
+          })
+          if (admin) {
+            await db.insert(ledgerEvents).values({
+              orgId: doc.orgId,
+              actorUserId: admin.userId,
+              targetType: "document",
+              targetId: doc.id,
+              action: "updated",
+              payload: {
+                documentName: doc.name,
+                reason: "DocuSign envelope voided",
+                after: { status: "rejected" },
+              },
+            })
+          }
+
+          dispatchAlert({
+            title: `Document signing voided: ${doc.name}`,
+            description: `The signing envelope for "${doc.name}" has been voided.`,
+            severity: "warning",
+            source: "docusign-webhook",
+            orgId: doc.orgId,
+          }).catch(() => {})
+        }
         break
       }
 

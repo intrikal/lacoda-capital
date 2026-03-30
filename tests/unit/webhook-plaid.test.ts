@@ -42,6 +42,8 @@ import { createHmac } from "crypto"
 const mockFindFirst = vi.fn()
 const mockUpdateSet = vi.fn().mockReturnThis()
 const mockUpdateWhere = vi.fn().mockResolvedValue([])
+const mockInsertValues = vi.fn().mockResolvedValue([])
+const mockSelectWhere = vi.fn().mockResolvedValue([])
 
 vi.mock("@/app/db", () => ({
   db: {
@@ -56,6 +58,14 @@ vi.mock("@/app/db", () => ({
         return { where: mockUpdateWhere }
       },
     }),
+    insert: vi.fn().mockReturnValue({
+      values: (...args: unknown[]) => { mockInsertValues(...args); return Promise.resolve([]) },
+    }),
+    select: vi.fn().mockReturnValue({
+      from: vi.fn().mockReturnValue({
+        where: (...args: unknown[]) => { mockSelectWhere(...args); return Promise.resolve([]) },
+      }),
+    }),
   },
 }))
 
@@ -65,6 +75,16 @@ vi.mock("drizzle-orm", () => ({
 
 vi.mock("@/app/db/schema", () => ({
   integrations: { externalAccountId: "externalAccountId", id: "id" },
+  assets: { externalId: "externalId", id: "id" },
+  valuations: {},
+  ledgerEvents: {},
+}))
+
+// ─── Mock Plaid integration helpers ─────────────────────────────────────────
+
+vi.mock("@/lib/integrations/plaid", () => ({
+  getAccountBalances: vi.fn().mockResolvedValue([]),
+  getInvestmentHoldings: vi.fn().mockResolvedValue({ holdings: [], securities: [] }),
 }))
 
 // ─── Import the handler ─────────────────────────────────────────────────────
@@ -114,9 +134,11 @@ function makePlaidEvent(
 const MOCK_INTEGRATION = {
   id: "integ-001",
   name: "Chase Checking",
+  orgId: "org-001",
   externalAccountId: "item_test_123",
   status: "connected",
   statusMessage: null,
+  connectedBy: "user-001",
 }
 
 // ─── Setup ──────────────────────────────────────────────────────────────────
