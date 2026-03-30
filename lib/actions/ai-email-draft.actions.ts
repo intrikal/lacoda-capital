@@ -1,5 +1,6 @@
 "use server"
 
+import * as Sentry from "@sentry/nextjs"
 import { eq, and } from "drizzle-orm"
 import { db } from "@/app/db"
 import { documentRequests, clients, entities, assets, orgs } from "@/app/db/schema"
@@ -186,6 +187,7 @@ export async function sendDocumentRequestEmail(params: {
 
     return { success: true as const }
   } catch (err) {
+    Sentry.captureException(err instanceof Error ? err : new Error(String(err)))
     return {
       success: false as const,
       error: err instanceof Error ? err.message : "Failed to send email",

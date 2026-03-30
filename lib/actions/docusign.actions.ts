@@ -1,5 +1,6 @@
 "use server"
 
+import * as Sentry from "@sentry/nextjs"
 import { requireRole } from "@/lib/auth"
 import { createLedgerEvent } from "@/lib/actions/ledger"
 import {
@@ -37,8 +38,16 @@ export async function sendForSignature(input: {
   )
 
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: "Unknown error" }))
-    throw new Error(err.error ?? "Failed to create DocuSign envelope")
+    const errBody = await res.json().catch(() => ({ error: "Unknown error" }))
+    const err = new Error(errBody.error ?? "Failed to create DocuSign envelope")
+    Sentry.withScope((scope) => {
+      scope.setContext("docusign", {
+        documentRequestId: input.documentRequestId,
+        signerName: input.signerName,
+      })
+      scope.captureException(err)
+    })
+    throw err
   }
 
   const result = await res.json()

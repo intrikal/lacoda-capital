@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import * as Sentry from "@sentry/nextjs"
 import { eq, and, isNull, inArray } from "drizzle-orm"
 import { db } from "@/app/db"
 import { entities, clients } from "@/app/db/schema"
@@ -33,30 +34,38 @@ export async function GET(request: NextRequest) {
     return apiResponse({ data: [], total: 0, limit: limitParam, offset: offsetParam })
   }
 
-  const allEntities = await db.query.entities.findMany({
-    where: and(
-      inArray(entities.clientId, orgClientIds),
-      isNull(entities.deletedAt),
-      ...(clientId ? [eq(entities.clientId, clientId)] : []),
-      ...(entityType ? [eq(entities.entityType, entityType as typeof entities.entityType.enumValues[number])] : []),
-    ),
-    orderBy: (e, { desc }) => [desc(e.createdAt)],
-  })
+  try {
+    const allEntities = await db.query.entities.findMany({
+      where: and(
+        inArray(entities.clientId, orgClientIds),
+        isNull(entities.deletedAt),
+        ...(clientId ? [eq(entities.clientId, clientId)] : []),
+        ...(entityType ? [eq(entities.entityType, entityType as typeof entities.entityType.enumValues[number])] : []),
+      ),
+      orderBy: (e, { desc }) => [desc(e.createdAt)],
+    })
 
-  const paged = allEntities.slice(offsetParam, offsetParam + limitParam)
+    const paged = allEntities.slice(offsetParam, offsetParam + limitParam)
 
-  return apiResponse({
-    data: paged.map((e) => ({
-      id: e.id,
-      client_id: e.clientId,
-      name: e.name,
-      entity_type: e.entityType,
-      metadata: e.metadata,
-      created_at: e.createdAt.toISOString(),
-      updated_at: e.updatedAt.toISOString(),
-    })),
-    total: allEntities.length,
-    limit: limitParam,
-    offset: offsetParam,
-  })
+    return apiResponse({
+      data: paged.map((e) => ({
+        id: e.id,
+        client_id: e.clientId,
+        name: e.name,
+        entity_type: e.entityType,
+        metadata: e.metadata,
+        created_at: e.createdAt.toISOString(),
+        updated_at: e.updatedAt.toISOString(),
+      })),
+      total: allEntities.length,
+      limit: limitParam,
+      offset: offsetParam,
+    })
+  } catch (err) {
+    Sentry.withScope((scope) => {
+      scope.setTag("api_route", "/api/v1/entities")
+      scope.captureException(err instanceof Error ? err : new Error(String(err)))
+    })
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
 }

@@ -1,5 +1,6 @@
 "use server"
 
+import * as Sentry from "@sentry/nextjs"
 import { db } from "@/app/db"
 import { assets, valuations, documents } from "@/app/db/schema"
 import { eq, and, isNull } from "drizzle-orm"
@@ -47,7 +48,8 @@ export async function extractDocumentData(documentId: string) {
 
     // Convert blob to text (for PDFs, we send the raw content and let Claude handle it)
     fileContent = await data.text()
-  } catch {
+  } catch (err) {
+    Sentry.captureException(err instanceof Error ? err : new Error("Failed to read document file"))
     return { success: false as const, error: "Failed to read document file", code: "STORAGE_ERROR" as const }
   }
 

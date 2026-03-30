@@ -1,5 +1,6 @@
 "use server"
 
+import * as Sentry from "@sentry/nextjs"
 import { eq, and, count } from "drizzle-orm"
 import { db } from "@/app/db"
 import { integrations } from "@/app/db/schema"
@@ -110,20 +111,38 @@ export async function disconnectIntegration(id: string): Promise<void> {
 
   if (!integration) throw new Error("Integration not found")
 
-  if (integration.provider === "plaid") {
-    const { disconnectPlaidItem } = await import("@/lib/integrations/plaid")
-    await disconnectPlaidItem(id)
-    return
-  }
+  try {
+    if (integration.provider === "plaid") {
+      const { disconnectPlaidItem } = await import("@/lib/integrations/plaid")
+      await disconnectPlaidItem(id)
+      Sentry.addBreadcrumb({
+        category: "integration",
+        message: `Integration disconnected: ${integration.provider}`,
+        data: { integrationId: id, provider: integration.provider },
+        level: "info",
+      })
+      return
+    }
 
-  // Generic disconnect
-  await db
-    .update(integrations)
-    .set({
-      status: "disconnected",
-      settings: {},
+    // Generic disconnect
+    await db
+      .update(integrations)
+      .set({
+        status: "disconnected",
+        settings: {},
+      })
+      .where(and(eq(integrations.id, id), eq(integrations.orgId, session.orgId)))
+
+    Sentry.addBreadcrumb({
+      category: "integration",
+      message: `Integration disconnected: ${integration.provider}`,
+      data: { integrationId: id, provider: integration.provider },
+      level: "info",
     })
-    .where(and(eq(integrations.id, id), eq(integrations.orgId, session.orgId)))
+  } catch (err) {
+    Sentry.captureException(err instanceof Error ? err : new Error(String(err)))
+    throw err
+  }
 }
 
 export async function deleteIntegration(id: string): Promise<void> {
@@ -147,7 +166,19 @@ export async function exchangePlaidPublicToken(
 ): Promise<{ integrationId: string; itemId: string }> {
   const session = await requireRole("assistant")
   const { exchangePublicToken } = await import("@/lib/integrations/plaid")
-  return exchangePublicToken(publicToken, session.orgId, session.userId)
+  try {
+    const result = await exchangePublicToken(publicToken, session.orgId, session.userId)
+    Sentry.addBreadcrumb({
+      category: "integration",
+      message: "Plaid integration connected",
+      data: { integrationId: result.integrationId },
+      level: "info",
+    })
+    return result
+  } catch (err) {
+    Sentry.captureException(err instanceof Error ? err : new Error(String(err)))
+    throw err
+  }
 }
 
 export async function refreshPlaidBalances(
@@ -161,14 +192,18 @@ export async function refreshPlaidBalances(
   })
   if (!integration) throw new Error("Integration not found")
 
-  const { getAccountBalances } = await import("@/lib/integrations/plaid")
-  const accounts = await getAccountBalances(integrationId)
-
-  return {
-    accounts: accounts.map((a) => ({
-      name: a.name,
-      balance: a.balances.current,
-    })),
+  try {
+    const { getAccountBalances } = await import("@/lib/integrations/plaid")
+    const accounts = await getAccountBalances(integrationId)
+    return {
+      accounts: accounts.map((a) => ({
+        name: a.name,
+        balance: a.balances.current,
+      })),
+    }
+  } catch (err) {
+    Sentry.captureException(err instanceof Error ? err : new Error(String(err)))
+    throw err
   }
 }
 
@@ -177,7 +212,18 @@ export async function refreshPlaidBalances(
 export async function connectStripeIntegration(): Promise<string> {
   const session = await requireRole("admin")
   const { connectStripe } = await import("@/lib/integrations/stripe")
-  return connectStripe(session.orgId, session.userId)
+  try {
+    const result = await connectStripe(session.orgId, session.userId)
+    Sentry.addBreadcrumb({
+      category: "integration",
+      message: "Stripe integration connected",
+      level: "info",
+    })
+    return result
+  } catch (err) {
+    Sentry.captureException(err instanceof Error ? err : new Error(String(err)))
+    throw err
+  }
 }
 
 // ─── OAuth-based Integration Actions ────────────────────────────────────────

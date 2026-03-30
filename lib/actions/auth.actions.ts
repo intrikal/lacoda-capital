@@ -262,3 +262,15 @@ export async function resetPasswordAction(
 
   redirect("/app");
 }
+
+/**
+ * getSessionUserId — Returns only the current user's ID (no PII).
+ * Used by client components to set Sentry user context.
+ */
+export async function getSessionUserId(): Promise<string | null> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  return user?.id ?? null;
+}

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import * as Sentry from "@sentry/nextjs"
 import { db } from "@/app/db"
 import { integrations } from "@/app/db/schema"
 import { eq } from "drizzle-orm"
@@ -83,9 +84,20 @@ export async function POST(req: NextRequest) {
         console.log(`[stripe-webhook] Unhandled event type: ${event.type}`)
     }
 
+    Sentry.addBreadcrumb({
+      category: "webhook.stripe",
+      message: `Stripe webhook processed: ${event.type}`,
+      level: "info",
+    })
     return NextResponse.json({ received: true })
   } catch (err) {
     console.error("[stripe-webhook] Processing error:", err)
+
+    Sentry.withScope((scope) => {
+      scope.setTag("webhook", "stripe")
+      scope.setContext("webhook", { eventType: event.type })
+      scope.captureException(err instanceof Error ? err : new Error(String(err)))
+    })
 
     dispatchAlert({
       title: "Stripe webhook processing failed",

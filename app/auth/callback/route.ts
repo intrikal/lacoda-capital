@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { eq } from "drizzle-orm";
@@ -66,12 +67,20 @@ export async function GET(request: NextRequest) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (error) {
       console.error("[auth/callback] exchangeCodeForSession error:", error.message);
+      Sentry.withScope((scope) => {
+        scope.setContext("auth", { step: "exchangeCodeForSession" })
+        scope.captureException(new Error(error.message))
+      })
       return NextResponse.redirect(new URL("/login?error=auth_failed", request.url));
     }
   } else if (tokenHash && type) {
     const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: type as "signup" | "recovery" | "email" });
     if (error) {
       console.error("[auth/callback] verifyOtp error:", error.message);
+      Sentry.withScope((scope) => {
+        scope.setContext("auth", { step: "verifyOtp", type })
+        scope.captureException(new Error(error.message))
+      })
       return NextResponse.redirect(new URL("/login?error=link_expired", request.url));
     }
   } else {
@@ -87,6 +96,10 @@ export async function GET(request: NextRequest) {
 
   if (userError || !user) {
     console.error("[auth/callback] getUser error:", userError?.message);
+    Sentry.withScope((scope) => {
+      scope.setContext("auth", { step: "getUser" })
+      scope.captureException(new Error(userError?.message ?? "getUser returned no user"))
+    })
     return NextResponse.redirect(new URL("/login?error=no_user", request.url));
   }
 

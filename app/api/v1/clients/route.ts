@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import * as Sentry from "@sentry/nextjs"
 import { eq, and, isNull } from "drizzle-orm"
 import { db } from "@/app/db"
 import { clients } from "@/app/db/schema"
@@ -19,29 +20,37 @@ export async function GET(request: NextRequest) {
   const limitParam = Math.min(parseInt(searchParams.get("limit") ?? "100"), 500)
   const offsetParam = parseInt(searchParams.get("offset") ?? "0")
 
-  const allClients = await db.query.clients.findMany({
-    where: and(
-      eq(clients.orgId, orgId),
-      isNull(clients.deletedAt)
-    ),
-    orderBy: (c, { desc }) => [desc(c.createdAt)],
-  })
+  try {
+    const allClients = await db.query.clients.findMany({
+      where: and(
+        eq(clients.orgId, orgId),
+        isNull(clients.deletedAt)
+      ),
+      orderBy: (c, { desc }) => [desc(c.createdAt)],
+    })
 
-  const paged = allClients.slice(offsetParam, offsetParam + limitParam)
+    const paged = allClients.slice(offsetParam, offsetParam + limitParam)
 
-  return apiResponse({
-    data: paged.map((c) => ({
-      id: c.id,
-      display_name: c.displayName,
-      email: c.email,
-      phone: c.phone,
-      external_id: c.externalId,
-      profile: c.profile,
-      created_at: c.createdAt.toISOString(),
-      updated_at: c.updatedAt.toISOString(),
-    })),
-    total: allClients.length,
-    limit: limitParam,
-    offset: offsetParam,
-  })
+    return apiResponse({
+      data: paged.map((c) => ({
+        id: c.id,
+        display_name: c.displayName,
+        email: c.email,
+        phone: c.phone,
+        external_id: c.externalId,
+        profile: c.profile,
+        created_at: c.createdAt.toISOString(),
+        updated_at: c.updatedAt.toISOString(),
+      })),
+      total: allClients.length,
+      limit: limitParam,
+      offset: offsetParam,
+    })
+  } catch (err) {
+    Sentry.withScope((scope) => {
+      scope.setTag("api_route", "/api/v1/clients")
+      scope.captureException(err instanceof Error ? err : new Error(String(err)))
+    })
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
 }

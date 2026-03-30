@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import * as Sentry from "@sentry/nextjs"
 import { eq, and, isNull } from "drizzle-orm"
 import { db } from "@/app/db"
 import { documents } from "@/app/db/schema"
@@ -22,35 +23,43 @@ export async function GET(request: NextRequest) {
   const limitParam = Math.min(parseInt(searchParams.get("limit") ?? "100"), 500)
   const offsetParam = parseInt(searchParams.get("offset") ?? "0")
 
-  const allDocs = await db.query.documents.findMany({
-    where: and(
-      eq(documents.orgId, orgId),
-      isNull(documents.deletedAt),
-      ...(status ? [eq(documents.status, status as typeof documents.status.enumValues[number])] : []),
-      ...(clientId ? [eq(documents.clientId, clientId)] : []),
-    ),
-    orderBy: (d, { desc }) => [desc(d.createdAt)],
-  })
+  try {
+    const allDocs = await db.query.documents.findMany({
+      where: and(
+        eq(documents.orgId, orgId),
+        isNull(documents.deletedAt),
+        ...(status ? [eq(documents.status, status as typeof documents.status.enumValues[number])] : []),
+        ...(clientId ? [eq(documents.clientId, clientId)] : []),
+      ),
+      orderBy: (d, { desc }) => [desc(d.createdAt)],
+    })
 
-  const paged = allDocs.slice(offsetParam, offsetParam + limitParam)
+    const paged = allDocs.slice(offsetParam, offsetParam + limitParam)
 
-  return apiResponse({
-    data: paged.map((d) => ({
-      id: d.id,
-      org_id: d.orgId,
-      client_id: d.clientId,
-      entity_id: d.entityId,
-      asset_id: d.assetId,
-      name: d.name,
-      file_type: d.mimeType,
-      file_size: d.fileSize,
-      status: d.status,
-      metadata: d.metadata,
-      created_at: d.createdAt.toISOString(),
-      updated_at: d.updatedAt.toISOString(),
-    })),
-    total: allDocs.length,
-    limit: limitParam,
-    offset: offsetParam,
-  })
+    return apiResponse({
+      data: paged.map((d) => ({
+        id: d.id,
+        org_id: d.orgId,
+        client_id: d.clientId,
+        entity_id: d.entityId,
+        asset_id: d.assetId,
+        name: d.name,
+        file_type: d.mimeType,
+        file_size: d.fileSize,
+        status: d.status,
+        metadata: d.metadata,
+        created_at: d.createdAt.toISOString(),
+        updated_at: d.updatedAt.toISOString(),
+      })),
+      total: allDocs.length,
+      limit: limitParam,
+      offset: offsetParam,
+    })
+  } catch (err) {
+    Sentry.withScope((scope) => {
+      scope.setTag("api_route", "/api/v1/documents")
+      scope.captureException(err instanceof Error ? err : new Error(String(err)))
+    })
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
 }

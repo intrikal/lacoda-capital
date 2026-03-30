@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import * as Sentry from "@sentry/nextjs"
 import { eq, and, isNull, inArray } from "drizzle-orm"
 import { db } from "@/app/db"
 import { assets, entities, clients } from "@/app/db/schema"
@@ -24,51 +25,59 @@ export async function GET(request: NextRequest) {
   const limitParam = Math.min(parseInt(searchParams.get("limit") ?? "100"), 500)
   const offsetParam = parseInt(searchParams.get("offset") ?? "0")
 
-  // Entities belong to clients, which belong to orgs — join through clients
-  const orgClients = await db.query.clients.findMany({
-    where: and(eq(clients.orgId, orgId), isNull(clients.deletedAt)),
-    columns: { id: true },
-  })
-  const clientIds = orgClients.map((c) => c.id)
+  try {
+    // Entities belong to clients, which belong to orgs — join through clients
+    const orgClients = await db.query.clients.findMany({
+      where: and(eq(clients.orgId, orgId), isNull(clients.deletedAt)),
+      columns: { id: true },
+    })
+    const clientIds = orgClients.map((c) => c.id)
 
-  const orgEntities = clientIds.length > 0
-    ? await db.query.entities.findMany({
-        where: and(
-          inArray(entities.clientId, clientIds),
-          isNull(entities.deletedAt)
-        ),
-        columns: { id: true },
-      })
-    : []
+    const orgEntities = clientIds.length > 0
+      ? await db.query.entities.findMany({
+          where: and(
+            inArray(entities.clientId, clientIds),
+            isNull(entities.deletedAt)
+          ),
+          columns: { id: true },
+        })
+      : []
 
-  const entityIds = entityId
-    ? orgEntities.filter((e) => e.id === entityId).map((e) => e.id)
-    : orgEntities.map((e) => e.id)
+    const entityIds = entityId
+      ? orgEntities.filter((e) => e.id === entityId).map((e) => e.id)
+      : orgEntities.map((e) => e.id)
 
-  if (entityIds.length === 0) {
-    return apiResponse({ data: [], total: 0, limit: limitParam, offset: offsetParam })
+    if (entityIds.length === 0) {
+      return apiResponse({ data: [], total: 0, limit: limitParam, offset: offsetParam })
+    }
+
+    // Fetch assets belonging to these entities
+    const allAssets = await db.query.assets.findMany({
+      where: and(
+        isNull(assets.deletedAt),
+        ...(assetClass ? [eq(assets.assetClass, assetClass as typeof assets.assetClass.enumValues[number])] : []),
+        ...(status ? [eq(assets.status, status as typeof assets.status.enumValues[number])] : []),
+      ),
+    })
+
+    // Filter by org-owned entities (application-level RLS)
+    const entityIdSet = new Set(entityIds)
+    const filtered = allAssets.filter((a) => entityIdSet.has(a.entityId))
+    const paged = filtered.slice(offsetParam, offsetParam + limitParam)
+
+    return apiResponse({
+      data: paged.map(serializeAsset),
+      total: filtered.length,
+      limit: limitParam,
+      offset: offsetParam,
+    })
+  } catch (err) {
+    Sentry.withScope((scope) => {
+      scope.setTag("api_route", "/api/v1/assets")
+      scope.captureException(err instanceof Error ? err : new Error(String(err)))
+    })
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
-
-  // Fetch assets belonging to these entities
-  const allAssets = await db.query.assets.findMany({
-    where: and(
-      isNull(assets.deletedAt),
-      ...(assetClass ? [eq(assets.assetClass, assetClass as typeof assets.assetClass.enumValues[number])] : []),
-      ...(status ? [eq(assets.status, status as typeof assets.status.enumValues[number])] : []),
-    ),
-  })
-
-  // Filter by org-owned entities (application-level RLS)
-  const entityIdSet = new Set(entityIds)
-  const filtered = allAssets.filter((a) => entityIdSet.has(a.entityId))
-  const paged = filtered.slice(offsetParam, offsetParam + limitParam)
-
-  return apiResponse({
-    data: paged.map(serializeAsset),
-    total: filtered.length,
-    limit: limitParam,
-    offset: offsetParam,
-  })
 }
 
 /**
@@ -116,24 +125,32 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const [created] = await db
-    .insert(assets)
-    .values({
-      entityId: data.entity_id as string,
-      name: data.name as string,
-      assetClass: data.asset_class as typeof assets.assetClass.enumValues[number],
-      status: (data.status as typeof assets.status.enumValues[number]) ?? "active",
-      description: (data.description as string) ?? null,
-      currentValue: (data.current_value as string) ?? null,
-      acquisitionDate: data.acquisition_date ? new Date(data.acquisition_date as string) : null,
-      acquisitionCost: (data.acquisition_cost as string) ?? null,
-      metadata: (data.metadata as Record<string, unknown>) ?? {},
+  try {
+    const [created] = await db
+      .insert(assets)
+      .values({
+        entityId: data.entity_id as string,
+        name: data.name as string,
+        assetClass: data.asset_class as typeof assets.assetClass.enumValues[number],
+        status: (data.status as typeof assets.status.enumValues[number]) ?? "active",
+        description: (data.description as string) ?? null,
+        currentValue: (data.current_value as string) ?? null,
+        acquisitionDate: data.acquisition_date ? new Date(data.acquisition_date as string) : null,
+        acquisitionCost: (data.acquisition_cost as string) ?? null,
+        metadata: (data.metadata as Record<string, unknown>) ?? {},
+      })
+      .returning()
+
+    // TODO: audit logging for API key-based requests (actorUserId is required)
+
+    return apiResponse({ data: serializeAsset(created) }, undefined, 201)
+  } catch (err) {
+    Sentry.withScope((scope) => {
+      scope.setTag("api_route", "/api/v1/assets")
+      scope.captureException(err instanceof Error ? err : new Error(String(err)))
     })
-    .returning()
-
-  // TODO: audit logging for API key-based requests (actorUserId is required)
-
-  return apiResponse({ data: serializeAsset(created) }, undefined, 201)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
 }
 
 function serializeAsset(a: typeof assets.$inferSelect) {
