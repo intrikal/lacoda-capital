@@ -357,6 +357,9 @@ export const ledgerActionEnum = pgEnum("ledger_action", [
   // Compliance events
   "compliance_reviewed",
   "compliance_approved",
+  // System / non-user actor events
+  "api_read",
+  "portal_accessed",
 ]);
 
 /**
@@ -371,6 +374,7 @@ export const ledgerTargetTypeEnum = pgEnum("ledger_target_type", [
   "document",
   "task",
   "report",
+  "stakeholder_portal",
 ]);
 
 // ============================================================================

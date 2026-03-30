@@ -4,6 +4,7 @@ import { eq, and, isNull, inArray } from "drizzle-orm"
 import { db } from "@/app/db"
 import { assets, entities, clients } from "@/app/db/schema"
 import { authenticateApiRequest, parseJsonBody, apiResponse } from "@/lib/api-middleware"
+import { createLedgerEvent } from "@/lib/actions/ledger"
 
 /**
  * GET /api/v1/assets
@@ -89,7 +90,7 @@ export async function POST(request: NextRequest) {
   const authResult = await authenticateApiRequest(request)
   if (authResult instanceof NextResponse) return authResult
 
-  const { orgId, keyName } = authResult
+  const { orgId, keyId, keyName } = authResult
 
   const bodyResult = await parseJsonBody(request)
   if (bodyResult instanceof NextResponse) return bodyResult
@@ -141,7 +142,15 @@ export async function POST(request: NextRequest) {
       })
       .returning()
 
-    // TODO: audit logging for API key-based requests (actorUserId is required)
+    await createLedgerEvent({
+      orgId,
+      actorId: null,
+      action: "created",
+      targetType: "asset",
+      targetId: created.id,
+      metadata: { actorType: "api_key", keyId, keyName },
+      ipAddress: request.headers.get("x-forwarded-for") ?? undefined,
+    })
 
     return apiResponse({ data: serializeAsset(created) }, undefined, 201)
   } catch (err) {
