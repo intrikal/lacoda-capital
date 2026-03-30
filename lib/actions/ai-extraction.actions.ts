@@ -1,6 +1,7 @@
 "use server"
 
 import * as Sentry from "@sentry/nextjs"
+import { captureServerEvent } from "@/lib/analytics/server"
 import { db } from "@/app/db"
 import { assets, valuations, documents } from "@/app/db/schema"
 import { eq, and, isNull } from "drizzle-orm"
@@ -62,6 +63,8 @@ export async function extractDocumentData(documentId: string) {
     `=== DOCUMENT CONTENT ===`,
     fileContent.slice(0, 50_000), // Limit to ~50k chars to stay within token limits
   ].join("\n")
+
+  captureServerEvent(session.userId, "ai.extraction_started")
 
   // Run the extraction agent
   const result = await extractionAgent.run(prompt, {

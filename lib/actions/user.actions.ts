@@ -1,5 +1,6 @@
 "use server"
 
+import { captureServerEvent } from "@/lib/analytics/server"
 import { eq } from "drizzle-orm"
 import { db } from "@/app/db"
 import { users } from "@/app/db/schema"
@@ -53,6 +54,8 @@ export async function updateUserProfile(input: UpdateUserProfileInput): Promise<
       fields: Object.keys(setData),
     },
   })
+
+  captureServerEvent(session.userId, "user.profile_updated", { fields: Object.keys(setData) })
 
   return updated as unknown as UserRecord
 }

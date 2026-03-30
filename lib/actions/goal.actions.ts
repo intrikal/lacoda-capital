@@ -1,5 +1,6 @@
 "use server"
 
+import { captureServerEvent } from "@/lib/analytics/server"
 import { eq, and, count } from "drizzle-orm"
 import { db } from "@/app/db"
 import { goals } from "@/app/db/schema"
@@ -56,6 +57,8 @@ export async function createGoal(input: unknown): Promise<GoalRecord> {
       metadata: parsed.metadata ?? {},
     })
     .returning()
+
+  captureServerEvent(session.userId, "goal.created", { category: parsed.category })
 
   return created as unknown as GoalRecord
 }

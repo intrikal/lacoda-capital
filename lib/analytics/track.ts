@@ -69,3 +69,19 @@ export function trackComplianceControlCreated(framework?: string) {
 export function trackEvidenceLinked(controlCode: string) {
   safeCapture("compliance.evidence.linked", { control_code: controlCode })
 }
+
+export function trackIntegrationConnected(provider: string) {
+  safeCapture("integration.connected", { provider })
+}
+
+export function trackSubscriptionUpgradeClicked(plan: string) {
+  safeCapture("subscription.upgrade_clicked", { plan })
+}
+
+export function trackClientCreated() {
+  safeCapture("client.created")
+}
+
+export function trackTaskCompleted() {
+  safeCapture("task.completed")
+}

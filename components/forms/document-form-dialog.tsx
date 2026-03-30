@@ -54,6 +54,7 @@ import {
 import { updateDocumentSchema } from "@/lib/validations/document.schema"
 import type { UpdateDocumentInput } from "@/lib/validations/document.schema"
 import type { DocumentRecord } from "@/lib/hooks/crud/use-documents"
+import { trackDocumentUploaded } from "@/lib/analytics/track"
 
 // ─── PROPS ────────────────────────────────────────────────────────────────────
 
@@ -113,6 +114,7 @@ export function DocumentFormDialog({
       })
       if (!parsed.success) return
       onSubmit(parsed.data)
+      trackDocumentUploaded(parsed.data.status)
       onOpenChange(false)
     },
     validators: {

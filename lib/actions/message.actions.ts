@@ -1,5 +1,6 @@
 "use server"
 
+import { captureServerEvent } from "@/lib/analytics/server"
 import { eq, and, count, desc } from "drizzle-orm"
 import { db } from "@/app/db"
 import { conversations, messages } from "@/app/db/schema"
@@ -103,6 +104,8 @@ export async function sendMessage(input: unknown): Promise<MessageRecord> {
       updatedAt: now,
     })
     .where(eq(conversations.id, parsed.conversationId))
+
+  captureServerEvent(session.userId, "message.sent", { sender_type: parsed.senderType ?? "advisor" })
 
   return created as unknown as MessageRecord
 }

@@ -1,5 +1,6 @@
 "use server"
 
+import { captureServerEvent } from "@/lib/analytics/server"
 import { eq, and, count } from "drizzle-orm"
 import { db } from "@/app/db"
 import { deals } from "@/app/db/schema"
@@ -53,6 +54,8 @@ export async function createDeal(input: unknown): Promise<DealRecord> {
       lastActivity: "Just now",
     })
     .returning()
+
+  captureServerEvent(session.userId, "deal.created", { deal_type: parsed.type, stage: parsed.stage })
 
   return created as unknown as DealRecord
 }

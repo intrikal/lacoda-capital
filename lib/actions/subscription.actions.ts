@@ -1,6 +1,7 @@
 "use server"
 
 import * as Sentry from "@sentry/nextjs"
+import { captureServerEvent } from "@/lib/analytics/server"
 import { eq, and, count, sql } from "drizzle-orm"
 import { db } from "@/app/db"
 import { subscriptions, orgMembers, assets, documents, entities, clients } from "@/app/db/schema"
@@ -196,6 +197,8 @@ export async function createCheckoutSession(input: {
       metadata: { action: "checkout_session_created", plan, interval },
     })
 
+    captureServerEvent(session.userId, "subscription.checkout_started", { plan, interval })
+
     return { url: checkoutSession.url! }
   } catch (err) {
     Sentry.captureException(err instanceof Error ? err : new Error(String(err)))
@@ -268,6 +271,8 @@ export async function cancelSubscription(): Promise<{ success: boolean }> {
       targetId: session.orgId,
       metadata: { action: "subscription_cancel_requested", plan: sub.plan },
     })
+
+    captureServerEvent(session.userId, "subscription.cancelled", { plan: sub.plan })
 
     return { success: true }
   } catch (err) {

@@ -1,5 +1,6 @@
 "use server"
 
+import { captureServerEvent } from "@/lib/analytics/server"
 import { eq, and, count, sql, isNull } from "drizzle-orm"
 import { db } from "@/app/db"
 import { entities, clients, assets } from "@/app/db/schema"
@@ -168,6 +169,8 @@ export async function createEntity(input: unknown): Promise<EntityRecord> {
     targetId: created.id,
     metadata: { name: parsed.name, entityType: parsed.entityType },
   })
+
+  captureServerEvent(session.userId, "entity.created", { entity_type: parsed.entityType })
 
   return created as unknown as EntityRecord
 }

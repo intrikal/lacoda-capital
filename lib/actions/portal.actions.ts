@@ -1,5 +1,6 @@
 "use server"
 
+import { captureServerEvent } from "@/lib/analytics/server"
 import { eq, and } from "drizzle-orm"
 import { db } from "@/app/db"
 import { stakeholderPortals, ledgerEvents, clients, orgs } from "@/app/db/schema"
@@ -70,6 +71,8 @@ export async function createPortal(params: {
     targetId: portal.id,
     metadata: { type: "stakeholder_portal", clientName: client.displayName, portalName: name },
   })
+
+  captureServerEvent(session.userId, "portal.link_created")
 
   return { success: true, id: portal.id, token }
 }

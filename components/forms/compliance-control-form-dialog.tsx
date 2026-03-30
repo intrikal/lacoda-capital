@@ -23,6 +23,7 @@ import {
 import { updateComplianceControlSchema } from "@/lib/validations/compliance.schema"
 import type { UpdateComplianceControlInput } from "@/lib/validations/compliance.schema"
 import type { ComplianceControlRecord } from "@/lib/hooks/crud/use-compliance"
+import { trackComplianceControlCreated } from "@/lib/analytics/track"
 
 // ─── CONSTANTS ───────────────────────────────────────────────────────────────
 
@@ -108,6 +109,7 @@ export function ComplianceControlFormDialog({
       if (!parsed.success) return
 
       onSubmit(isCreate ? { ...parsed.data, code: value.code } : parsed.data)
+      if (isCreate) trackComplianceControlCreated(value.framework ?? undefined)
       onOpenChange(false)
     },
     validators: {

@@ -1,5 +1,6 @@
 "use server"
 
+import { captureServerEvent } from "@/lib/analytics/server"
 import { eq, and, count, isNull } from "drizzle-orm"
 import { db } from "@/app/db"
 import { orgs, orgMembers, users } from "@/app/db/schema"
@@ -309,4 +310,6 @@ export async function updateOrgSettings(input: unknown): Promise<void> {
       fields: Object.keys(setData),
     },
   })
+
+  captureServerEvent(session.userId, "org.settings_updated", { fields: Object.keys(setData) })
 }

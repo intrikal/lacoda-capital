@@ -1,5 +1,6 @@
 "use server"
 
+import { captureServerEvent } from "@/lib/analytics/server"
 import { eq, and, desc, isNull } from "drizzle-orm"
 import { db } from "@/app/db"
 import { exchangeRates } from "@/app/db/schema"
@@ -70,6 +71,8 @@ export async function createExchangeRate(input: unknown) {
       rate: parsed.rate,
     },
   })
+
+  captureServerEvent(session.userId, "exchange_rate.updated", { from_currency: parsed.fromCurrency, to_currency: parsed.toCurrency })
 
   return created
 }

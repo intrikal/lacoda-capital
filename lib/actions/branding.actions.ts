@@ -1,5 +1,6 @@
 "use server"
 
+import { captureServerEvent } from "@/lib/analytics/server"
 import { eq } from "drizzle-orm"
 import { db } from "@/app/db"
 import { orgs } from "@/app/db/schema"
@@ -77,6 +78,8 @@ export async function updateOrgBranding(branding: {
     targetId: session.orgId,
     metadata: { type: "branding", fields: Object.keys(branding) },
   })
+
+  captureServerEvent(session.userId, "branding.updated", { fields: Object.keys(branding).filter((k) => branding[k as keyof typeof branding] !== undefined) })
 
   return { success: true }
 }

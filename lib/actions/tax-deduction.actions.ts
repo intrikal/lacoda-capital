@@ -1,5 +1,6 @@
 "use server"
 
+import { captureServerEvent } from "@/lib/analytics/server"
 import { eq, and, count } from "drizzle-orm"
 import { db } from "@/app/db"
 import { taxDeductions } from "@/app/db/schema"
@@ -57,6 +58,8 @@ export async function createTaxDeduction(input: unknown): Promise<TaxDeductionIt
       metadata: parsed.metadata ?? {},
     })
     .returning()
+
+  captureServerEvent(session.userId, "tax_deduction.created", { type: parsed.type, category: parsed.category })
 
   return created as unknown as TaxDeductionItem
 }

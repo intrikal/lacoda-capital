@@ -1,5 +1,6 @@
 "use server"
 
+import { captureServerEvent } from "@/lib/analytics/server"
 import { eq, and, desc, isNull, sql, lte } from "drizzle-orm"
 import { db } from "@/app/db"
 import { capitalEvents, assets, notifications, entities, clients } from "@/app/db/schema"
@@ -131,6 +132,8 @@ export async function createCapitalEvent(input: unknown) {
       status: parsed.status,
     },
   })
+
+  captureServerEvent(session.userId, "capital_call.created", { event_type: parsed.eventType })
 
   return created
 }

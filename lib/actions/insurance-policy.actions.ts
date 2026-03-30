@@ -1,5 +1,6 @@
 "use server"
 
+import { captureServerEvent } from "@/lib/analytics/server"
 import { eq, and, count } from "drizzle-orm"
 import { db } from "@/app/db"
 import { insurancePolicies } from "@/app/db/schema"
@@ -53,6 +54,8 @@ export async function createInsurancePolicy(input: unknown): Promise<InsurancePo
       metadata: parsed.metadata ?? {},
     })
     .returning()
+
+  captureServerEvent(session.userId, "insurance.policy_created", { policy_type: parsed.policyType })
 
   return created as unknown as InsurancePolicyRecord
 }

@@ -1,5 +1,6 @@
 "use server"
 
+import { captureServerEvent } from "@/lib/analytics/server"
 import { eq, and } from "drizzle-orm"
 import { db } from "@/app/db"
 import { apiKeys } from "@/app/db/schema"
@@ -59,6 +60,8 @@ export async function createApiKey(
     metadata: { type: "api_key", name: sanitized, keyPrefix },
   })
 
+  captureServerEvent(session.userId, "api_key.created")
+
   return { success: true, rawKey, id: key.id }
 }
 
@@ -88,6 +91,8 @@ export async function revokeApiKey(id: string): Promise<ActionResult> {
     targetId: id,
     metadata: { type: "api_key", name: existing.name, keyPrefix: existing.keyPrefix },
   })
+
+  captureServerEvent(session.userId, "api_key.revoked")
 
   return { success: true }
 }

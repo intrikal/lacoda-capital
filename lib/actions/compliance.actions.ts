@@ -1,5 +1,6 @@
 "use server"
 
+import { captureServerEvent } from "@/lib/analytics/server"
 import { eq, and, count } from "drizzle-orm"
 import { db } from "@/app/db"
 import { complianceControls, complianceEvidence, users } from "@/app/db/schema"
@@ -138,6 +139,8 @@ export async function createComplianceControl(input: unknown): Promise<Complianc
     targetId: created.id,
     metadata: { type: "compliance_control", name: parsed.name, code: parsed.code, framework: parsed.framework },
   })
+
+  captureServerEvent(session.userId, "compliance.control_created", { framework: parsed.framework, category: parsed.category })
 
   return { ...created, assigneeName: null, evidence: [] } as unknown as ComplianceControlRecord
 }
