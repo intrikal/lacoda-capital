@@ -1,0 +1,107 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# .github/workflows/e2e.yml
+#
+# WHAT IS THIS FILE?
+# ──────────────────
+# This workflow runs Playwright end-to-end (E2E) tests after every merge to
+# the main branch. Unlike the CI workflow (which runs on PRs), this runs
+# AFTER code has already landed — acting as a final gate that ensures the
+# deployed-ready build actually works in a real browser.
+#
+# WHY NOT RUN E2E ON PRs?
+# ───────────────────────
+# E2E tests are slow: Playwright has to spin up a full Next.js server AND
+# launch a real Chromium browser. On a PR, this would add several minutes
+# to every review cycle. The fast unit/type/lint/build checks on PRs give
+# 95% of the protection at 10% of the time cost.
+#
+# WHAT HAPPENS IF E2E FAILS?
+# ──────────────────────────
+# GitHub sends you a notification by default. The HTML report (screenshots,
+# traces, video) is uploaded as a downloadable artifact so you can inspect
+# exactly what failed. Fix forward with a new commit to main.
+#
+# HOW THE SERVER STARTS
+# ─────────────────────
+# We don't need to start the Next.js server manually. The playwright.config.ts
+# already has a `webServer` block that runs `next start` before tests begin.
+# The `npm run build` step below produces the `.next` folder that `next start`
+# needs. Playwright handles the startup/shutdown lifecycle automatically.
+#
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: E2E
+
+# ── TRIGGER ──────────────────────────────────────────────────────────────────
+# Runs on every push to main — i.e., after a PR merges.
+# Does NOT run on pull_request (too slow for PR feedback loops).
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  # ── JOB: E2E ───────────────────────────────────────────────────────────────
+  e2e:
+    name: Playwright E2E
+    runs-on: ubuntu-latest
+
+    # ENV VARS: Same dummy placeholder values used in the CI build job.
+    # The Next.js build needs these defined; they don't need to be real.
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: "https://placeholder.supabase.co"
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY: "placeholder"
+      DATABASE_URL: "postgresql://placeholder:placeholder@localhost:5432/placeholder"
+      DIRECT_URL: "postgresql://placeholder:placeholder@localhost:5432/placeholder"
+
+    steps:
+      # STEP 1 — Get the code
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # STEP 2 — Install Node 20 (matches Vercel production environment)
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # STEP 3 — Install npm dependencies (exact versions from lockfile)
+      - name: Install dependencies
+        run: npm ci
+
+      # STEP 4 — Install Playwright browsers
+      # `--with-deps` also installs OS-level dependencies (libglib, nss, etc.)
+      # that Chromium needs to run on bare Ubuntu. We install only `chromium`
+      # (not firefox/webkit) to keep this step fast.
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      # STEP 5 — Build the Next.js app
+      # playwright.config.ts `webServer` runs `next start`, which requires a
+      # production build to exist first. This produces the `.next/` folder.
+      - name: Build
+        run: npm run build
+
+      # STEP 6 — Run E2E tests
+      # Playwright reads its config from playwright.config.ts, which already has:
+      #   forbidOnly: !!process.env.CI   → fails if .only is left in a test
+      #   retries: process.env.CI ? 2 : 0 → retries flaky tests twice in CI
+      #   workers: process.env.CI ? 1 : undefined → single worker for stability
+      #   reporter: process.env.CI ? "github" : "html" → GitHub annotations in CI
+      # The `CI=true` env var is automatically set by GitHub Actions.
+      - name: Run E2E tests
+        run: npm run test:e2e
+
+      # STEP 7 — Upload test report on failure
+      # If any test fails, Playwright generates an HTML report with screenshots,
+      # traces, and video. We upload it as a GitHub Actions artifact so you can
+      # download and inspect it. The `if: failure()` condition means this step
+      # only runs when the previous step failed — no artifact spam on success.
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

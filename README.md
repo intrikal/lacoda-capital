@@ -1,5 +1,7 @@
 # Lacoda Capital Holdings
 
+![CI](https://github.com/intrikal/lacoda-capital/actions/workflows/ci.yml/badge.svg)
+
 **The Operating System for Asset Management & Holdings Firms**
 
 A premium, story-driven SaaS website and fully interactive dashboard demo built with Next.js, React Three Fiber, and react-spring.
