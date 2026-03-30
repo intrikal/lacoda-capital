@@ -16,146 +16,182 @@
 # Without this, every developer has to manually run these checks on their
 # machine before merging. People forget. Machines don't.
 # Branch protection (configured separately in GitHub Settings) will block a
-# PR from merging until this workflow goes green — so bad code literally
+# PR from merging until ALL five jobs below go green — so bad code literally
 # cannot land in main.
 #
 # HOW TO READ THIS FILE
 # ─────────────────────
 # YAML is a config language that uses indentation (spaces) to show structure.
 # The top level has two keys: `on` (when to run) and `jobs` (what to run).
-# Under `jobs` you define one or more jobs. Each job has `steps` — individual
-# commands that run in order on the same machine.
+# Under `jobs` you define one or more jobs. Jobs run IN PARALLEL by default
+# unless you add a `needs:` dependency between them.
 #
 # PSEUDOCODE of what this whole file does:
 #
 #   WHEN a pull request is opened (or updated) targeting the `main` branch:
-#     Spin up a fresh Ubuntu machine in the cloud
-#     Load all the secret env vars the app needs
-#     THEN run these steps in order:
-#       1. Download the repo code onto that machine
-#       2. Install Node.js version 22
-#       3. Install npm packages (exact versions from lockfile)
-#       4. Run the linter  → fail if any ESLint errors
-#       5. Run TypeScript  → fail if any type errors
-#       6. Run unit tests  → fail if any tests fail
-#       7. Run Next.js build → fail if the app won't compile
-#     IF all steps pass → PR gets a green checkmark
-#     IF any step fails → PR gets a red X and cannot be merged
+#     Spin up 5 fresh Ubuntu machines IN PARALLEL, each running one job:
+#       [typecheck]       → tsc --noEmit
+#       [lint]            → eslint
+#       [test]            → vitest --project unit
+#       [build]           → next build (with dummy env vars)
+#       [migration-check] → drizzle-kit check
+#     IF all 5 pass → PR gets a green checkmark and can be merged
+#     IF any fail   → PR gets a red X and is blocked from merging
+#
+# REQUIRED STATUS CHECKS (configure once in GitHub repo settings):
+#   GitHub repo → Settings → Branches → main → Branch protection rules →
+#   "Require status checks to pass before merging" → add all 5 job names:
+#     CI / typecheck
+#     CI / lint
+#     CI / test
+#     CI / build
+#     CI / migration-check
 #
 # ─────────────────────────────────────────────────────────────────────────────
 
 name: CI
 
 # ── TRIGGER ──────────────────────────────────────────────────────────────────
-# `on` defines when this workflow fires.
-# `pull_request` means: any time a PR is opened, updated, or synced.
-# `branches: [main]` means: only when the PR's *target* branch is main.
-# PRs targeting other branches (e.g. feature → staging) are NOT checked here.
+# `pull_request` fires on any PR open, update, or sync targeting `main`.
 on:
   pull_request:
     branches:
       - main
 
-# ── JOBS ─────────────────────────────────────────────────────────────────────
-# A workflow can have multiple jobs that run in parallel. We only need one.
+# ── SHARED SETUP (referenced via YAML anchors would be ideal, but GHA doesn't
+#    support anchors — so each job repeats the 3-step checkout/node/install
+#    sequence. This is the GitHub Actions convention.) ─────────────────────────
+
 jobs:
-  ci:
-    name: Lint · Type-check · Test · Build
-
-    # `runs-on` picks the operating system for the cloud machine.
-    # `ubuntu-latest` is the standard choice — fast, free, Linux.
+  # ── JOB 1: TYPE-CHECK ──────────────────────────────────────────────────────
+  # Runs the TypeScript compiler in check-only mode (no output files emitted).
+  # Catches type mismatches that ESLint won't catch — e.g. passing a string
+  # where a number is expected, or accessing a missing property.
+  typecheck:
+    name: Type-check
     runs-on: ubuntu-latest
-
-    # ── ENV VARS ───────────────────────────────────────────────────────────
-    # Our app needs these environment variables to run (Next.js reads them at
-    # build time, and some libraries read them at test time).
-    #
-    # We do NOT hardcode real values here — this file is public in the repo.
-    # Instead we store the real values as GitHub Secrets:
-    #   GitHub repo → Settings → Secrets and variables → Actions → New secret
-    #
-    # The `${{ secrets.NAME }}` syntax tells GitHub Actions to inject the
-    # secret value at runtime. The CI machine gets the real value; no one
-    # reading this file ever sees it.
-    #
-    # NEXT_PUBLIC_SITE_URL is safe to hardcode — it's just localhost for CI.
-    env:
-      # Supabase — connection info for the hosted Postgres database
-      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY }}
-      DATABASE_URL: ${{ secrets.DATABASE_URL }}
-      DIRECT_URL: ${{ secrets.DIRECT_URL }}
-      # Google OAuth — credentials for the "Sign in with Google" button
-      GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
-      GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
-      # Sanity CMS — credentials for fetching marketing/content data
-      NEXT_PUBLIC_SANITY_PROJECT_ID: ${{ secrets.NEXT_PUBLIC_SANITY_PROJECT_ID }}
-      NEXT_PUBLIC_SANITY_DATASET: ${{ secrets.NEXT_PUBLIC_SANITY_DATASET }}
-      SANITY_API_TOKEN: ${{ secrets.SANITY_API_TOKEN }}
-      NEXT_PUBLIC_SITE_URL: http://localhost:3000
-
-    # ── STEPS ─────────────────────────────────────────────────────────────
-    # Steps run sequentially on the same machine. If any step fails (non-zero
-    # exit code), GitHub stops immediately and marks the whole job as failed.
     steps:
-      # STEP 1 — Get the code
-      # `actions/checkout` is an official GitHub Action that clones this repo
-      # onto the CI machine. Without this, the machine has no code to work with.
-      # `@v4` pins the version so a future breaking change doesn't surprise us.
       - name: Checkout
         uses: actions/checkout@v4
 
-      # STEP 2 — Install the right version of Node.js
-      # The CI machine has Node pre-installed, but not necessarily the version
-      # we want. Pinning to Node 22 matches what we use locally and in
-      # production, avoiding "works on my machine" version mismatches.
-      # `cache: npm` tells GitHub to save the npm download cache between runs
-      # so repeat runs don't re-download every package from scratch.
-      - name: Set up Node 22
+      - name: Set up Node 20
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 20
           cache: npm
 
-      # STEP 3 — Install dependencies
-      # `npm ci` ("clean install") is the CI-safe version of `npm install`.
-      # Difference: `npm install` can update package-lock.json; `npm ci` refuses
-      # to run if the lockfile is out of sync with package.json, and always
-      # installs the exact versions recorded in the lockfile.
-      # This guarantees every CI run uses identical packages.
       - name: Install dependencies
         run: npm ci
 
-      # STEP 4 — Lint
-      # Runs ESLint (configured in eslint.config.mjs).
-      # ESLint catches code style issues, unused variables, React rule violations,
-      # and other problems that are easy to miss in a code review.
-      # If ESLint finds errors, this step exits with a non-zero code → job fails.
-      - name: Lint
-        run: npm run lint
-
-      # STEP 5 — Type-check
-      # Runs the TypeScript compiler but tells it NOT to emit any output files
-      # (`--noEmit`). We only want the type errors, not the compiled JS.
-      # This catches type mismatches that ESLint won't catch — e.g. passing a
-      # string where a number is expected, or accessing a property that doesn't
-      # exist on a type.
       - name: Type-check
         run: npx tsc --noEmit
 
-      # STEP 6 — Run tests
-      # `npm run test` → `vitest run --project unit`
-      # Runs all unit and integration tests in the `tests/` directory using
-      # Vitest in a jsdom environment (simulated browser in Node).
-      # Any failing assertion → non-zero exit → job fails.
-      - name: Test
-        run: npm run test
+  # ── JOB 2: LINT ────────────────────────────────────────────────────────────
+  # Runs ESLint (configured in eslint.config.mjs — flat config format).
+  # Catches code style issues, unused variables, React rule violations, and
+  # other problems that are easy to miss in code review.
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      # STEP 7 — Build
-      # `next build` compiles the entire Next.js application for production.
-      # This catches errors that only appear at compile time — e.g. a server
-      # component importing a client-only module, or a missing page export.
-      # If the app won't build, it can't ship, so we treat build failure the
-      # same as a test failure.
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+  # ── JOB 3: TEST ────────────────────────────────────────────────────────────
+  # Runs Vitest unit + integration tests via `npm test`.
+  # The npm script maps to: vitest run --project unit
+  # This runs the jsdom-environment project only — NOT the storybook browser
+  # project (which requires a real browser and is too slow for PR checks).
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Test
+        run: npm test
+
+  # ── JOB 4: BUILD ───────────────────────────────────────────────────────────
+  # Runs `next build` to compile the entire app for production.
+  # Catches errors that only appear at compile time — e.g. a server component
+  # importing a client-only module, or a missing page export.
+  #
+  # ENV VARS: Next.js reads certain env vars at build time. We supply dummy
+  # placeholder values here so the build doesn't crash with "missing env var".
+  # These are NOT real credentials — the build process only needs them to be
+  # *defined*, not to point to a real database or service.
+  # Real credentials live in GitHub Secrets and are only used in production.
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: "https://placeholder.supabase.co"
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY: "placeholder"
+      DATABASE_URL: "postgresql://placeholder:placeholder@localhost:5432/placeholder"
+      DIRECT_URL: "postgresql://placeholder:placeholder@localhost:5432/placeholder"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
       - name: Build
         run: npm run build
+
+  # ── JOB 5: MIGRATION-CHECK ─────────────────────────────────────────────────
+  # Runs `drizzle-kit check` to verify that the schema files in app/db/schema/
+  # are consistent with the latest generated migration in the drizzle/ folder.
+  #
+  # WHY THIS MATTERS:
+  # When you edit a schema file (e.g. add a column to users.ts), you must also
+  # run `npm run db:generate` to produce a new SQL migration file. If you forget,
+  # the schema and migration are out of sync — the app expects a column that
+  # doesn't exist in the database yet.
+  # This job catches that mistake on every PR before it can reach production.
+  migration-check:
+    name: Migration check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check migrations are up to date
+        run: npx drizzle-kit check
