@@ -76,7 +76,7 @@ export async function draftDocumentRequestEmail(requestId: string) {
   }
 
   // Build the upload URL
-  const uploadUrl = `https://app.lacoda.capital/portal/upload/${requestId}`
+  const uploadUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/portal/upload/${requestId}`
 
   // Build context
   const contextData: EmailDraftContextData = {

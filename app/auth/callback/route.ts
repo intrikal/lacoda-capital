@@ -10,7 +10,7 @@ import { dispatchAlert } from "@/lib/alerts";
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 /** The email address that automatically becomes admin of the Lacoda Capital org. */
-const ADMIN_EMAIL = "binarydecisions1111@gmail.com";
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? "";
 
 /** The canonical org for this deployment. */
 const LACODA_ORG = {
