@@ -50,6 +50,9 @@ export {
   subscriptionStatusEnum,
   capitalEventTypeEnum,
   capitalEventStatusEnum,
+  beneficiaryDesignationEnum,
+  transferTypeEnum,
+  transferStatusEnum,
 } from "./00_enums";
 
 // ============================================================================
@@ -322,3 +325,21 @@ export type { ExchangeRate, NewExchangeRate } from "./exchange_rates";
 // ============================================================================
 export { capitalEvents, capitalEventsRelations } from "./capital_events";
 export type { CapitalEvent, NewCapitalEvent } from "./capital_events";
+
+// ============================================================================
+// Beneficiaries (Estate Planning)
+// ============================================================================
+export { beneficiaries, beneficiariesRelations } from "./beneficiaries";
+export type {
+  BeneficiaryRecord,
+  NewBeneficiary,
+} from "./beneficiaries";
+
+// ============================================================================
+// Client Transfers (Fund Movements)
+// ============================================================================
+export { transfers, transfersRelations } from "./transfers";
+export type {
+  TransferRecord,
+  NewTransfer,
+} from "./transfers";

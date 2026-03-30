@@ -3,95 +3,72 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // ALERTS SERVICE
 // ─────────────────────────────────────────────────────────────────────────────
-// No alerts table exists in the DB schema. Data is kept as static seed below.
+// Alerts are derived from the notifications table. Each notification type maps
+// to an alert severity:
+//   critical  → compliance_alert
+//   warning   → document_expiring, task_due, capital_call_due, capital_call_overdue
+//   info      → everything else (task_assigned, document_uploaded, report_ready, etc.)
 
+import { db } from "@/app/db"
+import { notifications } from "@/app/db/schema"
+import { isNull } from "drizzle-orm"
 import type { Alert, AlertSeverity } from "@/lib/types/mock"
+import type { NotificationPayload } from "@/app/db/schema/notifications"
 
-const seedAlerts: Alert[] = [
-  {
-    id: "alert-001",
-    title: "Document Expiring Soon",
-    description: "Property Insurance Policy for Manhattan Tower expires in 352 days",
-    severity: "info",
-    timestamp: "2024-01-15T10:00:00Z",
-    entityId: "doc-002",
-    entityType: "document",
-    isRead: false,
-    actionUrl: "/app/vault",
-  },
-  {
-    id: "alert-002",
-    title: "Document Expired",
-    description: "Licensing Agreement - TechCorp has expired and requires renewal",
-    severity: "critical",
-    timestamp: "2024-01-01T00:00:00Z",
-    entityId: "doc-013",
-    entityType: "document",
-    isRead: false,
-    actionUrl: "/app/vault",
-  },
-  {
-    id: "alert-003",
-    title: "Pending Verification",
-    description: "Miami Development - Purchase Agreement awaiting legal verification",
-    severity: "warning",
-    timestamp: "2024-01-10T09:00:00Z",
-    entityId: "doc-008",
-    entityType: "document",
-    isRead: true,
-    actionUrl: "/app/vault",
-  },
-  {
-    id: "alert-004",
-    title: "Stale Valuation",
-    description: "Software Patent Portfolio hasn't been valued in 32 days",
-    severity: "warning",
-    timestamp: "2024-01-15T08:00:00Z",
-    entityId: "ast-009",
-    entityType: "asset",
-    isRead: false,
-    actionUrl: "/app/assets",
-  },
-  {
-    id: "alert-005",
-    title: "High Risk Score",
-    description: "Series B - Quantum Computing Startup has risk score above threshold (75)",
-    severity: "info",
-    timestamp: "2024-01-14T12:00:00Z",
-    entityId: "ast-003",
-    entityType: "asset",
-    isRead: true,
-    actionUrl: "/app/assets",
-  },
-  {
-    id: "alert-006",
-    title: "KYC Documents Pending",
-    description: "Wellington Trust onboarding documents require review",
-    severity: "warning",
-    timestamp: "2024-01-12T14:00:00Z",
-    entityId: "client-002",
-    entityType: "client",
-    isRead: false,
-    actionUrl: "/app/clients",
-  },
-]
+/** Map notification type to alert severity. */
+function toSeverity(type: string): AlertSeverity {
+  switch (type) {
+    case "compliance_alert":
+      return "critical"
+    case "document_expiring":
+    case "task_due":
+    case "capital_call_due":
+    case "capital_call_overdue":
+      return "warning"
+    default:
+      return "info"
+  }
+}
+
+/** Map a notifications DB row to the Alert shape. */
+function toAlert(row: typeof notifications.$inferSelect): Alert {
+  const payload = (row.payload ?? {}) as NotificationPayload
+  return {
+    id: row.id,
+    title: row.title,
+    description: row.message ?? "",
+    severity: toSeverity(row.type),
+    timestamp: row.createdAt.toISOString(),
+    entityId: payload.entityId,
+    entityType: payload.entityType,
+    isRead: row.readAt !== null,
+    actionUrl: row.link ?? undefined,
+  }
+}
 
 export async function getAlerts(): Promise<Alert[]> {
-  return seedAlerts
+  const rows = await db
+    .select()
+    .from(notifications)
+    .where(isNull(notifications.deletedAt))
+  return rows.map(toAlert)
 }
 
 export async function getUnreadAlerts(): Promise<Alert[]> {
-  return seedAlerts.filter((a) => !a.isRead)
+  const all = await getAlerts()
+  return all.filter((a) => !a.isRead)
 }
 
 export async function getAlertsBySeverity(severity: AlertSeverity): Promise<Alert[]> {
-  return seedAlerts.filter((a) => a.severity === severity)
+  const all = await getAlerts()
+  return all.filter((a) => a.severity === severity)
 }
 
 export async function getAlertCount() {
-  const unread = seedAlerts.filter((a) => !a.isRead)
+  const all = await getAlerts()
+  const unread = all.filter((a) => !a.isRead)
   return {
-    total: seedAlerts.length,
+    total: all.length,
     unread: unread.length,
     critical: unread.filter((a) => a.severity === "critical").length,
     warning: unread.filter((a) => a.severity === "warning").length,

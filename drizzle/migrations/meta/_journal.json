@@ -99,6 +99,13 @@
       "when": 1774825016352,
       "tag": "0013_exotic_maggott",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1774834721754,
+      "tag": "0014_add-beneficiaries-and-transfers",
+      "breakpoints": true
     }
   ]
 }
