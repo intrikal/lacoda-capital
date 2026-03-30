@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import type { CreateAssetInput } from "@/lib/validations/asset.schema"
+import { trackAssetCreated } from "@/lib/analytics/track"
 
 interface AssetFormDialogProps {
   mode: "create" | "edit"
@@ -94,6 +95,7 @@ export function AssetFormDialog({
       currency: currency || "USD",
       externalId: externalId.trim() || null,
     })
+    if (mode === "create") trackAssetCreated(assetClass)
     onOpenChange(false)
   }
 

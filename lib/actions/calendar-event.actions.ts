@@ -1,5 +1,6 @@
 "use server"
 
+import { captureServerEvent } from "@/lib/analytics/server"
 import { eq, and, count, gte, lte } from "drizzle-orm"
 import { db } from "@/app/db"
 import { calendarEvents } from "@/app/db/schema"
@@ -63,6 +64,8 @@ export async function createCalendarEvent(input: unknown): Promise<CalendarEvent
       metadata: parsed.metadata ?? {},
     })
     .returning()
+
+  captureServerEvent(session.userId, "calendar_event.created", { event_type: parsed.type })
 
   return created as unknown as CalendarEventRecord
 }

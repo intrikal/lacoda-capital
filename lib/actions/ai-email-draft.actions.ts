@@ -1,6 +1,7 @@
 "use server"
 
 import * as Sentry from "@sentry/nextjs"
+import { captureServerEvent } from "@/lib/analytics/server"
 import { eq, and } from "drizzle-orm"
 import { db } from "@/app/db"
 import { documentRequests, clients, entities, assets, orgs } from "@/app/db/schema"
@@ -105,6 +106,8 @@ export async function draftDocumentRequestEmail(requestId: string) {
   if (!result.success) {
     return result
   }
+
+  captureServerEvent(session.userId, "ai.email_draft_generated")
 
   return {
     ...result,

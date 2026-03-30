@@ -1,5 +1,6 @@
 "use server"
 
+import { captureServerEvent } from "@/lib/analytics/server"
 import { eq, and, ilike, sql, count } from "drizzle-orm"
 import { db } from "@/app/db"
 import { clients, entities, assets } from "@/app/db/schema"
@@ -90,6 +91,8 @@ export async function createClient(input: unknown): Promise<ClientRecord> {
       profile: { clientType, clientStatus },
     })
     .returning()
+
+  captureServerEvent(session.userId, "client.created", { client_type: clientType, client_status: clientStatus })
 
   const profile = (created.profile ?? {}) as Record<string, unknown>
   return {

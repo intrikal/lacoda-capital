@@ -60,6 +60,7 @@ import {
 import { updateReportSchema } from "@/lib/validations/report.schema"
 import type { UpdateReportInput } from "@/lib/validations/report.schema"
 import type { ReportRecord } from "@/lib/hooks/crud/use-reports"
+import { trackReportGenerated } from "@/lib/analytics/track"
 
 // ─── TYPES ───────────────────────────────────────────────────────────────────
 
@@ -167,6 +168,7 @@ export function ReportFormDialog({
           ? { ...parsed.data, reportType: value.reportType }
           : parsed.data
       )
+      if (isCreate) trackReportGenerated(value.reportType)
       onOpenChange(false)
     },
     validators: {

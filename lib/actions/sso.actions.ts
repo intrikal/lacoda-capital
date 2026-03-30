@@ -1,5 +1,6 @@
 "use server"
 
+import { captureServerEvent } from "@/lib/analytics/server"
 import { eq, and } from "drizzle-orm"
 import { db } from "@/app/db"
 import { samlProviders } from "@/app/db/schema"
@@ -99,6 +100,8 @@ export async function addSsoProvider(params: {
     targetId: provider.id,
     metadata: { type: "sso_provider", name, providerType, domains },
   })
+
+  captureServerEvent(session.userId, "sso.provider_configured", { provider_type: providerType })
 
   return { success: true, id: provider.id }
 }

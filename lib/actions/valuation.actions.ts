@@ -1,5 +1,6 @@
 "use server"
 
+import { captureServerEvent } from "@/lib/analytics/server"
 import { eq, and, desc, sql } from "drizzle-orm"
 import { db } from "@/app/db"
 import { valuations, assets, entities, clients } from "@/app/db/schema"
@@ -71,6 +72,8 @@ export async function addValuation(input: unknown): Promise<ValuationRecord> {
       source: data.source,
     },
   })
+
+  captureServerEvent(session.userId, "valuation.created", { source: data.source ?? "manual" })
 
   return {
     ...created,

@@ -274,3 +274,17 @@ export async function getSessionUserId(): Promise<string | null> {
   } = await supabase.auth.getUser();
   return user?.id ?? null;
 }
+
+/**
+ * getSessionUserAndOrgId — Returns userId + orgId for PostHog identify.
+ * No PII — only IDs.
+ */
+export async function getSessionUserAndOrgId(): Promise<{ userId: string; orgId: string } | null> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+  const member = await db.query.orgMembers.findFirst({
+    where: eq(orgMembers.userId, user.id),
+  });
+  return { userId: user.id, orgId: member?.orgId ?? "" };
+}

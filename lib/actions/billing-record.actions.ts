@@ -1,5 +1,6 @@
 "use server"
 
+import { captureServerEvent } from "@/lib/analytics/server"
 import { eq, and, count } from "drizzle-orm"
 import { db } from "@/app/db"
 import { billingRecords } from "@/app/db/schema"
@@ -51,6 +52,8 @@ export async function createBillingRecord(input: unknown): Promise<BillingRecord
       metadata: parsed.metadata ?? {},
     })
     .returning()
+
+  captureServerEvent(session.userId, "billing.record_created")
 
   return created as unknown as BillingRecordItem
 }

@@ -138,13 +138,17 @@ export async function checkStaleValuations(orgId: string): Promise<AppAlert[]> {
     ),
     with: {
       entity: {
-        columns: { orgId: true },
+        with: {
+          client: {
+            columns: { orgId: true },
+          },
+        },
       },
     },
   })
 
   for (const asset of staleAssets) {
-    if (asset.entity?.orgId !== orgId) continue
+    if (asset.entity?.client?.orgId !== orgId) continue
 
     const daysSince = asset.valuedAt
       ? Math.round((Date.now() - new Date(asset.valuedAt).getTime()) / MS_PER_DAY)

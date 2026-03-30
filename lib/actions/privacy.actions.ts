@@ -1,5 +1,6 @@
 "use server"
 
+import { captureServerEvent } from "@/lib/analytics/server"
 import { eq, and, isNull, lte, sql } from "drizzle-orm"
 import { db } from "@/app/db"
 import { users, orgMembers, deletionRequests, ledgerEvents, orgs } from "@/app/db/schema"
@@ -76,6 +77,8 @@ export async function requestAccountDeletion(reason?: string): Promise<DeletionR
       metadata: { action: "account_deletion_requested", scheduledFor: scheduledFor.toISOString() },
     })
   }
+
+  captureServerEvent(session.userId, "account.deletion_requested")
 
   return {
     id: request.id,

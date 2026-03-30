@@ -1,5 +1,6 @@
 "use server"
 
+import { captureServerEvent } from "@/lib/analytics/server"
 import { eq, and, gte, desc, sql } from "drizzle-orm"
 import { db } from "@/app/db"
 import { reports, reportVersions, assets, valuations, ledgerEvents, clients, entities } from "@/app/db/schema"
@@ -162,6 +163,8 @@ export async function generateReportNarrative(reportId: string) {
   if (!result.success) {
     return result
   }
+
+  captureServerEvent(session.userId, "ai.narrative_generated", { report_type: report.reportType ?? "portfolio_summary" })
 
   return {
     ...result,

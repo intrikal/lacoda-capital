@@ -9,7 +9,8 @@ import { NotificationBell } from "@/components/dashboard/notification-bell"
 import { CommandSearch } from "@/components/dashboard/command-search"
 import { FirstLoginWizard } from "@/components/dashboard/first-login-wizard"
 import { UsageLimitBanner } from "@/components/dashboard/usage-limit-banner"
-import { getSessionUserId } from "@/lib/actions/auth.actions"
+import { getSessionUserAndOrgId } from "@/lib/actions/auth.actions"
+import { identifyUser, resetIdentity } from "@/lib/analytics/track"
 
 export default function DashboardLayout({
   children,
@@ -19,10 +20,16 @@ export default function DashboardLayout({
   const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false)
 
   React.useEffect(() => {
-    getSessionUserId().then((userId) => {
-      if (userId) Sentry.setUser({ id: userId })
+    getSessionUserAndOrgId().then((info) => {
+      if (info) {
+        Sentry.setUser({ id: info.userId })
+        identifyUser(info.userId, info.orgId)
+      }
     })
-    return () => { Sentry.setUser(null) }
+    return () => {
+      Sentry.setUser(null)
+      resetIdentity()
+    }
   }, [])
 
   const mainMargin = sidebarCollapsed ? "ml-[68px]" : "ml-[240px]"

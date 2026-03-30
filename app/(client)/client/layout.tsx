@@ -24,6 +24,7 @@ import * as React from "react"
 import * as Sentry from "@sentry/nextjs"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { identifyUser, resetIdentity } from "@/lib/analytics/track"
 import { TooltipProvider, Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { Button } from "@/components/ui/button"
 import { Logo } from "@/components/marketing/logo"
@@ -42,7 +43,7 @@ import {
   LogOut,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { logoutAction, getSessionUserId } from "@/lib/actions/auth.actions"
+import { logoutAction, getSessionUserAndOrgId } from "@/lib/actions/auth.actions"
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Navigation structure — grouped for wealth management client UX
@@ -195,10 +196,16 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   const pathname = usePathname()
 
   React.useEffect(() => {
-    getSessionUserId().then((userId) => {
-      if (userId) Sentry.setUser({ id: userId })
+    getSessionUserAndOrgId().then((info) => {
+      if (info) {
+        Sentry.setUser({ id: info.userId })
+        identifyUser(info.userId, info.orgId)
+      }
     })
-    return () => { Sentry.setUser(null) }
+    return () => {
+      Sentry.setUser(null)
+      resetIdentity()
+    }
   }, [])
 
   const sidebarWidth = collapsed ? "w-[68px]" : "w-[240px]"
@@ -290,7 +297,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
               <Tooltip delayDuration={0}>
                 <TooltipTrigger asChild>
                   <button
-                    onClick={() => logoutAction()}
+                    onClick={() => { resetIdentity(); logoutAction() }}
                     className="w-full flex justify-center items-center rounded-md p-2 text-zinc-500 hover:text-red-400 hover:bg-zinc-800/60 transition-colors"
                     aria-label="Sign out"
                   >
@@ -315,7 +322,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
                 <Tooltip delayDuration={0}>
                   <TooltipTrigger asChild>
                     <button
-                      onClick={() => logoutAction()}
+                      onClick={() => { resetIdentity(); logoutAction() }}
                       className="h-8 w-8 flex items-center justify-center rounded-md text-zinc-500 hover:text-red-400 hover:bg-zinc-800/60 transition-colors shrink-0"
                       aria-label="Sign out"
                     >

@@ -16,6 +16,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 import { globalSearch, type GroupedSearchResults, type SearchResult } from "@/lib/actions/search.actions"
+import { trackSearchPerformed } from "@/lib/analytics/track"
 
 // ─── Icon map ───────────────────────────────────────────────────────────────
 
@@ -90,6 +91,7 @@ export function CommandSearch() {
         const data = await globalSearch(query)
         setResults(data)
         setSelectedIndex(0)
+        trackSearchPerformed(query, data.total)
       } catch {
         setResults(null)
       } finally {

@@ -1,5 +1,6 @@
 "use server"
 
+import { captureServerEvent } from "@/lib/analytics/server"
 import { eq, and, count } from "drizzle-orm"
 import { db } from "@/app/db"
 import { documentRequests } from "@/app/db/schema"
@@ -53,6 +54,8 @@ export async function createDocumentRequest(input: unknown): Promise<DocumentReq
       metadata: {},
     })
     .returning()
+
+  captureServerEvent(session.userId, "document.requested", { priority: parsed.priority })
 
   return created as unknown as DocumentRequestRecord
 }

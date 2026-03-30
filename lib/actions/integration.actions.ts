@@ -1,6 +1,7 @@
 "use server"
 
 import * as Sentry from "@sentry/nextjs"
+import { captureServerEvent } from "@/lib/analytics/server"
 import { eq, and, count } from "drizzle-orm"
 import { db } from "@/app/db"
 import { integrations } from "@/app/db/schema"
@@ -121,6 +122,7 @@ export async function disconnectIntegration(id: string): Promise<void> {
         data: { integrationId: id, provider: integration.provider },
         level: "info",
       })
+      captureServerEvent(session.userId, "integration.disconnected", { provider: integration.provider })
       return
     }
 
@@ -139,6 +141,7 @@ export async function disconnectIntegration(id: string): Promise<void> {
       data: { integrationId: id, provider: integration.provider },
       level: "info",
     })
+    captureServerEvent(session.userId, "integration.disconnected", { provider: integration.provider })
   } catch (err) {
     Sentry.captureException(err instanceof Error ? err : new Error(String(err)))
     throw err
@@ -174,6 +177,8 @@ export async function exchangePlaidPublicToken(
       data: { integrationId: result.integrationId },
       level: "info",
     })
+    captureServerEvent(session.userId, "integration.connected", { provider: "plaid" })
+    captureServerEvent(session.userId, "plaid.link_completed", { integration_id: result.integrationId })
     return result
   } catch (err) {
     Sentry.captureException(err instanceof Error ? err : new Error(String(err)))
@@ -219,6 +224,7 @@ export async function connectStripeIntegration(): Promise<string> {
       message: "Stripe integration connected",
       level: "info",
     })
+    captureServerEvent(session.userId, "integration.connected", { provider: "stripe" })
     return result
   } catch (err) {
     Sentry.captureException(err instanceof Error ? err : new Error(String(err)))

@@ -1,5 +1,6 @@
 "use server"
 
+import { captureServerEvent } from "@/lib/analytics/server"
 import { eq, and, count } from "drizzle-orm"
 import { db } from "@/app/db"
 import { tasks, users, clients, entities, assets, documents } from "@/app/db/schema"
@@ -56,6 +57,8 @@ export async function createTask(input: unknown): Promise<TaskRecord> {
     })
     .returning()
 
+  captureServerEvent(session.userId, "task.created")
+
   return created as unknown as TaskRecord
 }
 
@@ -80,12 +83,16 @@ export async function updateTask(id: string, input: unknown): Promise<TaskRecord
     }
   }
 
-  if (parsed.status === "completed" && !existing.completedAt) {
+  const isNowCompleted = parsed.status === "completed" && !existing.completedAt
+  if (isNowCompleted) {
     setData.completedAt = new Date()
     setData.completedBy = session.memberId!
   }
 
   const [updated] = await db.update(tasks).set(setData).where(eq(tasks.id, id)).returning()
+
+  if (isNowCompleted) captureServerEvent(session.userId, "task.completed")
+
   return updated as unknown as TaskRecord
 }
 

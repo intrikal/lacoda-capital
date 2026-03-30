@@ -1,5 +1,6 @@
 "use server"
 
+import { captureServerEvent } from "@/lib/analytics/server"
 import { eq, and, count } from "drizzle-orm"
 import { db } from "@/app/db"
 import { benchmarks } from "@/app/db/schema"
@@ -52,6 +53,8 @@ export async function createBenchmark(input: unknown): Promise<BenchmarkRecord> 
       metadata: parsed.metadata ?? {},
     })
     .returning()
+
+  captureServerEvent(session.userId, "benchmark.created", { category: parsed.category })
 
   return created as unknown as BenchmarkRecord
 }
