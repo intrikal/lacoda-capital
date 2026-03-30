@@ -24,6 +24,8 @@
  * │   • Each event type (invoice.paid, invoice.payment_failed, etc.)      │
  * │   • Unhandled event type → 200 (acknowledge receipt, no crash)        │
  * │   • Missing metadata → silent skip (no crash)                         │
+ * │   • invoice.paid → billing record updated to "paid"                   │
+ * │   • invoice.payment_failed → billing record updated + alert           │
  * └─────────────────────────────────────────────────────────────────────────┘
  *
  * RELATED FILES:
@@ -34,16 +36,33 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 
 // ─── Mock DB before importing route ─────────────────────────────────────────
 
+const mockBillingFindFirst = vi.fn()
+const mockOrgMembersFindFirst = vi.fn()
+const mockUpdateSet = vi.fn().mockReturnValue({ where: vi.fn().mockResolvedValue([]) })
+const mockInsertValues = vi.fn().mockResolvedValue([])
+
 vi.mock("@/app/db", () => ({
-  db: { query: {}, select: vi.fn(), update: vi.fn(), insert: vi.fn() },
+  db: {
+    query: {
+      billingRecords: { findFirst: (...args: unknown[]) => mockBillingFindFirst(...args) },
+      orgMembers: { findFirst: (...args: unknown[]) => mockOrgMembersFindFirst(...args) },
+    },
+    select: vi.fn().mockReturnValue({ from: vi.fn().mockReturnValue({ where: vi.fn().mockResolvedValue([]) }) }),
+    update: vi.fn().mockReturnValue({ set: (...args: unknown[]) => { mockUpdateSet(...args); return { where: vi.fn().mockResolvedValue([]) } } }),
+    insert: vi.fn().mockReturnValue({ values: (...args: unknown[]) => { mockInsertValues(...args); return Promise.resolve([]) } }),
+  },
 }))
 
 vi.mock("drizzle-orm", () => ({
   eq: vi.fn(),
+  and: vi.fn(),
+  inArray: vi.fn(),
 }))
 
 vi.mock("@/app/db/schema", () => ({
-  integrations: {},
+  billingRecords: { id: "id" },
+  ledgerEvents: {},
+  orgMembers: { orgId: "orgId", role: "role" },
 }))
 
 // ─── Mock Stripe client ────────────────────────────────────────────────────
@@ -99,6 +118,10 @@ beforeEach(() => {
   process.env.STRIPE_WEBHOOK_SECRET = "whsec_test_secret_123"
   // Default: constructEvent parses body and returns the event (simulates valid signature)
   mockConstructEvent.mockImplementation((body: string) => JSON.parse(body))
+  // Default: no billing record found
+  mockBillingFindFirst.mockResolvedValue(null)
+  // Default: no org admin found
+  mockOrgMembersFindFirst.mockResolvedValue(null)
 })
 
 afterEach(() => {
@@ -224,6 +247,29 @@ describe("Stripe webhook — invoice.paid", () => {
     expect(json.received).toBe(true)
   })
 
+  it("updates billing record to paid when record exists", async () => {
+    mockBillingFindFirst.mockResolvedValue({
+      id: "billing-001",
+      orgId: "org-123",
+      clientId: "client-456",
+      status: "due",
+      metadata: {},
+    })
+    mockOrgMembersFindFirst.mockResolvedValue({ userId: "admin-user-1" })
+
+    const body = makeStripeEvent("invoice.paid", {
+      metadata: { lacoda_billing_record_id: "billing-001" },
+    })
+    const req = makeRequest(body, { "stripe-signature": "sig_test" })
+
+    const res = await POST(req as never)
+    expect(res.status).toBe(200)
+
+    expect(mockUpdateSet).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "paid" }),
+    )
+  })
+
   it("returns 200 even when metadata has no billing record id (silent skip)", async () => {
     const body = makeStripeEvent("invoice.paid", {
       metadata: {},
@@ -263,6 +309,28 @@ describe("Stripe webhook — invoice.payment_failed", () => {
     expect((await res.json()).received).toBe(true)
   })
 
+  it("updates billing record to due when payment fails", async () => {
+    mockBillingFindFirst.mockResolvedValue({
+      id: "billing-002",
+      orgId: "org-123",
+      clientId: "client-456",
+      status: "upcoming",
+      metadata: {},
+    })
+
+    const body = makeStripeEvent("invoice.payment_failed", {
+      metadata: { lacoda_billing_record_id: "billing-002" },
+    })
+    const req = makeRequest(body, { "stripe-signature": "sig_test" })
+
+    const res = await POST(req as never)
+    expect(res.status).toBe(200)
+
+    expect(mockUpdateSet).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "due" }),
+    )
+  })
+
   it("returns 200 for payment_failed without billing record id (silent skip)", async () => {
     const body = makeStripeEvent("invoice.payment_failed", {
       metadata: {},
@@ -299,11 +367,6 @@ describe("Stripe webhook — checkout.session.completed", () => {
 // ============================================================================
 
 describe("Stripe webhook — unhandled event types", () => {
-  /**
-   * Kevin, Stripe sends MANY event types. Our handler only cares about a few.
-   * For all others, we return 200 so Stripe stops retrying.
-   * Returning 4xx/5xx would make Stripe keep retrying for hours.
-   */
   it("returns 200 for customer.subscription.created (unhandled)", async () => {
     const body = makeStripeEvent("customer.subscription.created")
     const req = makeRequest(body, { "stripe-signature": "sig_test" })

@@ -3,28 +3,17 @@
  * TEST FILE: webhook-docusign.test.ts
  * ============================================================================
  *
- * Kevin, this tests the DocuSign webhook route handler at
- * /api/webhooks/docusign/route.ts.
+ * Tests the DocuSign webhook route handler at /api/webhooks/docusign/route.ts.
  *
- * ┌─────────────────────────────────────────────────────────────────────────┐
- * │ HOW DOCUSIGN WEBHOOKS WORK                                             │
- * ├─────────────────────────────────────────────────────────────────────────┤
- * │ 1. An envelope changes status (signed, declined, voided)              │
- * │ 2. DocuSign POSTs JSON to our /api/webhooks/docusign endpoint         │
- * │ 3. The POST includes an X-DocuSign-Signature-1 header (HMAC-SHA256    │
- * │    base64) which we verify before processing                          │
- * │ 4. We match on envelope status and take action                        │
- * │                                                                        │
- * │ We test:                                                               │
- * │   • Missing X-DocuSign-Signature-1 header → 400                      │
- * │   • Missing DOCUSIGN_WEBHOOK_SECRET env var → 500                    │
- * │   • Invalid signature → 400                                           │
- * │   • Tampered body → 400                                               │
- * │   • Invalid JSON → 400                                                │
- * │   • Each envelope status (completed, declined, voided)                │
- * │   • Unknown status → 200 (acknowledge, don't crash)                  │
- * │   • Realistic DocuSign payloads with recipients                       │
- * └─────────────────────────────────────────────────────────────────────────┘
+ * We test:
+ *   • Missing X-DocuSign-Signature-1 header → 400
+ *   • Missing DOCUSIGN_WEBHOOK_SECRET env var → 500
+ *   • Invalid signature → 400
+ *   • Tampered body → 400
+ *   • Invalid JSON → 400
+ *   • Each envelope status (completed, declined, voided)
+ *   • Unknown status → 200 (acknowledge, don't crash)
+ *   • Realistic DocuSign payloads with recipients
  *
  * RELATED FILES:
  *   app/api/webhooks/docusign/route.ts — route handler under test
@@ -35,16 +24,57 @@ import { createHmac } from "crypto"
 
 // ─── Mock DB before importing route ─────────────────────────────────────────
 
+const mockDocFindFirst = vi.fn()
+const mockIntegrationFindFirst = vi.fn()
+const mockOrgMembersFindFirst = vi.fn()
+const mockComplianceControlsFindMany = vi.fn()
+const mockUpdateSet = vi.fn().mockReturnValue({ where: vi.fn().mockResolvedValue([]) })
+const mockInsertValues = vi.fn().mockResolvedValue([])
+
 vi.mock("@/app/db", () => ({
-  db: { query: {}, select: vi.fn(), update: vi.fn(), insert: vi.fn() },
+  db: {
+    query: {
+      documents: { findFirst: (...args: unknown[]) => mockDocFindFirst(...args) },
+      integrations: { findFirst: (...args: unknown[]) => mockIntegrationFindFirst(...args) },
+      orgMembers: { findFirst: (...args: unknown[]) => mockOrgMembersFindFirst(...args) },
+      complianceControls: { findMany: (...args: unknown[]) => mockComplianceControlsFindMany(...args) },
+    },
+    select: vi.fn().mockReturnValue({ from: vi.fn().mockReturnValue({ where: vi.fn().mockResolvedValue([]) }) }),
+    update: vi.fn().mockReturnValue({ set: (...args: unknown[]) => { mockUpdateSet(...args); return { where: vi.fn().mockResolvedValue([]) } } }),
+    insert: vi.fn().mockReturnValue({ values: (...args: unknown[]) => { mockInsertValues(...args); return Promise.resolve([]) } }),
+  },
 }))
 
 vi.mock("drizzle-orm", () => ({
   eq: vi.fn(),
+  and: vi.fn(),
+  sql: vi.fn(),
+  inArray: vi.fn(),
 }))
 
 vi.mock("@/app/db/schema", () => ({
-  documents: {},
+  documents: { id: "id", orgId: "orgId", metadata: "metadata" },
+  integrations: { orgId: "orgId", provider: "provider", status: "status" },
+  ledgerEvents: {},
+  complianceEvidence: {},
+  orgMembers: { orgId: "orgId", role: "role" },
+}))
+
+// ─── Mock DocuSign and Supabase ─────────────────────────────────────────────
+
+vi.mock("@/lib/integrations/docusign", () => ({
+  downloadSignedDocument: vi.fn().mockResolvedValue(new ArrayBuffer(100)),
+  getAccessToken: vi.fn().mockResolvedValue("mock-access-token"),
+}))
+
+vi.mock("@/utils/supabase/server", () => ({
+  createClient: vi.fn().mockResolvedValue({
+    storage: {
+      from: vi.fn().mockReturnValue({
+        upload: vi.fn().mockResolvedValue({ error: null }),
+      }),
+    },
+  }),
 }))
 
 // ─── Import the handler ─────────────────────────────────────────────────────
@@ -77,14 +107,6 @@ function makeRequest(body: string): Request {
   })
 }
 
-/**
- * Build a DocuSign Connect webhook payload.
- *
- * Kevin, DocuSign's webhook JSON structure is deeply nested:
- *   event.data.envelopeSummary.status
- *
- * This helper saves us from writing that nesting every time.
- */
 function makeDocuSignEvent(
   status: string,
   overrides: {
@@ -122,6 +144,11 @@ const ORIGINAL_ENV = { ...process.env }
 beforeEach(() => {
   vi.clearAllMocks()
   process.env.DOCUSIGN_WEBHOOK_SECRET = TEST_WEBHOOK_SECRET
+  // Default: no document found (no envelope ID match)
+  mockDocFindFirst.mockResolvedValue(null)
+  mockIntegrationFindFirst.mockResolvedValue(null)
+  mockOrgMembersFindFirst.mockResolvedValue(null)
+  mockComplianceControlsFindMany.mockResolvedValue([])
 })
 
 afterEach(() => {
@@ -245,6 +272,37 @@ describe("DocuSign webhook — completed", () => {
     expect((await res.json()).received).toBe(true)
   })
 
+  it("updates document to verified when document is found", async () => {
+    mockDocFindFirst.mockResolvedValue({
+      id: "doc-001",
+      orgId: "org-123",
+      name: "Agreement.pdf",
+      storagePath: "docs/org-123/agreement.pdf",
+      clientId: "client-456",
+      metadata: { customFields: { docusign_envelope_id: "env-signed-001" } },
+    })
+    mockIntegrationFindFirst.mockResolvedValue({
+      id: "integ-ds-001",
+      orgId: "org-123",
+      provider: "docusign",
+      status: "connected",
+    })
+    mockOrgMembersFindFirst.mockResolvedValue({ userId: "admin-user-1" })
+
+    const body = makeDocuSignEvent("completed", {
+      envelopeId: "env-signed-001",
+      completedDateTime: "2024-06-15T15:00:00Z",
+    })
+    const req = makeRequest(body)
+
+    const res = await POST(req as never)
+    expect(res.status).toBe(200)
+
+    expect(mockUpdateSet).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "verified" }),
+    )
+  })
+
   it("handles completed envelope with multiple signers", async () => {
     const body = makeDocuSignEvent("completed", {
       envelopeId: "env-multi-sign",
@@ -293,6 +351,29 @@ describe("DocuSign webhook — declined", () => {
     expect((await res.json()).received).toBe(true)
   })
 
+  it("updates document to rejected when document is found", async () => {
+    mockDocFindFirst.mockResolvedValue({
+      id: "doc-002",
+      orgId: "org-123",
+      name: "NDA.pdf",
+      storagePath: "docs/org-123/nda.pdf",
+      metadata: {},
+    })
+
+    const body = makeDocuSignEvent("declined", {
+      envelopeId: "env-declined-001",
+      signers: [{ email: "a@b.com", name: "Test", status: "declined" }],
+    })
+    const req = makeRequest(body)
+
+    const res = await POST(req as never)
+    expect(res.status).toBe(200)
+
+    expect(mockUpdateSet).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "rejected" }),
+    )
+  })
+
   it("handles declined envelope with no signers array", async () => {
     const body = makeDocuSignEvent("declined", {
       envelopeId: "env-declined-002",
@@ -304,7 +385,6 @@ describe("DocuSign webhook — declined", () => {
   })
 
   it("handles declined envelope where decliner is not found in signers", async () => {
-    // All signers have status "sent" — none are "declined"
     const body = makeDocuSignEvent("declined", {
       signers: [
         { email: "a@example.com", name: "A", status: "sent" },
@@ -333,6 +413,26 @@ describe("DocuSign webhook — voided", () => {
     expect(res.status).toBe(200)
     expect((await res.json()).received).toBe(true)
   })
+
+  it("updates document to rejected when voided", async () => {
+    mockDocFindFirst.mockResolvedValue({
+      id: "doc-003",
+      orgId: "org-123",
+      name: "Contract.pdf",
+      storagePath: "docs/org-123/contract.pdf",
+      metadata: {},
+    })
+
+    const body = makeDocuSignEvent("voided", { envelopeId: "env-voided-001" })
+    const req = makeRequest(body)
+
+    const res = await POST(req as never)
+    expect(res.status).toBe(200)
+
+    expect(mockUpdateSet).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "rejected" }),
+    )
+  })
 })
 
 // ============================================================================
@@ -340,11 +440,6 @@ describe("DocuSign webhook — voided", () => {
 // ============================================================================
 
 describe("DocuSign webhook — unhandled statuses", () => {
-  /**
-   * Kevin, DocuSign has statuses like "sent", "delivered", "created",
-   * "autoResponded", etc. that our route doesn't explicitly handle.
-   * The handler should return 200 for all of them so DocuSign stops retrying.
-   */
   it("returns 200 for 'sent' status (not handled)", async () => {
     const body = makeDocuSignEvent("sent")
     const req = makeRequest(body)

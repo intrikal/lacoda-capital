@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from "next/server"
 import { createHmac, timingSafeEqual } from "crypto"
 import * as Sentry from "@sentry/nextjs"
 import { db } from "@/app/db"
-import { integrations } from "@/app/db/schema"
+import { integrations, assets, valuations, ledgerEvents } from "@/app/db/schema"
 import { eq } from "drizzle-orm"
 import { dispatchAlert } from "@/lib/alerts"
+import { getAccountBalances, getInvestmentHoldings } from "@/lib/integrations/plaid"
 
 /**
  * Plaid Webhook Handler
@@ -79,17 +80,68 @@ export async function POST(req: NextRequest) {
     switch (webhook_type) {
       case "TRANSACTIONS": {
         switch (webhook_code) {
-          case "SYNC_UPDATES_AVAILABLE":
-            // New transactions available — trigger a sync
+          case "SYNC_UPDATES_AVAILABLE": {
             console.log(
               `[plaid-webhook] New transactions for ${integration.name} (${item_id})`,
             )
-            // TODO: Trigger transaction sync and update valuations
+
+            try {
+              const accounts = await getAccountBalances(integration.id)
+
+              for (const account of accounts) {
+                if (account.balances.current == null) continue
+
+                const [asset] = await db
+                  .select()
+                  .from(assets)
+                  .where(eq(assets.externalId, account.account_id))
+
+                if (!asset) continue
+
+                const now = new Date()
+                await db.insert(valuations).values({
+                  assetId: asset.id,
+                  asOfDate: now,
+                  value: String(account.balances.current),
+                  currency: account.balances.iso_currency_code ?? "USD",
+                  source: "plaid",
+                  notes: `Auto-synced from ${integration.name} (${account.name})`,
+                })
+
+                await db
+                  .update(assets)
+                  .set({
+                    currentValue: String(account.balances.current),
+                    valuedAt: now,
+                  })
+                  .where(eq(assets.id, asset.id))
+
+                if (integration.connectedBy) {
+                  await db.insert(ledgerEvents).values({
+                    orgId: integration.orgId,
+                    actorUserId: integration.connectedBy,
+                    targetType: "asset",
+                    targetId: asset.id,
+                    action: "asset_valued",
+                    payload: {
+                      previousValue: asset.currentValue ? parseFloat(asset.currentValue) : undefined,
+                      newValue: account.balances.current,
+                      asOfDate: now.toISOString(),
+                      reason: "Plaid transaction sync",
+                    },
+                  })
+                }
+              }
+            } catch (syncErr) {
+              console.error(`[plaid-webhook] Balance sync failed for ${item_id}:`, syncErr)
+            }
+
             await db
               .update(integrations)
-              .set({ statusMessage: `New transactions available` })
+              .set({ statusMessage: `New transactions available`, lastSyncAt: new Date() })
               .where(eq(integrations.id, integration.id))
             break
+          }
 
           case "INITIAL_UPDATE":
             console.log(`[plaid-webhook] Initial transaction data ready for ${item_id}`)
@@ -105,7 +157,60 @@ export async function POST(req: NextRequest) {
       case "HOLDINGS": {
         if (webhook_code === "DEFAULT_UPDATE") {
           console.log(`[plaid-webhook] Holdings updated for ${integration.name} (${item_id})`)
-          // TODO: Fetch new holdings and update asset valuations
+
+          try {
+            const { holdings, securities } = await getInvestmentHoldings(integration.id)
+            const securityMap = new Map(securities.map((s) => [s.security_id, s]))
+
+            for (const holding of holdings) {
+              const security = securityMap.get(holding.security_id)
+              const externalId = holding.security_id
+
+              const [asset] = await db
+                .select()
+                .from(assets)
+                .where(eq(assets.externalId, externalId))
+
+              if (!asset) continue
+
+              const now = new Date()
+              await db.insert(valuations).values({
+                assetId: asset.id,
+                asOfDate: now,
+                value: String(holding.institution_value),
+                currency: holding.iso_currency_code ?? "USD",
+                source: "plaid",
+                notes: `Holdings update: ${security?.name ?? security?.ticker_symbol ?? externalId}`,
+              })
+
+              await db
+                .update(assets)
+                .set({
+                  currentValue: String(holding.institution_value),
+                  valuedAt: now,
+                })
+                .where(eq(assets.id, asset.id))
+
+              if (integration.connectedBy) {
+                await db.insert(ledgerEvents).values({
+                  orgId: integration.orgId,
+                  actorUserId: integration.connectedBy,
+                  targetType: "asset",
+                  targetId: asset.id,
+                  action: "asset_valued",
+                  payload: {
+                    previousValue: asset.currentValue ? parseFloat(asset.currentValue) : undefined,
+                    newValue: holding.institution_value,
+                    asOfDate: now.toISOString(),
+                    reason: "Plaid holdings update",
+                  },
+                })
+              }
+            }
+          } catch (holdingsErr) {
+            console.error(`[plaid-webhook] Holdings sync failed for ${item_id}:`, holdingsErr)
+          }
+
           await db
             .update(integrations)
             .set({ statusMessage: "Holdings update available", lastSyncAt: new Date() })

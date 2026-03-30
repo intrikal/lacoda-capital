@@ -135,9 +135,12 @@ async function createInAppNotifications(alert: AppAlert): Promise<void> {
       message: alert.description,
       link: alert.actionUrl ?? null,
       payload: {
-        severity: alert.severity,
-        source: alert.source,
-        ...(alert.metadata ?? {}),
+        href: alert.actionUrl,
+        metadata: {
+          severity: alert.severity,
+          source: alert.source,
+          ...(alert.metadata ?? {}),
+        },
       },
     }))
 

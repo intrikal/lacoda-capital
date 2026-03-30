@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import * as Sentry from "@sentry/nextjs"
 import { db } from "@/app/db"
-import { integrations } from "@/app/db/schema"
-import { eq } from "drizzle-orm"
+import { billingRecords, ledgerEvents, orgMembers } from "@/app/db/schema"
+import { eq, and, inArray } from "drizzle-orm"
 import { dispatchAlert } from "@/lib/alerts"
 import { getStripe } from "@/lib/stripe/client"
 
@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
   let event: { type: string; data: { object: Record<string, unknown> } }
 
   try {
-    event = stripe.webhooks.constructEvent(body, signature, webhookSecret) as typeof event
+    event = stripe.webhooks.constructEvent(body, signature, webhookSecret) as unknown as typeof event
   } catch {
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 })
   }
@@ -64,9 +64,37 @@ export async function POST(req: NextRequest) {
         const billingRecordId = (invoice.metadata as Record<string, string>)?.lacoda_billing_record_id
 
         if (billingRecordId) {
-          // Update billing record status to "paid"
-          // TODO: Import and update billing_records table when billing actions are wired
-          console.log(`[stripe-webhook] Invoice paid for billing record: ${billingRecordId}`)
+          const record = await db.query.billingRecords.findFirst({
+            where: eq(billingRecords.id, billingRecordId),
+          })
+
+          if (record) {
+            const today = new Date().toISOString().split("T")[0]
+            await db
+              .update(billingRecords)
+              .set({ status: "paid", paidDate: today, updatedAt: new Date() })
+              .where(eq(billingRecords.id, billingRecordId))
+
+            const admin = await db.query.orgMembers.findFirst({
+              where: and(
+                eq(orgMembers.orgId, record.orgId),
+                inArray(orgMembers.role, ["admin"]),
+              ),
+            })
+            if (admin) {
+              await db.insert(ledgerEvents).values({
+                orgId: record.orgId,
+                actorUserId: admin.userId,
+                targetType: "client",
+                targetId: record.clientId,
+                action: "updated",
+                payload: {
+                  reason: "Stripe invoice paid",
+                  after: { billingRecordId, status: "paid", paidDate: today },
+                },
+              })
+            }
+          }
         }
         break
       }
@@ -76,7 +104,53 @@ export async function POST(req: NextRequest) {
         const billingRecordId = (invoice.metadata as Record<string, string>)?.lacoda_billing_record_id
 
         if (billingRecordId) {
-          console.log(`[stripe-webhook] Payment failed for billing record: ${billingRecordId}`)
+          const record = await db.query.billingRecords.findFirst({
+            where: eq(billingRecords.id, billingRecordId),
+          })
+
+          if (record) {
+            await db
+              .update(billingRecords)
+              .set({
+                status: "due",
+                updatedAt: new Date(),
+                metadata: {
+                  ...(record.metadata as Record<string, unknown> ?? {}),
+                  paymentFailed: true,
+                  failedAt: new Date().toISOString(),
+                },
+              })
+              .where(eq(billingRecords.id, billingRecordId))
+
+            const failAdmin = await db.query.orgMembers.findFirst({
+              where: and(
+                eq(orgMembers.orgId, record.orgId),
+                inArray(orgMembers.role, ["admin"]),
+              ),
+            })
+            if (failAdmin) {
+              await db.insert(ledgerEvents).values({
+                orgId: record.orgId,
+                actorUserId: failAdmin.userId,
+                targetType: "client",
+                targetId: record.clientId,
+                action: "updated",
+                payload: {
+                  reason: "Stripe payment failed",
+                  after: { billingRecordId, status: "due", paymentFailed: true },
+                },
+              })
+            }
+
+            dispatchAlert({
+              title: "Payment failed for billing record",
+              description: `Payment failed for invoice ${billingRecordId}. The invoice has been marked as due.`,
+              severity: "critical",
+              source: "stripe-webhook",
+              orgId: record.orgId,
+              actionUrl: "/app/billing",
+            }).catch(() => {})
+          }
         }
         break
       }
