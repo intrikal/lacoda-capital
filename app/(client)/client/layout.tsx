@@ -21,6 +21,7 @@
 "use client"
 
 import * as React from "react"
+import * as Sentry from "@sentry/nextjs"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { TooltipProvider, Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
@@ -41,7 +42,7 @@ import {
   LogOut,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { logoutAction } from "@/lib/actions/auth.actions"
+import { logoutAction, getSessionUserId } from "@/lib/actions/auth.actions"
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Navigation structure — grouped for wealth management client UX
@@ -192,6 +193,13 @@ function NavLink({ item, isActive, collapsed }: NavLinkProps) {
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = React.useState(false)
   const pathname = usePathname()
+
+  React.useEffect(() => {
+    getSessionUserId().then((userId) => {
+      if (userId) Sentry.setUser({ id: userId })
+    })
+    return () => { Sentry.setUser(null) }
+  }, [])
 
   const sidebarWidth = collapsed ? "w-[68px]" : "w-[240px]"
   const mainMargin = collapsed ? "ml-[68px]" : "ml-[240px]"

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import * as Sentry from "@sentry/nextjs"
 import { db } from "@/app/db"
 import { integrations } from "@/app/db/schema"
 import { eq } from "drizzle-orm"
@@ -152,9 +153,21 @@ export async function POST(req: NextRequest) {
         console.log(`[plaid-webhook] Unhandled: ${webhook_type}.${webhook_code}`)
     }
 
+    Sentry.addBreadcrumb({
+      category: "webhook.plaid",
+      message: `Plaid webhook processed: ${webhook_type}.${webhook_code}`,
+      data: { itemId: item_id },
+      level: "info",
+    })
     return NextResponse.json({ received: true })
   } catch (err) {
     console.error("[plaid-webhook] Processing error:", err)
+
+    Sentry.withScope((scope) => {
+      scope.setTag("webhook", "plaid")
+      scope.setContext("webhook", { webhookType: webhook_type, webhookCode: webhook_code, itemId: item_id })
+      scope.captureException(err instanceof Error ? err : new Error(String(err)))
+    })
 
     dispatchAlert({
       title: "Plaid webhook processing failed",

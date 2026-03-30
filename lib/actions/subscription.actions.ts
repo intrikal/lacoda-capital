@@ -1,5 +1,6 @@
 "use server"
 
+import * as Sentry from "@sentry/nextjs"
 import { eq, and, count, sql } from "drizzle-orm"
 import { db } from "@/app/db"
 import { subscriptions, orgMembers, assets, documents, entities, clients } from "@/app/db/schema"
@@ -172,29 +173,34 @@ export async function createCheckoutSession(input: {
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"
 
-  const checkoutSession = await stripe.checkout.sessions.create({
-    customer: customerId,
-    mode: "subscription",
-    line_items: [{ price: priceId, quantity: 1 }],
-    subscription_data: {
-      trial_period_days: 14,
-      metadata: { orgId: session.orgId },
-    },
-    success_url: `${siteUrl}/app/settings/billing?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${siteUrl}/app/settings/billing?checkout=cancelled`,
-    metadata: { orgId: session.orgId, plan, interval },
-  })
+  try {
+    const checkoutSession = await stripe.checkout.sessions.create({
+      customer: customerId,
+      mode: "subscription",
+      line_items: [{ price: priceId, quantity: 1 }],
+      subscription_data: {
+        trial_period_days: 14,
+        metadata: { orgId: session.orgId },
+      },
+      success_url: `${siteUrl}/app/settings/billing?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${siteUrl}/app/settings/billing?checkout=cancelled`,
+      metadata: { orgId: session.orgId, plan, interval },
+    })
 
-  await createLedgerEvent({
-    orgId: session.orgId,
-    actorId: session.userId,
-    action: "created",
-    targetType: "org",
-    targetId: session.orgId,
-    metadata: { action: "checkout_session_created", plan, interval },
-  })
+    await createLedgerEvent({
+      orgId: session.orgId,
+      actorId: session.userId,
+      action: "created",
+      targetType: "org",
+      targetId: session.orgId,
+      metadata: { action: "checkout_session_created", plan, interval },
+    })
 
-  return { url: checkoutSession.url! }
+    return { url: checkoutSession.url! }
+  } catch (err) {
+    Sentry.captureException(err instanceof Error ? err : new Error(String(err)))
+    throw err
+  }
 }
 
 /**
@@ -214,12 +220,16 @@ export async function createBillingPortalSession(): Promise<{ url: string }> {
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"
 
-  const portalSession = await stripe.billingPortal.sessions.create({
-    customer: sub.stripeCustomerId,
-    return_url: `${siteUrl}/app/settings/billing`,
-  })
-
-  return { url: portalSession.url }
+  try {
+    const portalSession = await stripe.billingPortal.sessions.create({
+      customer: sub.stripeCustomerId,
+      return_url: `${siteUrl}/app/settings/billing`,
+    })
+    return { url: portalSession.url }
+  } catch (err) {
+    Sentry.captureException(err instanceof Error ? err : new Error(String(err)))
+    throw err
+  }
 }
 
 // ─── Plan Changes ─────────────────────────────────────────────────────────────
@@ -239,26 +249,31 @@ export async function cancelSubscription(): Promise<{ success: boolean }> {
     throw new Error("No active subscription found")
   }
 
-  // Cancel at period end (not immediately)
-  await stripe.subscriptions.update(sub.stripeSubscriptionId, {
-    cancel_at_period_end: true,
-  })
+  try {
+    // Cancel at period end (not immediately)
+    await stripe.subscriptions.update(sub.stripeSubscriptionId, {
+      cancel_at_period_end: true,
+    })
 
-  await db
-    .update(subscriptions)
-    .set({ cancelAtPeriodEnd: "true", status: "cancelling" })
-    .where(eq(subscriptions.orgId, session.orgId))
+    await db
+      .update(subscriptions)
+      .set({ cancelAtPeriodEnd: "true", status: "cancelling" })
+      .where(eq(subscriptions.orgId, session.orgId))
 
-  await createLedgerEvent({
-    orgId: session.orgId,
-    actorId: session.userId,
-    action: "updated",
-    targetType: "org",
-    targetId: session.orgId,
-    metadata: { action: "subscription_cancel_requested", plan: sub.plan },
-  })
+    await createLedgerEvent({
+      orgId: session.orgId,
+      actorId: session.userId,
+      action: "updated",
+      targetType: "org",
+      targetId: session.orgId,
+      metadata: { action: "subscription_cancel_requested", plan: sub.plan },
+    })
 
-  return { success: true }
+    return { success: true }
+  } catch (err) {
+    Sentry.captureException(err instanceof Error ? err : new Error(String(err)))
+    throw err
+  }
 }
 
 /**
@@ -276,25 +291,30 @@ export async function resumeSubscription(): Promise<{ success: boolean }> {
     throw new Error("No active subscription found")
   }
 
-  await stripe.subscriptions.update(sub.stripeSubscriptionId, {
-    cancel_at_period_end: false,
-  })
+  try {
+    await stripe.subscriptions.update(sub.stripeSubscriptionId, {
+      cancel_at_period_end: false,
+    })
 
-  await db
-    .update(subscriptions)
-    .set({ cancelAtPeriodEnd: "false", status: "active" })
-    .where(eq(subscriptions.orgId, session.orgId))
+    await db
+      .update(subscriptions)
+      .set({ cancelAtPeriodEnd: "false", status: "active" })
+      .where(eq(subscriptions.orgId, session.orgId))
 
-  await createLedgerEvent({
-    orgId: session.orgId,
-    actorId: session.userId,
-    action: "updated",
-    targetType: "org",
-    targetId: session.orgId,
-    metadata: { action: "subscription_cancel_reversed", plan: sub.plan },
-  })
+    await createLedgerEvent({
+      orgId: session.orgId,
+      actorId: session.userId,
+      action: "updated",
+      targetType: "org",
+      targetId: session.orgId,
+      metadata: { action: "subscription_cancel_reversed", plan: sub.plan },
+    })
 
-  return { success: true }
+    return { success: true }
+  } catch (err) {
+    Sentry.captureException(err instanceof Error ? err : new Error(String(err)))
+    throw err
+  }
 }
 
 /**
@@ -310,27 +330,32 @@ export async function getInvoices(limit = 12): Promise<InvoiceItem[]> {
 
   if (!sub?.stripeCustomerId) return []
 
-  const invoices = await stripe.invoices.list({
-    customer: sub.stripeCustomerId,
-    limit,
-    status: "paid",
-  })
+  try {
+    const invoices = await stripe.invoices.list({
+      customer: sub.stripeCustomerId,
+      limit,
+      status: "paid",
+    })
 
-  return invoices.data.map((inv) => ({
-    id: inv.id,
-    amountPaid: (inv.amount_paid ?? 0) / 100,
-    currency: inv.currency?.toUpperCase() ?? "USD",
-    status: inv.status ?? "draft",
-    periodStart: inv.period_start
-      ? new Date(inv.period_start * 1000).toISOString()
-      : null,
-    periodEnd: inv.period_end
-      ? new Date(inv.period_end * 1000).toISOString()
-      : null,
-    invoicePdf: inv.invoice_pdf ?? null,
-    hostedUrl: inv.hosted_invoice_url ?? null,
-    createdAt: new Date(inv.created * 1000).toISOString(),
-  }))
+    return invoices.data.map((inv) => ({
+      id: inv.id,
+      amountPaid: (inv.amount_paid ?? 0) / 100,
+      currency: inv.currency?.toUpperCase() ?? "USD",
+      status: inv.status ?? "draft",
+      periodStart: inv.period_start
+        ? new Date(inv.period_start * 1000).toISOString()
+        : null,
+      periodEnd: inv.period_end
+        ? new Date(inv.period_end * 1000).toISOString()
+        : null,
+      invoicePdf: inv.invoice_pdf ?? null,
+      hostedUrl: inv.hosted_invoice_url ?? null,
+      createdAt: new Date(inv.created * 1000).toISOString(),
+    }))
+  } catch (err) {
+    Sentry.captureException(err instanceof Error ? err : new Error(String(err)))
+    throw err
+  }
 }
 
 export interface InvoiceItem {

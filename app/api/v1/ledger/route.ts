@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import * as Sentry from "@sentry/nextjs"
 import { eq, and, desc, gte, lte, like } from "drizzle-orm"
 import { db } from "@/app/db"
 import { ledgerEvents, users } from "@/app/db/schema"
@@ -39,26 +40,34 @@ export async function GET(request: NextRequest) {
     conditions.push(lte(ledgerEvents.createdAt, new Date(before)))
   }
 
-  const allEvents = await db.query.ledgerEvents.findMany({
-    where: and(...conditions),
-    orderBy: (e, { desc: d }) => [d(e.createdAt)],
-  })
+  try {
+    const allEvents = await db.query.ledgerEvents.findMany({
+      where: and(...conditions),
+      orderBy: (e, { desc: d }) => [d(e.createdAt)],
+    })
 
-  const paged = allEvents.slice(offsetParam, offsetParam + limitParam)
+    const paged = allEvents.slice(offsetParam, offsetParam + limitParam)
 
-  return apiResponse({
-    data: paged.map((e) => ({
-      id: e.id,
-      action: e.action,
-      target_type: e.targetType,
-      target_id: e.targetId,
-      actor_user_id: e.actorUserId,
-      payload: e.payload,
-      ip_address: e.ipAddress,
-      created_at: e.createdAt.toISOString(),
-    })),
-    total: allEvents.length,
-    limit: limitParam,
-    offset: offsetParam,
-  })
+    return apiResponse({
+      data: paged.map((e) => ({
+        id: e.id,
+        action: e.action,
+        target_type: e.targetType,
+        target_id: e.targetId,
+        actor_user_id: e.actorUserId,
+        payload: e.payload,
+        ip_address: e.ipAddress,
+        created_at: e.createdAt.toISOString(),
+      })),
+      total: allEvents.length,
+      limit: limitParam,
+      offset: offsetParam,
+    })
+  } catch (err) {
+    Sentry.withScope((scope) => {
+      scope.setTag("api_route", "/api/v1/ledger")
+      scope.captureException(err instanceof Error ? err : new Error(String(err)))
+    })
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
 }

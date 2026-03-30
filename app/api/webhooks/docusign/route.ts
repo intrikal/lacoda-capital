@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import * as Sentry from "@sentry/nextjs"
 import { db } from "@/app/db"
 import { documents } from "@/app/db/schema"
 import { eq } from "drizzle-orm"
@@ -100,9 +101,21 @@ export async function POST(req: NextRequest) {
         console.log(`[docusign-webhook] Unhandled status: ${status} for envelope ${envelopeId}`)
     }
 
+    Sentry.addBreadcrumb({
+      category: "webhook.docusign",
+      message: `DocuSign envelope ${status}: ${envelopeId}`,
+      data: { envelopeId, status },
+      level: "info",
+    })
     return NextResponse.json({ received: true })
   } catch (err) {
     console.error("[docusign-webhook] Processing error:", err)
+
+    Sentry.withScope((scope) => {
+      scope.setTag("webhook", "docusign")
+      scope.setContext("webhook", { envelopeId: event.data?.envelopeId, status: event.data?.envelopeSummary?.status })
+      scope.captureException(err instanceof Error ? err : new Error(String(err)))
+    })
 
     dispatchAlert({
       title: "DocuSign webhook processing failed",

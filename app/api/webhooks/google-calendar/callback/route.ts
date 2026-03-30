@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import * as Sentry from "@sentry/nextjs"
 import { exchangeAuthCode, connectGoogleCalendar } from "@/lib/integrations/google-calendar"
 
 /**
@@ -44,9 +45,20 @@ export async function GET(req: NextRequest) {
     // so we extract orgId from state.
     await connectGoogleCalendar(state, state, tokens)
 
+    Sentry.addBreadcrumb({
+      category: "integration",
+      message: "Google Calendar connected via OAuth callback",
+      data: { orgId: state },
+      level: "info",
+    })
     return NextResponse.redirect(`${integrationsUrl}?success=google_calendar`)
   } catch (err) {
     console.error("[google-calendar-callback] Error:", err)
+    Sentry.withScope((scope) => {
+      scope.setTag("webhook", "google-calendar-callback")
+      scope.setContext("webhook", { orgId: state })
+      scope.captureException(err instanceof Error ? err : new Error(String(err)))
+    })
     return NextResponse.redirect(`${integrationsUrl}?error=google_calendar_failed`)
   }
 }
