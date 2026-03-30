@@ -1,16 +1,22 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
+import { headers, cookies } from "next/headers";
 import { eq } from "drizzle-orm";
 import { createClient } from "@/utils/supabase/server";
 import { db } from "@/app/db";
 import { orgMembers, orgs, users } from "@/app/db/schema";
+import { checkRateLimit, AUTH_RATE_LIMITS } from "@/lib/rate-limiter";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type ActionResult = { error: string } | { success: true };
 type OAuthResult = { error: string } | { url: string };
+
+async function getClientIp(): Promise<string> {
+  const h = await headers();
+  return h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+}
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
 
@@ -43,6 +49,11 @@ export async function loginAction(
   password: string,
   next?: string
 ): Promise<ActionResult> {
+  const rl = await checkRateLimit(`login:${email}`, AUTH_RATE_LIMITS.login);
+  if (!rl.allowed) {
+    return { error: "Too many attempts. Please try again later." };
+  }
+
   const supabase = await createClient();
 
   const { data, error } = await supabase.auth.signInWithPassword({
@@ -91,6 +102,12 @@ export async function signupAction(
   password: string,
   fullName: string
 ): Promise<ActionResult & { emailConfirmationRequired?: boolean }> {
+  const ip = await getClientIp();
+  const rl = await checkRateLimit(`signup:${ip}`, AUTH_RATE_LIMITS.signup);
+  if (!rl.allowed) {
+    return { error: "Too many attempts. Please try again later." };
+  }
+
   const supabase = await createClient();
 
   const { data, error } = await supabase.auth.signUp({
@@ -241,6 +258,11 @@ export async function demoLoginAction(
 // ─── Forgot / Reset password ──────────────────────────────────────────────────
 
 export async function forgotPasswordAction(email: string): Promise<ActionResult> {
+  const rl = await checkRateLimit(`forgot:${email}`, AUTH_RATE_LIMITS.forgotPassword);
+  if (!rl.allowed) {
+    return { error: "Too many attempts. Please try again later." };
+  }
+
   const supabase = await createClient();
 
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
