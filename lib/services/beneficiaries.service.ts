@@ -4,17 +4,30 @@
  * beneficiaries.service.ts
  *
  * Service layer for the client's estate planning beneficiary designations.
- * No beneficiaries table exists in the DB schema. Data is kept as static seed below.
+ * Queries the beneficiaries table via Drizzle ORM.
  */
 
+import { db } from "@/app/db"
+import { beneficiaries } from "@/app/db/schema"
+import { eq, isNull } from "drizzle-orm"
 import type { Beneficiary } from "@/lib/types/mock"
 
-const seedBeneficiaries: Beneficiary[] = [
-  { id: "ben-001", name: "Margaret Blackwood", relationship: "Spouse", designation: "primary", percentage: 60, accounts: ["Investment Account", "Retirement IRA"], ssnLast4: "4521", dateOfBirth: "1975-03-12", phone: "+1-212-555-1001", email: "margaret@blackwood.com", verified: true },
-  { id: "ben-002", name: "James Blackwood Jr.", relationship: "Child", designation: "primary", percentage: 20, accounts: ["Investment Account"], ssnLast4: "7834", dateOfBirth: "2001-07-22", email: "james.jr@blackwood.com", verified: true },
-  { id: "ben-003", name: "Sophie Blackwood", relationship: "Child", designation: "primary", percentage: 20, accounts: ["Investment Account"], ssnLast4: "9102", dateOfBirth: "2004-11-05", verified: false },
-  { id: "ben-004", name: "Blackwood Family Trust", relationship: "Trust", designation: "contingent", percentage: 100, accounts: ["Investment Account", "Retirement IRA"], verified: true },
-]
+/** Map a DB beneficiaries row to the Beneficiary mock type shape. */
+function toBeneficiary(row: typeof beneficiaries.$inferSelect): Beneficiary {
+  return {
+    id: row.id,
+    name: row.name,
+    relationship: row.relationship,
+    designation: row.designation as Beneficiary["designation"],
+    percentage: row.percentage,
+    accounts: (row.accounts ?? []) as string[],
+    ssnLast4: row.ssnLast4 ?? undefined,
+    dateOfBirth: row.dateOfBirth ?? undefined,
+    phone: row.phone ?? undefined,
+    email: row.email ?? undefined,
+    verified: row.verified,
+  }
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Read Operations
@@ -24,24 +37,32 @@ const seedBeneficiaries: Beneficiary[] = [
  * Fetch all beneficiaries for the current client.
  */
 export async function getBeneficiaries(): Promise<Beneficiary[]> {
-  return [...seedBeneficiaries]
+  const rows = await db
+    .select()
+    .from(beneficiaries)
+    .where(isNull(beneficiaries.deletedAt))
+  return rows.map(toBeneficiary)
 }
 
 /**
  * Fetch a single beneficiary by ID.
  */
 export async function getBeneficiaryById(id: string): Promise<Beneficiary | undefined> {
-  return seedBeneficiaries.find((b) => b.id === id)
+  const rows = await db
+    .select()
+    .from(beneficiaries)
+    .where(eq(beneficiaries.id, id))
+  return rows[0] ? toBeneficiary(rows[0]) : undefined
 }
 
 /**
  * Computed allocation summary — verifies primary percentages sum to 100.
  */
 export async function getBeneficiarySummary() {
-  const beneficiaries = seedBeneficiaries
-  const primary = beneficiaries.filter((b) => b.designation === "primary")
-  const contingent = beneficiaries.filter((b) => b.designation === "contingent")
-  const unverified = beneficiaries.filter((b) => !b.verified)
+  const all = await getBeneficiaries()
+  const primary = all.filter((b) => b.designation === "primary")
+  const contingent = all.filter((b) => b.designation === "contingent")
+  const unverified = all.filter((b) => !b.verified)
   const primaryTotal = primary.reduce((sum, b) => sum + b.percentage, 0)
   const contingentTotal = contingent.reduce((sum, b) => sum + b.percentage, 0)
 

@@ -768,3 +768,49 @@ export const capitalEventStatusEnum = pgEnum("capital_event_status", [
   "received",
   "overdue",
 ]);
+
+// ============================================================================
+// Beneficiaries (Estate Planning)
+// ============================================================================
+
+/**
+ * Beneficiary designation — whether the beneficiary is primary or contingent.
+ * - primary: receives assets directly upon the account holder's passing
+ * - contingent: receives assets only if all primary beneficiaries predecease
+ */
+export const beneficiaryDesignationEnum = pgEnum("beneficiary_designation", [
+  "primary",
+  "contingent",
+]);
+
+// ============================================================================
+// Client Transfers (Fund Movements)
+// ============================================================================
+
+/**
+ * Transfer type — the kind of fund movement the client initiated.
+ * - deposit: funds into an investment account from an external bank
+ * - withdrawal: funds out of an investment account to an external bank
+ * - transfer: internal movement between two investment accounts
+ */
+export const transferTypeEnum = pgEnum("transfer_type", [
+  "deposit",
+  "withdrawal",
+  "transfer",
+]);
+
+/**
+ * Transfer status — lifecycle of a client-initiated fund transfer.
+ * - pending: request created, awaiting advisor approval
+ * - processing: approved and being executed by custodian
+ * - completed: funds have settled in the destination account
+ * - cancelled: request was cancelled before processing
+ * - failed: processing error (e.g. insufficient funds, rejected by custodian)
+ */
+export const transferStatusEnum = pgEnum("transfer_status", [
+  "pending",
+  "processing",
+  "completed",
+  "cancelled",
+  "failed",
+]);
