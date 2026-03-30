@@ -168,8 +168,15 @@ export async function logPortalAccess(params: {
   email: string
   ipAddress?: string
 }) {
-  // TODO: audit logging for external portal access (actorUserId is required but external users have none)
-  void params
+  await createLedgerEvent({
+    orgId: params.orgId,
+    actorId: null,
+    action: "portal_accessed",
+    targetType: "stakeholder_portal",
+    targetId: params.portalId,
+    metadata: { actorType: "portal_token", accessedBy: params.email },
+    ipAddress: params.ipAddress,
+  })
 }
 
 // ─── Send magic link ────────────────────────────────────────────────────────

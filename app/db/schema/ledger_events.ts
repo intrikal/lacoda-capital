@@ -372,9 +372,9 @@ export const ledgerEvents = pgTable(
      * │   └─────────────────────────────────────────────────────────────┘   │
      * └─────────────────────────────────────────────────────────────────────┘
      */
-    // Who performed the action — REQUIRED for compliance ("WHO did WHAT")
+    // Who performed the action. NULL for non-user actors (API keys, portal
+    // tokens) — in those cases the actor identity is stored in the payload.
     actorUserId: uuid("actor_user_id")
-      .notNull()
       .references(() => users.id, { onDelete: "restrict" }),
 
     /**

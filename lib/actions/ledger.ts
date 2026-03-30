@@ -11,7 +11,7 @@ import { ledgerEvents } from "@/app/db/schema"
  */
 export async function createLedgerEvent(params: {
   orgId: string
-  actorId: string
+  actorId: string | null
   action: typeof ledgerEvents.$inferInsert["action"]
   targetType: typeof ledgerEvents.$inferInsert["targetType"]
   targetId: string
@@ -20,7 +20,9 @@ export async function createLedgerEvent(params: {
 }) {
   const { orgId, actorId, action, targetType, targetId, metadata, ipAddress } = params
 
-  if (!actorId) throw new Error("actorId is required for audit logging")
+  if (actorId === null && !metadata?.actorType) {
+    throw new Error("actorId or metadata.actorType is required for audit logging")
+  }
 
   // Strip sensitive fields from metadata
   const sanitized = metadata ? sanitizeMetadata(metadata) : {}
