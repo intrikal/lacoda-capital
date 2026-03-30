@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { createHmac, timingSafeEqual } from "crypto"
 import * as Sentry from "@sentry/nextjs"
 import { db } from "@/app/db"
 import { documents } from "@/app/db/schema"
@@ -25,8 +26,28 @@ import { dispatchAlert } from "@/lib/alerts"
 export async function POST(req: NextRequest) {
   const body = await req.text()
 
-  // TODO: Verify X-DocuSign-Signature-1 header using HMAC
-  // See: https://developers.docusign.com/platform/webhooks/connect/hmac/
+  // Verify X-DocuSign-Signature-1 header using HMAC-SHA256
+  const docusignSignature = req.headers.get("x-docusign-signature-1")
+  if (!docusignSignature) {
+    return NextResponse.json({ error: "Missing X-DocuSign-Signature-1 header" }, { status: 400 })
+  }
+
+  const webhookSecret = process.env.DOCUSIGN_WEBHOOK_SECRET
+  if (!webhookSecret) {
+    console.error("[docusign-webhook] DOCUSIGN_WEBHOOK_SECRET not configured")
+    return NextResponse.json({ error: "Webhook not configured" }, { status: 500 })
+  }
+
+  const expectedSignature = createHmac("sha256", webhookSecret)
+    .update(body, "utf8")
+    .digest("base64")
+
+  const sigBuffer = Buffer.from(docusignSignature, "utf8")
+  const expectedBuffer = Buffer.from(expectedSignature, "utf8")
+
+  if (sigBuffer.length !== expectedBuffer.length || !timingSafeEqual(sigBuffer, expectedBuffer)) {
+    return NextResponse.json({ error: "Invalid signature" }, { status: 400 })
+  }
 
   let event: {
     event: string

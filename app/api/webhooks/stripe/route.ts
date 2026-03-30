@@ -4,6 +4,7 @@ import { db } from "@/app/db"
 import { integrations } from "@/app/db/schema"
 import { eq } from "drizzle-orm"
 import { dispatchAlert } from "@/lib/alerts"
+import { getStripe } from "@/lib/stripe/client"
 
 /**
  * Stripe Webhook Handler
@@ -39,14 +40,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Webhook not configured" }, { status: 500 })
   }
 
-  // TODO: Use stripe.webhooks.constructEvent() for production-grade verification
-  // For now, parse the body and process events
+  let stripe
+  try {
+    stripe = getStripe()
+  } catch {
+    console.error("[stripe-webhook] Stripe client not configured")
+    return NextResponse.json({ error: "Webhook not configured" }, { status: 500 })
+  }
+
   let event: { type: string; data: { object: Record<string, unknown> } }
 
   try {
-    event = JSON.parse(body)
+    event = stripe.webhooks.constructEvent(body, signature, webhookSecret) as typeof event
   } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 })
+    return NextResponse.json({ error: "Invalid signature" }, { status: 400 })
   }
 
   // Process the event

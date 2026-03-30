@@ -12,12 +12,15 @@
  * │ 1. Something happens in Stripe (invoice paid, subscription changed)    │
  * │ 2. Stripe POSTs a JSON "event" to our /api/webhooks/stripe endpoint   │
  * │ 3. The POST includes a "Stripe-Signature" header for verification     │
- * │ 4. Our handler parses the event, checks the type, and acts on it      │
+ * │ 4. Our handler calls stripe.webhooks.constructEvent() to verify +     │
+ * │    parse the event, then acts on it based on event type               │
  * │                                                                        │
  * │ We test:                                                               │
  * │   • Missing signature → 400                                           │
  * │   • Missing webhook secret env var → 500                              │
- * │   • Invalid JSON body → 400                                           │
+ * │   • Valid signature → 200 (constructEvent succeeds)                   │
+ * │   • Invalid signature → 400 (constructEvent throws)                   │
+ * │   • Tampered body → 400 (constructEvent throws)                       │
  * │   • Each event type (invoice.paid, invoice.payment_failed, etc.)      │
  * │   • Unhandled event type → 200 (acknowledge receipt, no crash)        │
  * │   • Missing metadata → silent skip (no crash)                         │
@@ -41,6 +44,18 @@ vi.mock("drizzle-orm", () => ({
 
 vi.mock("@/app/db/schema", () => ({
   integrations: {},
+}))
+
+// ─── Mock Stripe client ────────────────────────────────────────────────────
+
+const mockConstructEvent = vi.fn()
+
+vi.mock("@/lib/stripe/client", () => ({
+  getStripe: () => ({
+    webhooks: {
+      constructEvent: (...args: unknown[]) => mockConstructEvent(...args),
+    },
+  }),
 }))
 
 // ─── Import the handler ─────────────────────────────────────────────────────
@@ -82,6 +97,8 @@ const ORIGINAL_ENV = { ...process.env }
 beforeEach(() => {
   vi.clearAllMocks()
   process.env.STRIPE_WEBHOOK_SECRET = "whsec_test_secret_123"
+  // Default: constructEvent parses body and returns the event (simulates valid signature)
+  mockConstructEvent.mockImplementation((body: string) => JSON.parse(body))
 })
 
 afterEach(() => {
@@ -125,11 +142,58 @@ describe("Stripe webhook — missing webhook secret", () => {
 })
 
 // ============================================================================
-// 3. Invalid JSON body → 400
+// 3. Signature verification — valid, invalid, and tampered
 // ============================================================================
 
-describe("Stripe webhook — invalid JSON", () => {
-  it("returns 400 when body is not valid JSON", async () => {
+describe("Stripe webhook — signature verification", () => {
+  it("returns 200 when constructEvent succeeds (valid signature)", async () => {
+    const body = makeStripeEvent("invoice.paid")
+    const req = makeRequest(body, { "stripe-signature": "t=123,v1=abc" })
+
+    const res = await POST(req as never)
+    expect(res.status).toBe(200)
+    expect(mockConstructEvent).toHaveBeenCalledWith(
+      body,
+      "t=123,v1=abc",
+      "whsec_test_secret_123",
+    )
+  })
+
+  it("returns 400 when constructEvent throws (invalid signature)", async () => {
+    mockConstructEvent.mockImplementation(() => {
+      throw new Error("No signatures found matching the expected signature for payload")
+    })
+
+    const body = makeStripeEvent("invoice.paid")
+    const req = makeRequest(body, { "stripe-signature": "sig_invalid" })
+
+    const res = await POST(req as never)
+    expect(res.status).toBe(400)
+
+    const json = await res.json()
+    expect(json.error).toContain("Invalid signature")
+  })
+
+  it("returns 400 when body has been tampered with (constructEvent throws)", async () => {
+    mockConstructEvent.mockImplementation(() => {
+      throw new Error("Webhook payload must be provided as a string")
+    })
+
+    const body = "tampered body that is not the original"
+    const req = makeRequest(body, { "stripe-signature": "t=123,v1=abc" })
+
+    const res = await POST(req as never)
+    expect(res.status).toBe(400)
+
+    const json = await res.json()
+    expect(json.error).toContain("Invalid signature")
+  })
+
+  it("returns 400 for malformed JSON body (constructEvent throws)", async () => {
+    mockConstructEvent.mockImplementation(() => {
+      throw new Error("Invalid payload")
+    })
+
     const req = makeRequest("this is not json {{{", {
       "stripe-signature": "sig_test",
     })
@@ -138,16 +202,7 @@ describe("Stripe webhook — invalid JSON", () => {
     expect(res.status).toBe(400)
 
     const json = await res.json()
-    expect(json.error).toContain("Invalid JSON")
-  })
-
-  it("returns 400 for an empty body", async () => {
-    const req = makeRequest("", {
-      "stripe-signature": "sig_test",
-    })
-
-    const res = await POST(req as never)
-    expect(res.status).toBe(400)
+    expect(json.error).toContain("Invalid signature")
   })
 })
 

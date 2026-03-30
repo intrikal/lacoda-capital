@@ -11,11 +11,15 @@
  * ├─────────────────────────────────────────────────────────────────────────┤
  * │ 1. A bank account linked via Plaid has new data (transactions, etc.)  │
  * │ 2. Plaid POSTs a JSON event to our /api/webhooks/plaid endpoint       │
- * │ 3. The event has a webhook_type + webhook_code that tells us what     │
- * │    happened (e.g., TRANSACTIONS / SYNC_UPDATES_AVAILABLE)             │
- * │ 4. We find the matching integration by item_id and update it          │
+ * │ 3. The POST includes a Plaid-Verification header (HMAC-SHA256 hex)    │
+ * │ 4. We verify the signature, then find the matching integration by     │
+ * │    item_id and update it                                               │
  * │                                                                        │
  * │ We test:                                                               │
+ * │   • Missing Plaid-Verification header → 400                           │
+ * │   • Missing PLAID_WEBHOOK_SECRET env var → 500                        │
+ * │   • Invalid signature → 400                                           │
+ * │   • Tampered body → 400                                               │
  * │   • Invalid JSON → 400                                                │
  * │   • Unknown item_id → 200 (silent skip, no crash)                    │
  * │   • TRANSACTIONS events (SYNC_UPDATES_AVAILABLE, INITIAL, HISTORICAL)│
@@ -30,7 +34,8 @@
  *   app/api/webhooks/plaid/route.ts — route handler under test
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest"
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
+import { createHmac } from "crypto"
 
 // ─── Mock DB before importing route ─────────────────────────────────────────
 
@@ -66,13 +71,29 @@ vi.mock("@/app/db/schema", () => ({
 
 import { POST } from "@/app/api/webhooks/plaid/route"
 
+// ─── Constants ─────────────────────────────────────────────────────────────
+
+const TEST_WEBHOOK_SECRET = "test-plaid-webhook-secret"
+
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
-function makeRequest(body: string): Request {
+function computeHmac(body: string, secret: string): string {
+  return createHmac("sha256", secret).update(body, "utf8").digest("hex")
+}
+
+/** Build a request WITHOUT auto-signing (for testing missing/invalid headers). */
+function makeUnsignedRequest(body: string, headers: Record<string, string> = {}): Request {
   return new Request("http://localhost/api/webhooks/plaid", {
     method: "POST",
     body,
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", ...headers },
+  })
+}
+
+/** Build a request with a valid HMAC signature. */
+function makeRequest(body: string): Request {
+  return makeUnsignedRequest(body, {
+    "plaid-verification": computeHmac(body, TEST_WEBHOOK_SECRET),
   })
 }
 
@@ -100,19 +121,94 @@ const MOCK_INTEGRATION = {
 
 // ─── Setup ──────────────────────────────────────────────────────────────────
 
+const ORIGINAL_ENV = { ...process.env }
+
 beforeEach(() => {
   vi.clearAllMocks()
+  process.env.PLAID_WEBHOOK_SECRET = TEST_WEBHOOK_SECRET
   // Default: integration found
   mockFindFirst.mockResolvedValue({ ...MOCK_INTEGRATION })
 })
 
+afterEach(() => {
+  process.env = { ...ORIGINAL_ENV }
+})
+
 // ============================================================================
-// 1. Invalid JSON → 400
+// 1. Signature verification — missing header, missing env, invalid, tampered
+// ============================================================================
+
+describe("Plaid webhook — missing Plaid-Verification header", () => {
+  it("returns 400 when Plaid-Verification header is absent", async () => {
+    const body = makePlaidEvent("TRANSACTIONS", "SYNC_UPDATES_AVAILABLE")
+    const req = makeUnsignedRequest(body) // no signature header
+
+    const res = await POST(req as never)
+    expect(res.status).toBe(400)
+
+    const json = await res.json()
+    expect(json.error).toContain("Missing")
+  })
+})
+
+describe("Plaid webhook — missing PLAID_WEBHOOK_SECRET", () => {
+  it("returns 500 when PLAID_WEBHOOK_SECRET is not set", async () => {
+    delete process.env.PLAID_WEBHOOK_SECRET
+
+    const body = makePlaidEvent("TRANSACTIONS", "SYNC_UPDATES_AVAILABLE")
+    const req = makeUnsignedRequest(body, {
+      "plaid-verification": "some-sig",
+    })
+
+    const res = await POST(req as never)
+    expect(res.status).toBe(500)
+
+    const json = await res.json()
+    expect(json.error).toContain("not configured")
+  })
+})
+
+describe("Plaid webhook — invalid signature", () => {
+  it("returns 400 when signature does not match", async () => {
+    const body = makePlaidEvent("TRANSACTIONS", "SYNC_UPDATES_AVAILABLE")
+    const req = makeUnsignedRequest(body, {
+      "plaid-verification": "deadbeef1234567890abcdef1234567890abcdef1234567890abcdef12345678",
+    })
+
+    const res = await POST(req as never)
+    expect(res.status).toBe(400)
+
+    const json = await res.json()
+    expect(json.error).toContain("Invalid signature")
+  })
+
+  it("returns 400 when body has been tampered with after signing", async () => {
+    const originalBody = makePlaidEvent("TRANSACTIONS", "SYNC_UPDATES_AVAILABLE")
+    const validSig = computeHmac(originalBody, TEST_WEBHOOK_SECRET)
+    const tamperedBody = makePlaidEvent("TRANSACTIONS", "SYNC_UPDATES_AVAILABLE", "item_evil_999")
+
+    const req = makeUnsignedRequest(tamperedBody, {
+      "plaid-verification": validSig,
+    })
+
+    const res = await POST(req as never)
+    expect(res.status).toBe(400)
+
+    const json = await res.json()
+    expect(json.error).toContain("Invalid signature")
+  })
+})
+
+// ============================================================================
+// 2. Invalid JSON → 400
 // ============================================================================
 
 describe("Plaid webhook — invalid JSON", () => {
   it("returns 400 for malformed JSON", async () => {
-    const req = makeRequest("not json {{{")
+    const body = "not json {{{"
+    const req = makeUnsignedRequest(body, {
+      "plaid-verification": computeHmac(body, TEST_WEBHOOK_SECRET),
+    })
     const res = await POST(req as never)
     expect(res.status).toBe(400)
 
@@ -121,14 +217,17 @@ describe("Plaid webhook — invalid JSON", () => {
   })
 
   it("returns 400 for empty body", async () => {
-    const req = makeRequest("")
+    const body = ""
+    const req = makeUnsignedRequest(body, {
+      "plaid-verification": computeHmac(body, TEST_WEBHOOK_SECRET),
+    })
     const res = await POST(req as never)
     expect(res.status).toBe(400)
   })
 })
 
 // ============================================================================
-// 2. Unknown item_id — no matching integration → 200 (silent skip)
+// 3. Unknown item_id — no matching integration → 200 (silent skip)
 // ============================================================================
 
 describe("Plaid webhook — unknown item_id", () => {
@@ -155,7 +254,7 @@ describe("Plaid webhook — unknown item_id", () => {
 })
 
 // ============================================================================
-// 3. TRANSACTIONS — SYNC_UPDATES_AVAILABLE
+// 4. TRANSACTIONS — SYNC_UPDATES_AVAILABLE
 // ============================================================================
 
 describe("Plaid webhook — TRANSACTIONS / SYNC_UPDATES_AVAILABLE", () => {
@@ -173,7 +272,7 @@ describe("Plaid webhook — TRANSACTIONS / SYNC_UPDATES_AVAILABLE", () => {
 })
 
 // ============================================================================
-// 4. TRANSACTIONS — INITIAL_UPDATE and HISTORICAL_UPDATE (log only)
+// 5. TRANSACTIONS — INITIAL_UPDATE and HISTORICAL_UPDATE (log only)
 // ============================================================================
 
 describe("Plaid webhook — TRANSACTIONS / INITIAL_UPDATE & HISTORICAL_UPDATE", () => {
@@ -197,7 +296,7 @@ describe("Plaid webhook — TRANSACTIONS / INITIAL_UPDATE & HISTORICAL_UPDATE", 
 })
 
 // ============================================================================
-// 5. HOLDINGS — DEFAULT_UPDATE → updates lastSyncAt
+// 6. HOLDINGS — DEFAULT_UPDATE → updates lastSyncAt
 // ============================================================================
 
 describe("Plaid webhook — HOLDINGS / DEFAULT_UPDATE", () => {
@@ -218,7 +317,7 @@ describe("Plaid webhook — HOLDINGS / DEFAULT_UPDATE", () => {
 })
 
 // ============================================================================
-// 6. ITEM — ERROR → marks integration as "error"
+// 7. ITEM — ERROR → marks integration as "error"
 // ============================================================================
 
 describe("Plaid webhook — ITEM / ERROR", () => {
@@ -261,7 +360,7 @@ describe("Plaid webhook — ITEM / ERROR", () => {
 })
 
 // ============================================================================
-// 7. ITEM — PENDING_EXPIRATION → warns user to reconnect
+// 8. ITEM — PENDING_EXPIRATION → warns user to reconnect
 // ============================================================================
 
 describe("Plaid webhook — ITEM / PENDING_EXPIRATION", () => {
@@ -281,7 +380,7 @@ describe("Plaid webhook — ITEM / PENDING_EXPIRATION", () => {
 })
 
 // ============================================================================
-// 8. ITEM — USER_PERMISSION_REVOKED → disconnects integration
+// 9. ITEM — USER_PERMISSION_REVOKED → disconnects integration
 // ============================================================================
 
 describe("Plaid webhook — ITEM / USER_PERMISSION_REVOKED", () => {
@@ -299,7 +398,7 @@ describe("Plaid webhook — ITEM / USER_PERMISSION_REVOKED", () => {
 })
 
 // ============================================================================
-// 9. Unhandled webhook_type → 200 (acknowledge, don't crash)
+// 10. Unhandled webhook_type → 200 (acknowledge, don't crash)
 // ============================================================================
 
 describe("Plaid webhook — unhandled event types", () => {
@@ -330,7 +429,7 @@ describe("Plaid webhook — unhandled event types", () => {
 })
 
 // ============================================================================
-// 10. HOLDINGS — non-DEFAULT_UPDATE code → no DB update
+// 11. HOLDINGS — non-DEFAULT_UPDATE code → no DB update
 // ============================================================================
 
 describe("Plaid webhook — HOLDINGS / non-DEFAULT_UPDATE", () => {

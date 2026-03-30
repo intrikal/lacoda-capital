@@ -11,15 +11,15 @@
  * ├─────────────────────────────────────────────────────────────────────────┤
  * │ 1. An envelope changes status (signed, declined, voided)              │
  * │ 2. DocuSign POSTs JSON to our /api/webhooks/docusign endpoint         │
- * │ 3. The payload has event.data.envelopeSummary.status                  │
- * │ 4. We match on status and take action (mark doc verified, etc.)       │
- * │                                                                        │
- * │ SECURITY: DocuSign can sign payloads with HMAC-SHA256 via the         │
- * │ X-DocuSign-Signature-1 header. Our route has a TODO for this.         │
- * │ The HMAC verification logic is tested separately in                   │
- * │ docusign-webhook-verification.test.ts.                                │
+ * │ 3. The POST includes an X-DocuSign-Signature-1 header (HMAC-SHA256    │
+ * │    base64) which we verify before processing                          │
+ * │ 4. We match on envelope status and take action                        │
  * │                                                                        │
  * │ We test:                                                               │
+ * │   • Missing X-DocuSign-Signature-1 header → 400                      │
+ * │   • Missing DOCUSIGN_WEBHOOK_SECRET env var → 500                    │
+ * │   • Invalid signature → 400                                           │
+ * │   • Tampered body → 400                                               │
  * │   • Invalid JSON → 400                                                │
  * │   • Each envelope status (completed, declined, voided)                │
  * │   • Unknown status → 200 (acknowledge, don't crash)                  │
@@ -28,11 +28,9 @@
  *
  * RELATED FILES:
  *   app/api/webhooks/docusign/route.ts — route handler under test
- *   tests/unit/docusign-webhook-verification.test.ts — HMAC verification tests
- *   tests/unit/docusign-status-mapping.test.ts — status mapping tests
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest"
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 import { createHmac } from "crypto"
 
 // ─── Mock DB before importing route ─────────────────────────────────────────
@@ -53,13 +51,29 @@ vi.mock("@/app/db/schema", () => ({
 
 import { POST } from "@/app/api/webhooks/docusign/route"
 
+// ─── Constants ─────────────────────────────────────────────────────────────
+
+const TEST_WEBHOOK_SECRET = "test-docusign-webhook-secret"
+
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
-function makeRequest(body: string): Request {
+function computeHmac(body: string, secret: string): string {
+  return createHmac("sha256", secret).update(body, "utf8").digest("base64")
+}
+
+/** Build a request WITHOUT auto-signing (for testing missing/invalid headers). */
+function makeUnsignedRequest(body: string, headers: Record<string, string> = {}): Request {
   return new Request("http://localhost/api/webhooks/docusign", {
     method: "POST",
     body,
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", ...headers },
+  })
+}
+
+/** Build a request with a valid HMAC signature. */
+function makeRequest(body: string): Request {
+  return makeUnsignedRequest(body, {
+    "x-docusign-signature-1": computeHmac(body, TEST_WEBHOOK_SECRET),
   })
 }
 
@@ -103,17 +117,92 @@ function makeDocuSignEvent(
 
 // ─── Setup ──────────────────────────────────────────────────────────────────
 
+const ORIGINAL_ENV = { ...process.env }
+
 beforeEach(() => {
   vi.clearAllMocks()
+  process.env.DOCUSIGN_WEBHOOK_SECRET = TEST_WEBHOOK_SECRET
+})
+
+afterEach(() => {
+  process.env = { ...ORIGINAL_ENV }
 })
 
 // ============================================================================
-// 1. Invalid JSON → 400
+// 1. Signature verification — missing header, missing env, invalid, tampered
+// ============================================================================
+
+describe("DocuSign webhook — missing X-DocuSign-Signature-1 header", () => {
+  it("returns 400 when X-DocuSign-Signature-1 header is absent", async () => {
+    const body = makeDocuSignEvent("completed")
+    const req = makeUnsignedRequest(body) // no signature header
+
+    const res = await POST(req as never)
+    expect(res.status).toBe(400)
+
+    const json = await res.json()
+    expect(json.error).toContain("Missing")
+  })
+})
+
+describe("DocuSign webhook — missing DOCUSIGN_WEBHOOK_SECRET", () => {
+  it("returns 500 when DOCUSIGN_WEBHOOK_SECRET is not set", async () => {
+    delete process.env.DOCUSIGN_WEBHOOK_SECRET
+
+    const body = makeDocuSignEvent("completed")
+    const req = makeUnsignedRequest(body, {
+      "x-docusign-signature-1": "some-sig",
+    })
+
+    const res = await POST(req as never)
+    expect(res.status).toBe(500)
+
+    const json = await res.json()
+    expect(json.error).toContain("not configured")
+  })
+})
+
+describe("DocuSign webhook — invalid signature", () => {
+  it("returns 400 when signature does not match", async () => {
+    const body = makeDocuSignEvent("completed")
+    const req = makeUnsignedRequest(body, {
+      "x-docusign-signature-1": "dGhpcyBpcyBub3QgYSB2YWxpZCBzaWduYXR1cmU=",
+    })
+
+    const res = await POST(req as never)
+    expect(res.status).toBe(400)
+
+    const json = await res.json()
+    expect(json.error).toContain("Invalid signature")
+  })
+
+  it("returns 400 when body has been tampered with after signing", async () => {
+    const originalBody = makeDocuSignEvent("completed", { envelopeId: "env-original" })
+    const validSig = computeHmac(originalBody, TEST_WEBHOOK_SECRET)
+    const tamperedBody = makeDocuSignEvent("completed", { envelopeId: "env-tampered" })
+
+    const req = makeUnsignedRequest(tamperedBody, {
+      "x-docusign-signature-1": validSig,
+    })
+
+    const res = await POST(req as never)
+    expect(res.status).toBe(400)
+
+    const json = await res.json()
+    expect(json.error).toContain("Invalid signature")
+  })
+})
+
+// ============================================================================
+// 2. Invalid JSON → 400
 // ============================================================================
 
 describe("DocuSign webhook — invalid JSON", () => {
   it("returns 400 for malformed JSON", async () => {
-    const req = makeRequest("not json {{{")
+    const body = "not json {{{"
+    const req = makeUnsignedRequest(body, {
+      "x-docusign-signature-1": computeHmac(body, TEST_WEBHOOK_SECRET),
+    })
     const res = await POST(req as never)
     expect(res.status).toBe(400)
 
@@ -122,14 +211,17 @@ describe("DocuSign webhook — invalid JSON", () => {
   })
 
   it("returns 400 for empty body", async () => {
-    const req = makeRequest("")
+    const body = ""
+    const req = makeUnsignedRequest(body, {
+      "x-docusign-signature-1": computeHmac(body, TEST_WEBHOOK_SECRET),
+    })
     const res = await POST(req as never)
     expect(res.status).toBe(400)
   })
 })
 
 // ============================================================================
-// 2. Envelope completed — all signers have signed
+// 3. Envelope completed — all signers have signed
 // ============================================================================
 
 describe("DocuSign webhook — completed", () => {
@@ -179,7 +271,7 @@ describe("DocuSign webhook — completed", () => {
 })
 
 // ============================================================================
-// 3. Envelope declined — a signer refused
+// 4. Envelope declined — a signer refused
 // ============================================================================
 
 describe("DocuSign webhook — declined", () => {
@@ -227,7 +319,7 @@ describe("DocuSign webhook — declined", () => {
 })
 
 // ============================================================================
-// 4. Envelope voided — sender cancelled
+// 5. Envelope voided — sender cancelled
 // ============================================================================
 
 describe("DocuSign webhook — voided", () => {
@@ -244,7 +336,7 @@ describe("DocuSign webhook — voided", () => {
 })
 
 // ============================================================================
-// 5. Unknown / unhandled status → 200 (acknowledge, don't crash)
+// 6. Unknown / unhandled status → 200 (acknowledge, don't crash)
 // ============================================================================
 
 describe("DocuSign webhook — unhandled statuses", () => {
@@ -280,7 +372,7 @@ describe("DocuSign webhook — unhandled statuses", () => {
 })
 
 // ============================================================================
-// 6. Realistic full DocuSign Connect payload
+// 7. Realistic full DocuSign Connect payload
 // ============================================================================
 
 describe("DocuSign webhook — realistic payload", () => {
@@ -369,53 +461,5 @@ describe("DocuSign webhook — realistic payload", () => {
 
     const res = await POST(req as never)
     expect(res.status).toBe(200)
-  })
-})
-
-// ============================================================================
-// 7. HMAC signature verification (pure function, inline)
-// ============================================================================
-
-describe("DocuSign webhook — HMAC verification logic", () => {
-  /**
-   * Kevin, the route handler currently has a TODO for HMAC verification.
-   * These tests verify the pure HMAC logic that SHOULD be wired in.
-   * The full HMAC test suite lives in docusign-webhook-verification.test.ts.
-   * Here we just confirm the basics so this file is self-contained.
-   */
-
-  const HMAC_SECRET = "test-docusign-hmac-secret"
-
-  function computeHmac(body: string, secret: string): string {
-    return createHmac("sha256", secret).update(body, "utf8").digest("base64")
-  }
-
-  it("a valid HMAC matches the expected signature", () => {
-    const body = '{"event":"envelope-completed"}'
-    const sig = computeHmac(body, HMAC_SECRET)
-    const expected = computeHmac(body, HMAC_SECRET)
-    expect(sig).toBe(expected)
-  })
-
-  it("different bodies produce different HMACs", () => {
-    const sig1 = computeHmac('{"status":"completed"}', HMAC_SECRET)
-    const sig2 = computeHmac('{"status":"declined"}', HMAC_SECRET)
-    expect(sig1).not.toBe(sig2)
-  })
-
-  it("different secrets produce different HMACs for same body", () => {
-    const body = '{"event":"envelope-completed"}'
-    const sig1 = computeHmac(body, "secret-a")
-    const sig2 = computeHmac(body, "secret-b")
-    expect(sig1).not.toBe(sig2)
-  })
-
-  it("HMAC is deterministic — same inputs always produce same output", () => {
-    const body = '{"event":"test"}'
-    const a = computeHmac(body, HMAC_SECRET)
-    const b = computeHmac(body, HMAC_SECRET)
-    const c = computeHmac(body, HMAC_SECRET)
-    expect(a).toBe(b)
-    expect(b).toBe(c)
   })
 })

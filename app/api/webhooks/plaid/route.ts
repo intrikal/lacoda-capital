@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { createHmac, timingSafeEqual } from "crypto"
 import * as Sentry from "@sentry/nextjs"
 import { db } from "@/app/db"
 import { integrations } from "@/app/db/schema"
@@ -25,8 +26,28 @@ import { dispatchAlert } from "@/lib/alerts"
 export async function POST(req: NextRequest) {
   const body = await req.text()
 
-  // TODO: Verify Plaid-Verification header using PLAID_WEBHOOK_SECRET
-  // See: https://plaid.com/docs/api/webhooks/webhook-verification/
+  // Verify Plaid-Verification header using HMAC-SHA256
+  const plaidSignature = req.headers.get("plaid-verification")
+  if (!plaidSignature) {
+    return NextResponse.json({ error: "Missing Plaid-Verification header" }, { status: 400 })
+  }
+
+  const webhookSecret = process.env.PLAID_WEBHOOK_SECRET
+  if (!webhookSecret) {
+    console.error("[plaid-webhook] PLAID_WEBHOOK_SECRET not configured")
+    return NextResponse.json({ error: "Webhook not configured" }, { status: 500 })
+  }
+
+  const expectedSignature = createHmac("sha256", webhookSecret)
+    .update(body, "utf8")
+    .digest("hex")
+
+  const sigBuffer = Buffer.from(plaidSignature, "utf8")
+  const expectedBuffer = Buffer.from(expectedSignature, "utf8")
+
+  if (sigBuffer.length !== expectedBuffer.length || !timingSafeEqual(sigBuffer, expectedBuffer)) {
+    return NextResponse.json({ error: "Invalid signature" }, { status: 400 })
+  }
 
   let event: {
     webhook_type: string
