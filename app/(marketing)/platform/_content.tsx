@@ -11,10 +11,12 @@ import {
   PieChart,
   Bell,
   Users,
-  Shield,
-  Zap,
   CheckCircle2,
-  BookOpen,
+  Brain,
+  LineChart,
+  Building2,
+  Wallet,
+  Database,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -88,10 +90,76 @@ const features = [
     description:
       "Provide controlled access to stakeholders. Clients, advisors, and family members see only what they should.",
     details: [
-      "Role-based permissions",
-      "Activity tracking",
-      "Branded experience",
+      "Portfolio & transaction views",
+      "Financial goal tracking with progress",
       "Secure messaging",
+      "Calendar with Google Calendar sync",
+      "Document access",
+      "Beneficiary management",
+      "Transfer requests",
+    ],
+  },
+  {
+    icon: Brain,
+    title: "AI Intelligence",
+    description:
+      "AI-powered tools that work within your existing workflow—extract, draft, and summarize with you in control.",
+    details: [
+      "AI document extraction with confidence scoring",
+      "Smart report narrative generation",
+      "Automated email drafting for document requests",
+      "Weekly AI-prioritized alert digest",
+    ],
+  },
+  {
+    icon: LineChart,
+    title: "Fund Analytics",
+    description:
+      "Purpose-built performance metrics for private equity, venture capital, and alternative investments.",
+    details: [
+      "IRR & TWR performance calculations",
+      "TVPI/DPI/RVPI fund metrics",
+      "Capital call & distribution tracking",
+      "Benchmark comparisons",
+    ],
+  },
+  {
+    icon: Building2,
+    title: "Entity & Deal Management",
+    description:
+      "Manage complex legal structures, deal pipelines, insurance policies, and beneficiary designations.",
+    details: [
+      "Legal entity structures and ownership",
+      "Deal pipeline with Kanban stages",
+      "Insurance policy tracking",
+      "Beneficiary management",
+    ],
+  },
+  {
+    icon: Wallet,
+    title: "Financial Operations",
+    description:
+      "Every dollar accounted for—multi-currency support, tax tracking, billing, and inter-account transfers.",
+    details: [
+      "Multi-currency consolidation with exchange rates",
+      "Tax write-off tracking",
+      "Client billing records",
+      "Inter-account transfers",
+    ],
+  },
+  {
+    icon: Database,
+    title: "Data & Integration",
+    description:
+      "Import, export, and connect your data with flexible tools for bulk operations and API access.",
+    details: [
+      "CSV bulk import with column mapping",
+      "PDF report generation (portfolio summary & holdings)",
+      "Global command search (⌘K)",
+      "API key management",
+      "GDPR data export & account deletion",
+      "Custom portal branding",
+      "First-login onboarding wizard",
     ],
   },
 ]
@@ -263,7 +331,7 @@ export function PlatformPage() {
               Core Capabilities
             </h2>
             <p className="mt-4 text-zinc-400 max-w-2xl mx-auto">
-              Six pillars that form the foundation of modern asset management.
+              Ten capabilities that form the foundation of modern asset management.
             </p>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">

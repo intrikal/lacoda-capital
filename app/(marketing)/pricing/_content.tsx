@@ -96,6 +96,9 @@ const featureComparison = [
       { name: "Multi-currency support", starter: true, professional: true, enterprise: true },
       { name: "Real-time valuations", starter: false, professional: true, enterprise: true },
       { name: "Custom asset classes", starter: false, professional: true, enterprise: true },
+      { name: "Capital call tracking", starter: false, professional: true, enterprise: true },
+      { name: "Fund metrics (TVPI/DPI)", starter: false, professional: true, enterprise: true },
+      { name: "Deal pipeline", starter: false, professional: true, enterprise: true },
     ],
   },
   {
@@ -106,6 +109,17 @@ const featureComparison = [
       { name: "Expiration alerts", starter: true, professional: true, enterprise: true },
       { name: "OCR & search", starter: false, professional: true, enterprise: true },
       { name: "E-signature integration", starter: false, professional: true, enterprise: true },
+      { name: "CSV bulk import", starter: true, professional: true, enterprise: true },
+      { name: "PDF report generation", starter: true, professional: true, enterprise: true },
+    ],
+  },
+  {
+    category: "AI Features",
+    features: [
+      { name: "AI document extraction", starter: false, professional: true, enterprise: true },
+      { name: "AI report narratives", starter: false, professional: true, enterprise: true },
+      { name: "AI email drafting", starter: false, professional: true, enterprise: true },
+      { name: "AI alert digest", starter: false, professional: true, enterprise: true },
     ],
   },
   {
@@ -116,6 +130,7 @@ const featureComparison = [
       { name: "Audit logging", starter: true, professional: true, enterprise: true },
       { name: "SSO/SAML", starter: false, professional: true, enterprise: true },
       { name: "Custom security policies", starter: false, professional: false, enterprise: true },
+      { name: "Custom portal branding", starter: false, professional: false, enterprise: true },
     ],
   },
   {
