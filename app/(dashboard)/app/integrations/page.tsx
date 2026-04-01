@@ -332,11 +332,11 @@ export default function IntegrationsPage() {
       case "plaid_link":
         plaidConnect({
           onLinkToken: (token) => {
-            // In production, this would open Plaid Link with the token
-            // For now, close the dialog and show the token
+            // Plaid Link is initialized via createPlaidLinkToken action (lib/actions/plaid.actions.ts).
+            // Pass this token to the @plaid/react usePlaidLink hook to open the Plaid Link modal,
+            // then exchange the public_token in lib/integrations/plaid.ts exchangePlaidToken().
             console.log("Plaid Link Token:", token)
             setConnectDialogOpen(false)
-            // TODO: Open Plaid Link component with this token
           },
         })
         break

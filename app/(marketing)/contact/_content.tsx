@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 import { useReducedMotion } from "@/lib/hooks/use-reduced-motion"
+import { submitContactForm } from "@/lib/actions/contact.actions"
 
 const contactReasons = [
   { value: "demo", label: "Schedule a Demo" },
@@ -100,6 +101,8 @@ const departments = [
 export function ContactPage() {
   const reducedMotion = useReducedMotion()
   const [submitted, setSubmitted] = React.useState(false)
+  const [isPending, startTransition] = React.useTransition()
+  const [error, setError] = React.useState<string | null>(null)
   const [formData, setFormData] = React.useState({
     firstName: "",
     lastName: "",
@@ -119,8 +122,15 @@ export function ContactPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    // Mock form submission
-    setSubmitted(true)
+    setError(null)
+    startTransition(async () => {
+      const result = await submitContactForm(formData)
+      if (result.success) {
+        setSubmitted(true)
+      } else {
+        setError(result.error)
+      }
+    })
   }
 
   const handleInputChange = (field: string, value: string) => {
@@ -259,9 +269,13 @@ export function ContactPage() {
                     />
                   </div>
 
-                  <Button type="submit" variant="glow" size="lg" className="w-full">
-                    Send Message
-                    <ArrowRight className="ml-2 h-4 w-4" />
+                  {error && (
+                    <p className="text-sm text-red-400 text-center">{error}</p>
+                  )}
+
+                  <Button type="submit" variant="glow" size="lg" className="w-full" disabled={isPending}>
+                    {isPending ? "Sending…" : "Send Message"}
+                    {!isPending && <ArrowRight className="ml-2 h-4 w-4" />}
                   </Button>
 
                   <p className="text-xs text-zinc-500 text-center">

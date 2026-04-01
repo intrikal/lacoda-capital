@@ -130,9 +130,10 @@ export async function exchangePublicToken(
     // Non-critical — use default name
   }
 
-  // Store access token in Supabase Vault (not in the integrations table)
-  // For now, store in settings JSONB with a note that production should use Vault
-  // TODO: Migrate to Supabase Vault when available in your plan
+  // Known limitation: access token is stored in the settings JSONB column rather than
+  // Supabase Vault. Supabase Vault (pgsodium encryption) requires the Pro plan or
+  // above and is not available on all deployments. If your plan includes Vault,
+  // migrate this to use vault.create_secret() for at-rest encryption of the token.
 
   const [integration] = await db
     .insert(integrations)
