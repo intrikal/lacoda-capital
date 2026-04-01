@@ -343,3 +343,9 @@ export type {
   TransferRecord,
   NewTransfer,
 } from "./transfers";
+
+// ============================================================================
+// Contact Submissions (Marketing Forms)
+// ============================================================================
+export { contactSubmissions, contactSubmissionTypeEnum } from "./contact_submissions";
+export type { ContactSubmission, NewContactSubmission } from "./contact_submissions";

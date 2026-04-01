@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 import { useReducedMotion } from "@/lib/hooks/use-reduced-motion"
+import { submitDemoForm } from "@/lib/actions/contact.actions"
 
 const benefits = [
   {
@@ -99,6 +100,8 @@ const timeSlots = [
 export function DemoPage() {
   const reducedMotion = useReducedMotion()
   const [submitted, setSubmitted] = React.useState(false)
+  const [isPending, startTransition] = React.useTransition()
+  const [error, setError] = React.useState<string | null>(null)
   const [bookingMode, setBookingMode] = React.useState<"form" | "calendar">("form")
   const [selectedDate, setSelectedDate] = React.useState<string | null>(null)
   const [selectedTime, setSelectedTime] = React.useState<string | null>(null)
@@ -107,6 +110,10 @@ export function DemoPage() {
     return new Date(now.getFullYear(), now.getMonth(), 1)
   })
 
+  // Controlled values for Select fields (uncontrolled Selects don't submit with FormData)
+  const [aum, setAum] = React.useState("")
+  const [role, setRole] = React.useState("")
+
   const heroSpring = useSpring({
     from: { opacity: 0, transform: "translateY(20px)" },
     to: { opacity: 1, transform: "translateY(0px)" },
@@ -114,9 +121,53 @@ export function DemoPage() {
     immediate: reducedMotion,
   })
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    setSubmitted(true)
+    setError(null)
+    const fd = new FormData(e.currentTarget)
+    const payload = {
+      firstName: fd.get("firstName") as string,
+      lastName: fd.get("lastName") as string,
+      email: fd.get("email") as string,
+      company: fd.get("company") as string,
+      aum: aum || undefined,
+      role: role || undefined,
+      preferredDate: selectedDate ?? undefined,
+      preferredTime: selectedTime ?? undefined,
+    }
+    startTransition(async () => {
+      const result = await submitDemoForm(payload)
+      if (result.success) {
+        setSubmitted(true)
+      } else {
+        setError(result.error)
+      }
+    })
+  }
+
+  // Calendar-mode confirm also collects name/email from its own inputs
+  const handleCalendarSubmit = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault()
+    setError(null)
+    const section = (e.currentTarget as HTMLElement).closest("div[data-cal-fields]") as HTMLElement | null
+    const getVal = (id: string) =>
+      (section?.querySelector(`#${id}`) as HTMLInputElement | null)?.value ?? ""
+    const payload = {
+      firstName: getVal("calFirstName"),
+      lastName: getVal("calLastName"),
+      email: getVal("calEmail"),
+      company: "",
+      preferredDate: selectedDate ?? undefined,
+      preferredTime: selectedTime ?? undefined,
+    }
+    startTransition(async () => {
+      const result = await submitDemoForm(payload)
+      if (result.success) {
+        setSubmitted(true)
+      } else {
+        setError(result.error)
+      }
+    })
   }
 
   // Generate full month grid for calendar
@@ -215,6 +266,7 @@ export function DemoPage() {
                           <Label htmlFor="firstName">First name</Label>
                           <Input
                             id="firstName"
+                            name="firstName"
                             placeholder="John"
                             required
                           />
@@ -223,6 +275,7 @@ export function DemoPage() {
                           <Label htmlFor="lastName">Last name</Label>
                           <Input
                             id="lastName"
+                            name="lastName"
                             placeholder="Smith"
                             required
                           />
@@ -233,6 +286,7 @@ export function DemoPage() {
                         <Label htmlFor="email">Work email</Label>
                         <Input
                           id="email"
+                          name="email"
                           type="email"
                           placeholder="john@company.com"
                           required
@@ -243,6 +297,7 @@ export function DemoPage() {
                         <Label htmlFor="company">Company name</Label>
                         <Input
                           id="company"
+                          name="company"
                           placeholder="Acme Holdings"
                           required
                         />
@@ -250,7 +305,7 @@ export function DemoPage() {
 
                       <div className="space-y-2">
                         <Label htmlFor="aum">Approximate AUM</Label>
-                        <Select>
+                        <Select value={aum} onValueChange={setAum}>
                           <SelectTrigger>
                             <SelectValue placeholder="Select range" />
                           </SelectTrigger>
@@ -266,7 +321,7 @@ export function DemoPage() {
 
                       <div className="space-y-2">
                         <Label htmlFor="role">Your role</Label>
-                        <Select>
+                        <Select value={role} onValueChange={setRole}>
                           <SelectTrigger>
                             <SelectValue placeholder="Select role" />
                           </SelectTrigger>
@@ -280,9 +335,13 @@ export function DemoPage() {
                         </Select>
                       </div>
 
-                      <Button type="submit" variant="glow" size="lg" className="w-full">
-                        Request Demo
-                        <ArrowRight className="ml-2 h-4 w-4" />
+                      {error && (
+                        <p className="text-sm text-red-400 text-center">{error}</p>
+                      )}
+
+                      <Button type="submit" variant="glow" size="lg" className="w-full" disabled={isPending}>
+                        {isPending ? "Submitting…" : "Request Demo"}
+                        {!isPending && <ArrowRight className="ml-2 h-4 w-4" />}
                       </Button>
 
                       <p className="text-xs text-zinc-500 text-center">
@@ -393,7 +452,7 @@ export function DemoPage() {
                       )}
 
                       {selectedDate && selectedTime && (
-                        <div className="space-y-4 pt-4 border-t border-zinc-800">
+                        <div className="space-y-4 pt-4 border-t border-zinc-800" data-cal-fields>
                           <div className="grid sm:grid-cols-2 gap-4">
                             <div className="space-y-2">
                               <Label htmlFor="calFirstName">First name</Label>
@@ -408,9 +467,12 @@ export function DemoPage() {
                             <Label htmlFor="calEmail">Work email</Label>
                             <Input id="calEmail" type="email" placeholder="john@company.com" required />
                           </div>
-                          <Button onClick={handleSubmit} variant="glow" size="lg" className="w-full">
-                            Confirm Booking
-                            <Calendar className="ml-2 h-4 w-4" />
+                          {error && (
+                            <p className="text-sm text-red-400 text-center">{error}</p>
+                          )}
+                          <Button onClick={handleCalendarSubmit} variant="glow" size="lg" className="w-full" disabled={isPending}>
+                            {isPending ? "Booking…" : "Confirm Booking"}
+                            {!isPending && <Calendar className="ml-2 h-4 w-4" />}
                           </Button>
                         </div>
                       )}
