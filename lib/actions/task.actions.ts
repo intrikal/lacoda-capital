@@ -5,6 +5,7 @@ import { eq, and, count } from "drizzle-orm"
 import { db } from "@/app/db"
 import { tasks, users, clients, entities, assets, documents } from "@/app/db/schema"
 import { requireAuth, requireRole } from "@/lib/auth"
+import { blockDemoMutation } from "@/lib/demo/guard"
 import { createTaskSchema, updateTaskSchema } from "@/lib/validations/task.schema"
 import type { TaskRecord, PaginatedResult } from "@/lib/types"
 
@@ -44,6 +45,7 @@ export async function getTask(id: string): Promise<TaskRecord | null> {
 
 export async function createTask(input: unknown): Promise<TaskRecord> {
   const session = await requireRole("assistant")
+  blockDemoMutation(session.orgId)
   const parsed = createTaskSchema.parse(input)
 
   const [created] = await db
@@ -64,6 +66,7 @@ export async function createTask(input: unknown): Promise<TaskRecord> {
 
 export async function updateTask(id: string, input: unknown): Promise<TaskRecord> {
   const session = await requireRole("assistant")
+  blockDemoMutation(session.orgId)
   const existing = await db.query.tasks.findFirst({
     where: and(eq(tasks.id, id), eq(tasks.orgId, session.orgId!)),
   })
@@ -98,6 +101,7 @@ export async function updateTask(id: string, input: unknown): Promise<TaskRecord
 
 export async function deleteTask(id: string): Promise<boolean> {
   const session = await requireRole("admin")
+  blockDemoMutation(session.orgId)
   const existing = await db.query.tasks.findFirst({
     where: and(eq(tasks.id, id), eq(tasks.orgId, session.orgId!)),
   })

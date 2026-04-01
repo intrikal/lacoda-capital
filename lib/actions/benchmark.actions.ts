@@ -5,6 +5,7 @@ import { eq, and, count } from "drizzle-orm"
 import { db } from "@/app/db"
 import { benchmarks } from "@/app/db/schema"
 import { requireAuth, requireRole } from "@/lib/auth"
+import { blockDemoMutation } from "@/lib/demo/guard"
 import { createBenchmarkSchema, updateBenchmarkSchema } from "@/lib/validations/benchmark.schema"
 import type { BenchmarkRecord, PaginatedResult } from "@/lib/types"
 
@@ -42,6 +43,7 @@ export async function getBenchmark(id: string): Promise<BenchmarkRecord | null> 
 
 export async function createBenchmark(input: unknown): Promise<BenchmarkRecord> {
   const session = await requireRole("assistant")
+  blockDemoMutation(session.orgId)
   const parsed = createBenchmarkSchema.parse(input)
 
   const [created] = await db
@@ -61,6 +63,7 @@ export async function createBenchmark(input: unknown): Promise<BenchmarkRecord> 
 
 export async function updateBenchmark(id: string, input: unknown): Promise<BenchmarkRecord> {
   const session = await requireRole("assistant")
+  blockDemoMutation(session.orgId)
   const existing = await db.query.benchmarks.findFirst({
     where: and(eq(benchmarks.id, id), eq(benchmarks.orgId, session.orgId!)),
   })
@@ -84,6 +87,7 @@ export async function updateBenchmark(id: string, input: unknown): Promise<Bench
 
 export async function deleteBenchmark(id: string): Promise<boolean> {
   const session = await requireRole("admin")
+  blockDemoMutation(session.orgId)
   const existing = await db.query.benchmarks.findFirst({
     where: and(eq(benchmarks.id, id), eq(benchmarks.orgId, session.orgId!)),
   })

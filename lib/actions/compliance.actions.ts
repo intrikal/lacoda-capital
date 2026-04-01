@@ -5,6 +5,7 @@ import { eq, and, count } from "drizzle-orm"
 import { db } from "@/app/db"
 import { complianceControls, complianceEvidence, users } from "@/app/db/schema"
 import { requireAuth, requireRole } from "@/lib/auth"
+import { blockDemoMutation } from "@/lib/demo/guard"
 import {
   createComplianceControlSchema,
   updateComplianceControlSchema,
@@ -115,6 +116,7 @@ export async function getComplianceStats(): Promise<{
 
 export async function createComplianceControl(input: unknown): Promise<ComplianceControlRecord> {
   const session = await requireRole("admin")
+  blockDemoMutation(session.orgId)
   const parsed = createComplianceControlSchema.parse(input)
 
   const [created] = await db
@@ -149,6 +151,7 @@ export async function createComplianceControl(input: unknown): Promise<Complianc
 
 export async function updateComplianceControl(id: string, input: unknown): Promise<ComplianceControlRecord> {
   const session = await requireRole("admin")
+  blockDemoMutation(session.orgId)
   const existing = await db.query.complianceControls.findFirst({
     where: and(eq(complianceControls.id, id), eq(complianceControls.orgId, session.orgId!)),
   })
@@ -193,6 +196,7 @@ export async function updateComplianceControl(id: string, input: unknown): Promi
 
 export async function deleteComplianceControl(id: string): Promise<boolean> {
   const session = await requireRole("admin")
+  blockDemoMutation(session.orgId)
   const existing = await db.query.complianceControls.findFirst({
     where: and(eq(complianceControls.id, id), eq(complianceControls.orgId, session.orgId!)),
   })
@@ -216,6 +220,7 @@ export async function deleteComplianceControl(id: string): Promise<boolean> {
 
 export async function createComplianceEvidence(input: unknown): Promise<ComplianceEvidenceRecord> {
   const session = await requireRole("assistant")
+  blockDemoMutation(session.orgId)
   const parsed = createComplianceEvidenceSchema.parse(input)
 
   const control = await db.query.complianceControls.findFirst({
@@ -251,6 +256,7 @@ export async function createComplianceEvidence(input: unknown): Promise<Complian
 
 export async function deleteComplianceEvidence(id: string): Promise<boolean> {
   const session = await requireRole("assistant")
+  blockDemoMutation(session.orgId)
 
   const evidence = await db.query.complianceEvidence.findFirst({
     where: eq(complianceEvidence.id, id),

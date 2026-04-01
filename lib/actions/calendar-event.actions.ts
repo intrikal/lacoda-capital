@@ -5,6 +5,7 @@ import { eq, and, count, gte, lte } from "drizzle-orm"
 import { db } from "@/app/db"
 import { calendarEvents } from "@/app/db/schema"
 import { requireAuth, requireRole } from "@/lib/auth"
+import { blockDemoMutation } from "@/lib/demo/guard"
 import { createCalendarEventSchema, updateCalendarEventSchema } from "@/lib/validations/calendar-event.schema"
 import type { CalendarEventRecord, PaginatedResult } from "@/lib/types"
 
@@ -46,6 +47,7 @@ export async function getCalendarEvent(id: string): Promise<CalendarEventRecord 
 
 export async function createCalendarEvent(input: unknown): Promise<CalendarEventRecord> {
   const session = await requireRole("assistant")
+  blockDemoMutation(session.orgId)
   const parsed = createCalendarEventSchema.parse(input)
 
   const [created] = await db
@@ -72,6 +74,7 @@ export async function createCalendarEvent(input: unknown): Promise<CalendarEvent
 
 export async function updateCalendarEvent(id: string, input: unknown): Promise<CalendarEventRecord> {
   const session = await requireRole("assistant")
+  blockDemoMutation(session.orgId)
   const existing = await db.query.calendarEvents.findFirst({
     where: and(eq(calendarEvents.id, id), eq(calendarEvents.orgId, session.orgId!)),
   })
@@ -95,6 +98,7 @@ export async function updateCalendarEvent(id: string, input: unknown): Promise<C
 
 export async function deleteCalendarEvent(id: string): Promise<boolean> {
   const session = await requireRole("assistant")
+  blockDemoMutation(session.orgId)
   const existing = await db.query.calendarEvents.findFirst({
     where: and(eq(calendarEvents.id, id), eq(calendarEvents.orgId, session.orgId!)),
   })

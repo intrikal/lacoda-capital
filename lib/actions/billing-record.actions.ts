@@ -5,6 +5,7 @@ import { eq, and, count } from "drizzle-orm"
 import { db } from "@/app/db"
 import { billingRecords } from "@/app/db/schema"
 import { requireAuth, requireRole } from "@/lib/auth"
+import { blockDemoMutation } from "@/lib/demo/guard"
 import { createBillingRecordSchema, updateBillingRecordSchema } from "@/lib/validations/billing-record.schema"
 import type { BillingRecordItem, PaginatedResult } from "@/lib/types"
 
@@ -42,6 +43,7 @@ export async function getBillingRecord(id: string): Promise<BillingRecordItem | 
 
 export async function createBillingRecord(input: unknown): Promise<BillingRecordItem> {
   const session = await requireRole("assistant")
+  blockDemoMutation(session.orgId)
   const parsed = createBillingRecordSchema.parse(input)
 
   const [created] = await db
@@ -60,6 +62,7 @@ export async function createBillingRecord(input: unknown): Promise<BillingRecord
 
 export async function updateBillingRecord(id: string, input: unknown): Promise<BillingRecordItem> {
   const session = await requireRole("assistant")
+  blockDemoMutation(session.orgId)
   const existing = await db.query.billingRecords.findFirst({
     where: and(eq(billingRecords.id, id), eq(billingRecords.orgId, session.orgId!)),
   })
@@ -83,6 +86,7 @@ export async function updateBillingRecord(id: string, input: unknown): Promise<B
 
 export async function deleteBillingRecord(id: string): Promise<boolean> {
   const session = await requireRole("admin")
+  blockDemoMutation(session.orgId)
   const existing = await db.query.billingRecords.findFirst({
     where: and(eq(billingRecords.id, id), eq(billingRecords.orgId, session.orgId!)),
   })
