@@ -5,6 +5,7 @@ import { eq, and, desc, sql } from "drizzle-orm"
 import { db } from "@/app/db"
 import { valuations, assets, entities, clients } from "@/app/db/schema"
 import { requireAuth, requireRole } from "@/lib/auth"
+import { blockDemoMutation } from "@/lib/demo/guard"
 import { createValuationSchema } from "@/lib/validations/valuation.schema"
 import { createLedgerEvent } from "@/lib/actions/ledger"
 import type { ValuationRecord } from "@/lib/types"
@@ -15,6 +16,7 @@ import type { ValuationRecord } from "@/lib/types"
  */
 export async function addValuation(input: unknown): Promise<ValuationRecord> {
   const session = await requireRole("assistant")
+  blockDemoMutation(session.orgId)
   const data = createValuationSchema.parse(input)
 
   // Verify asset exists and belongs to user's org

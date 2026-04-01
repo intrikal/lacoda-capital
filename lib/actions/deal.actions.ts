@@ -5,6 +5,7 @@ import { eq, and, count } from "drizzle-orm"
 import { db } from "@/app/db"
 import { deals } from "@/app/db/schema"
 import { requireAuth, requireRole } from "@/lib/auth"
+import { blockDemoMutation } from "@/lib/demo/guard"
 import { createDealSchema, updateDealSchema } from "@/lib/validations/deal.schema"
 import type { DealRecord, PaginatedResult } from "@/lib/types"
 
@@ -44,6 +45,7 @@ export async function getDeal(id: string): Promise<DealRecord | null> {
 
 export async function createDeal(input: unknown): Promise<DealRecord> {
   const session = await requireRole("assistant")
+  blockDemoMutation(session.orgId)
   const parsed = createDealSchema.parse(input)
 
   const [created] = await db
@@ -62,6 +64,7 @@ export async function createDeal(input: unknown): Promise<DealRecord> {
 
 export async function updateDeal(id: string, input: unknown): Promise<DealRecord> {
   const session = await requireRole("assistant")
+  blockDemoMutation(session.orgId)
   const existing = await db.query.deals.findFirst({
     where: and(eq(deals.id, id), eq(deals.orgId, session.orgId!)),
   })
@@ -86,6 +89,7 @@ export async function updateDeal(id: string, input: unknown): Promise<DealRecord
 
 export async function deleteDeal(id: string): Promise<boolean> {
   const session = await requireRole("assistant")
+  blockDemoMutation(session.orgId)
   const existing = await db.query.deals.findFirst({
     where: and(eq(deals.id, id), eq(deals.orgId, session.orgId!)),
   })

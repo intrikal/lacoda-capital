@@ -5,6 +5,7 @@ import { eq, and, count } from "drizzle-orm"
 import { db } from "@/app/db"
 import { insurancePolicies } from "@/app/db/schema"
 import { requireAuth, requireRole } from "@/lib/auth"
+import { blockDemoMutation } from "@/lib/demo/guard"
 import { createInsurancePolicySchema, updateInsurancePolicySchema } from "@/lib/validations/insurance-policy.schema"
 import type { InsurancePolicyRecord, PaginatedResult } from "@/lib/types"
 
@@ -44,6 +45,7 @@ export async function getInsurancePolicy(id: string): Promise<InsurancePolicyRec
 
 export async function createInsurancePolicy(input: unknown): Promise<InsurancePolicyRecord> {
   const session = await requireRole("assistant")
+  blockDemoMutation(session.orgId)
   const parsed = createInsurancePolicySchema.parse(input)
 
   const [created] = await db
@@ -62,6 +64,7 @@ export async function createInsurancePolicy(input: unknown): Promise<InsurancePo
 
 export async function updateInsurancePolicy(id: string, input: unknown): Promise<InsurancePolicyRecord> {
   const session = await requireRole("assistant")
+  blockDemoMutation(session.orgId)
   const existing = await db.query.insurancePolicies.findFirst({
     where: and(eq(insurancePolicies.id, id), eq(insurancePolicies.orgId, session.orgId!)),
   })
@@ -85,6 +88,7 @@ export async function updateInsurancePolicy(id: string, input: unknown): Promise
 
 export async function deleteInsurancePolicy(id: string): Promise<boolean> {
   const session = await requireRole("admin")
+  blockDemoMutation(session.orgId)
   const existing = await db.query.insurancePolicies.findFirst({
     where: and(eq(insurancePolicies.id, id), eq(insurancePolicies.orgId, session.orgId!)),
   })

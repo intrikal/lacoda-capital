@@ -5,6 +5,7 @@ import { eq, and, count, desc } from "drizzle-orm"
 import { db } from "@/app/db"
 import { conversations, messages } from "@/app/db/schema"
 import { requireAuth, requireRole } from "@/lib/auth"
+import { blockDemoMutation } from "@/lib/demo/guard"
 import { createConversationSchema, sendMessageSchema } from "@/lib/validations/message.schema"
 import type { ConversationRecord, MessageRecord, PaginatedResult } from "@/lib/types"
 
@@ -58,6 +59,7 @@ export async function getMessages(params: {
 
 export async function createConversation(input: unknown): Promise<ConversationRecord> {
   const session = await requireRole("assistant")
+  blockDemoMutation(session.orgId)
   const parsed = createConversationSchema.parse(input)
 
   const [created] = await db
@@ -75,6 +77,7 @@ export async function createConversation(input: unknown): Promise<ConversationRe
 
 export async function sendMessage(input: unknown): Promise<MessageRecord> {
   const session = await requireRole("assistant")
+  blockDemoMutation(session.orgId)
   const parsed = sendMessageSchema.parse(input)
 
   const conv = await db.query.conversations.findFirst({
@@ -130,6 +133,7 @@ export async function markConversationRead(id: string): Promise<ConversationReco
 
 export async function deleteConversation(id: string): Promise<boolean> {
   const session = await requireRole("admin")
+  blockDemoMutation(session.orgId)
   const conv = await db.query.conversations.findFirst({
     where: and(eq(conversations.id, id), eq(conversations.orgId, session.orgId!)),
   })

@@ -8,9 +8,7 @@ import { db } from "@/app/db"
 import { users, orgMembers } from "@/app/db/schema"
 import { eq, isNull } from "drizzle-orm"
 import type { User, UserRole } from "@/lib/types/mock"
-
-/** The hardcoded "current" advisor for demo purposes. Replace with session/auth. */
-const CURRENT_USER_ID = "user-001"
+import { getSession } from "@/lib/auth"
 
 /** Map a DB users row to the User mock type shape. */
 function toUser(row: typeof users.$inferSelect, role?: string): User {
@@ -27,13 +25,11 @@ function toUser(row: typeof users.$inferSelect, role?: string): User {
 }
 
 export async function getCurrentUser(): Promise<User> {
-  // REAL: const session = await getServerSession()
-  //       return db.query.users.findFirst({ where: eq(users.id, session.user.id) })
-  const rows = await db.select().from(users).where(eq(users.id, CURRENT_USER_ID))
-  if (rows[0]) return toUser(rows[0])
-  // Fallback — return first user if demo id doesn't exist
-  const fallback = await db.select().from(users).limit(1)
-  return toUser(fallback[0])
+  const session = await getSession()
+  if (!session) throw new Error("Not authenticated")
+  const rows = await db.select().from(users).where(eq(users.id, session.userId))
+  if (!rows[0]) throw new Error("User not found")
+  return toUser(rows[0])
 }
 
 export async function getUsers(): Promise<User[]> {

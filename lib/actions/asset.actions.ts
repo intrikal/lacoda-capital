@@ -4,6 +4,7 @@ import { eq, and, count, sql, gte, lte, like, isNull, desc } from "drizzle-orm"
 import { db } from "@/app/db"
 import { assets, entities, clients, valuations, documents } from "@/app/db/schema"
 import { requireAuth, requireRole } from "@/lib/auth"
+import { blockDemoMutation } from "@/lib/demo/guard"
 import { createAssetSchema, updateAssetSchema } from "@/lib/validations/asset.schema"
 import { createLedgerEvent } from "@/lib/actions/ledger"
 import { captureServerEvent } from "@/lib/analytics/posthog-server"
@@ -115,6 +116,7 @@ export async function getAssetById(id: string) {
 
 export async function createAsset(input: unknown): Promise<AssetRecord> {
   const session = await requireRole("assistant")
+  blockDemoMutation(session.orgId)
   const data = createAssetSchema.parse(input)
 
   const entity = await db.query.entities.findFirst({
@@ -161,6 +163,7 @@ export async function createAsset(input: unknown): Promise<AssetRecord> {
 
 export async function updateAsset(id: string, input: unknown): Promise<AssetRecord> {
   const session = await requireRole("assistant")
+  blockDemoMutation(session.orgId)
   const existing = await db.query.assets.findFirst({
     where: eq(assets.id, id),
     with: { entity: { with: { client: true } } },
@@ -204,6 +207,7 @@ export async function updateAsset(id: string, input: unknown): Promise<AssetReco
 
 export async function archiveAsset(id: string): Promise<boolean> {
   const session = await requireRole("assistant")
+  blockDemoMutation(session.orgId)
   const existing = await db.query.assets.findFirst({
     where: eq(assets.id, id),
     with: { entity: { with: { client: true } } },
@@ -230,6 +234,7 @@ export async function archiveAsset(id: string): Promise<boolean> {
 
 export async function deleteAsset(id: string): Promise<boolean> {
   const session = await requireRole("admin")
+  blockDemoMutation(session.orgId)
   const existing = await db.query.assets.findFirst({
     where: eq(assets.id, id),
     with: { entity: { with: { client: true } } },

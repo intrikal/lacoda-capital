@@ -5,6 +5,7 @@ import { eq, and, count } from "drizzle-orm"
 import { db } from "@/app/db"
 import { goals } from "@/app/db/schema"
 import { requireAuth, requireRole } from "@/lib/auth"
+import { blockDemoMutation } from "@/lib/demo/guard"
 import { createGoalSchema, updateGoalSchema } from "@/lib/validations/goal.schema"
 import type { GoalRecord, PaginatedResult } from "@/lib/types"
 
@@ -44,6 +45,7 @@ export async function getGoal(id: string): Promise<GoalRecord | null> {
 
 export async function createGoal(input: unknown): Promise<GoalRecord> {
   const session = await requireRole("assistant")
+  blockDemoMutation(session.orgId)
   const parsed = createGoalSchema.parse(input)
 
   const [created] = await db
@@ -65,6 +67,7 @@ export async function createGoal(input: unknown): Promise<GoalRecord> {
 
 export async function updateGoal(id: string, input: unknown): Promise<GoalRecord> {
   const session = await requireRole("assistant")
+  blockDemoMutation(session.orgId)
   const existing = await db.query.goals.findFirst({
     where: and(eq(goals.id, id), eq(goals.orgId, session.orgId!)),
   })
@@ -88,6 +91,7 @@ export async function updateGoal(id: string, input: unknown): Promise<GoalRecord
 
 export async function deleteGoal(id: string): Promise<boolean> {
   const session = await requireRole("admin")
+  blockDemoMutation(session.orgId)
   const existing = await db.query.goals.findFirst({
     where: and(eq(goals.id, id), eq(goals.orgId, session.orgId!)),
   })
