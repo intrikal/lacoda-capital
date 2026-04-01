@@ -43,7 +43,7 @@ const features = [
       "Enterprise-grade document management with version control, expiration tracking, and intelligent search.",
     details: [
       "Unlimited storage",
-      "OCR-powered search",
+      "Full-text search across document names and tags",
       "Automatic expiration alerts",
       "Folder & tag organization",
     ],
