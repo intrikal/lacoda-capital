@@ -19,6 +19,12 @@ import {
   Upload,
   Zap,
   Eye,
+  ScanText,
+  FileEdit,
+  Mail,
+  BellRing,
+  LineChart,
+  Globe,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -291,6 +297,18 @@ function SolutionSection() {
       description:
         "Controlled access for advisors, attorneys, and family members. Right information, right people.",
     },
+    {
+      icon: LineChart,
+      title: "Fund Analytics",
+      description:
+        "IRR, TWR, TVPI/DPI/RVPI, capital call tracking, and benchmark comparisons for PE/VC portfolios.",
+    },
+    {
+      icon: Globe,
+      title: "Multi-Currency Consolidation",
+      description:
+        "Track assets in any currency with manual exchange rates and consolidated reporting in your base currency.",
+    },
   ]
 
   return (
@@ -309,6 +327,87 @@ function SolutionSection() {
             <p className="mt-6 text-lg text-zinc-400">
               One platform. One source of truth. Complete visibility and control
               over your entire portfolio.
+            </p>
+          </div>
+        </FadeInSection>
+
+        <div className="mt-16 grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {features.map((feature, index) => (
+            <FadeInSection key={feature.title} delay={index * 100}>
+              <Card className="group h-full hover:border-teal-500/30 transition-all hover:shadow-[0_0_30px_rgba(20,184,166,0.1)]">
+                <CardContent className="p-6">
+                  <div className="flex items-start gap-4">
+                    <div className="p-3 rounded-lg bg-teal-500/10 group-hover:bg-teal-500/20 transition-colors">
+                      <feature.icon className="h-6 w-6 text-teal-400" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-zinc-100 text-lg">
+                        {feature.title}
+                      </h3>
+                      <p className="mt-2 text-zinc-400 leading-relaxed">
+                        {feature.description}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </FadeInSection>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AI Intelligence Section
+// ─────────────────────────────────────────────────────────────────────────────
+
+function AIIntelligenceSection() {
+  const features = [
+    {
+      icon: ScanText,
+      title: "Smart Extraction",
+      description:
+        "Upload a document and AI extracts asset data, valuations, and metadata with confidence scores. Review and confirm before saving.",
+    },
+    {
+      icon: FileEdit,
+      title: "Report Narratives",
+      description:
+        "Generate professional portfolio summaries that reference real numbers from your data. Edit before publishing.",
+    },
+    {
+      icon: Mail,
+      title: "Email Drafting",
+      description:
+        "AI writes professional document request emails with context from your vault. Review and send.",
+    },
+    {
+      icon: BellRing,
+      title: "Alert Digest",
+      description:
+        "Weekly AI-prioritized summary of expiring documents, stale valuations, compliance deadlines, and overdue requests.",
+    },
+  ]
+
+  return (
+    <section className="py-24 lg:py-32 bg-zinc-950 relative overflow-hidden">
+      <div className="absolute inset-0 bg-gradient-to-b from-zinc-950 to-zinc-900" />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-teal-500/5 rounded-full blur-3xl" />
+
+      <div className="relative mx-auto max-w-7xl px-6 lg:px-8">
+        <FadeInSection>
+          <div className="text-center max-w-3xl mx-auto">
+            <Badge variant="primary" className="mb-6">
+              AI-Powered Intelligence
+            </Badge>
+            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-zinc-100">
+              Your data, made <span className="text-gradient">actionable</span>
+            </h2>
+            <p className="mt-6 text-lg text-zinc-400">
+              AI that works with your existing workflow—extract, draft, and
+              summarize, with you in control of every step.
             </p>
           </div>
         </FadeInSection>
@@ -352,7 +451,7 @@ function HowItWorksSection() {
       icon: Upload,
       title: "Connect Your Assets",
       description:
-        "Link your accounts, upload documents, or let our team handle the migration for a service fee. We support integrations with Plaid, Stripe, DocuSign, QuickBooks, Salesforce, Google Drive, and more.",
+        "Link your accounts, upload documents, bulk import via CSV, or let our team handle the migration for a service fee. We support integrations with Plaid, Stripe, DocuSign, QuickBooks, Salesforce, Google Drive, and more.",
     },
     {
       number: "02",
@@ -459,6 +558,18 @@ function LiveLedgerSection() {
               <li className="flex items-center gap-3">
                 <CheckCircle2 className="h-5 w-5 text-teal-400 flex-shrink-0" />
                 <span className="text-zinc-300">Immutable audit ledger</span>
+              </li>
+              <li className="flex items-center gap-3">
+                <CheckCircle2 className="h-5 w-5 text-teal-400 flex-shrink-0" />
+                <span className="text-zinc-300">Deal pipeline tracking</span>
+              </li>
+              <li className="flex items-center gap-3">
+                <CheckCircle2 className="h-5 w-5 text-teal-400 flex-shrink-0" />
+                <span className="text-zinc-300">PDF report generation</span>
+              </li>
+              <li className="flex items-center gap-3">
+                <CheckCircle2 className="h-5 w-5 text-teal-400 flex-shrink-0" />
+                <span className="text-zinc-300">Global command search (⌘K)</span>
               </li>
             </ul>
 
@@ -606,6 +717,7 @@ export function HomePage() {
       <StatsSection />
       <ProblemSection />
       <SolutionSection />
+      <AIIntelligenceSection />
       <HowItWorksSection />
       <LiveLedgerSection />
       <TestimonialsSection />

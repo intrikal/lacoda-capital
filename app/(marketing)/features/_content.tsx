@@ -2,7 +2,6 @@
 
 import * as React from "react"
 import Link from "next/link"
-import Image from "next/image"
 import { useSpring, animated, config } from "@react-spring/web"
 import {
   ArrowRight,
@@ -13,7 +12,6 @@ import {
   Bell,
   Users,
   Shield,
-  Zap,
   CheckCircle2,
   BarChart3,
   Clock,
@@ -28,7 +26,6 @@ import {
   Lock,
   Eye,
   Settings,
-  Upload,
   Download,
   Filter,
   Search,
@@ -37,11 +34,27 @@ import {
   Mail,
   MessageSquare,
   Share2,
-  Link2,
   Database,
   Cloud,
   RefreshCw,
   Activity,
+  Brain,
+  ScanText,
+  FileEdit,
+  BellRing,
+  Sigma,
+  Coins,
+  Building,
+  Layers,
+  ShieldCheck,
+  Heart,
+  DollarSign,
+  Receipt,
+  ArrowLeftRight,
+  FileUp,
+  FileOutput,
+  Package,
+  KeyRound,
   type LucideIcon,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -118,9 +131,9 @@ const featureSections: FeatureSection[] = [
     details: [
       {
         icon: Search,
-        title: "OCR-Powered Search",
+        title: "Full-text Search",
         description:
-          "Full-text search across all documents, including scanned PDFs. Find any document in seconds.",
+          "Search across document names, descriptions, and tags to find any file instantly.",
       },
       {
         icon: Tag,
@@ -276,6 +289,177 @@ const featureSections: FeatureSection[] = [
         title: "Secure Messaging",
         description:
           "Built-in messaging for stakeholder communication. Keep conversations in context with related assets.",
+      },
+    ],
+  },
+  {
+    id: "ai-intelligence",
+    icon: Brain,
+    title: "AI Intelligence",
+    subtitle: "Your AI-powered back office",
+    description:
+      "AI that works within your existing workflow—extract structured data, draft communications, and surface what matters most, with you in control of every step.",
+    badge: "New",
+    details: [
+      {
+        icon: ScanText,
+        title: "Smart Extraction",
+        description:
+          "Upload docs, AI extracts structured data with confidence scores. Human reviews before saving.",
+      },
+      {
+        icon: FileEdit,
+        title: "Report Narratives",
+        description:
+          "AI writes 2–3 paragraph professional summaries using real portfolio numbers from your data.",
+      },
+      {
+        icon: Mail,
+        title: "Email Drafting",
+        description:
+          "AI generates context-aware document request emails, editable before sending.",
+      },
+      {
+        icon: BellRing,
+        title: "Alert Digest",
+        description:
+          "Weekly AI-prioritized summary of deadlines, expirations, and compliance items, delivered via email and in-app.",
+      },
+    ],
+  },
+  {
+    id: "fund-analytics",
+    icon: LineChart,
+    title: "Fund Analytics",
+    subtitle: "Purpose-built for PE, VC, and alternatives",
+    description:
+      "Institutional-grade performance metrics for private funds. Calculate returns, track capital events, and compare against benchmarks—all within your portfolio data.",
+    details: [
+      {
+        icon: Sigma,
+        title: "Performance Metrics",
+        description:
+          "IRR via Newton's method, TWR via Modified Dietz, with period comparison.",
+      },
+      {
+        icon: TrendingUp,
+        title: "Fund Metrics",
+        description:
+          "TVPI, DPI, RVPI, remaining commitment, and over-commitment detection.",
+      },
+      {
+        icon: Coins,
+        title: "Capital Events",
+        description:
+          "Capital calls, distributions, and recallable amounts tracked per fund.",
+      },
+      {
+        icon: BarChart3,
+        title: "Benchmark Comparisons",
+        description:
+          "Compare portfolio performance against custom benchmarks over any time range.",
+      },
+    ],
+  },
+  {
+    id: "entity-deal-management",
+    icon: Building,
+    title: "Entity & Deal Management",
+    subtitle: "Complex structures, simple interface",
+    description:
+      "Manage the full lifecycle of legal entities, deal flow, insurance policies, and beneficiary designations in one connected system.",
+    details: [
+      {
+        icon: Building2,
+        title: "Legal Entities",
+        description:
+          "Manage trusts, LLCs, partnerships, and holding companies with ownership hierarchies.",
+      },
+      {
+        icon: Layers,
+        title: "Deal Pipeline",
+        description:
+          "Kanban-style deal flow from prospecting through close with stage tracking.",
+      },
+      {
+        icon: ShieldCheck,
+        title: "Insurance Policies",
+        description:
+          "Track policies, premiums, coverage amounts, and expiration dates.",
+      },
+      {
+        icon: Heart,
+        title: "Beneficiary Management",
+        description:
+          "Designate and manage beneficiaries across entities and accounts.",
+      },
+    ],
+  },
+  {
+    id: "financial-operations",
+    icon: DollarSign,
+    title: "Financial Operations",
+    subtitle: "Every dollar accounted for",
+    description:
+      "Multi-currency tracking, tax write-off management, client billing, and inter-account transfers with a complete audit trail.",
+    details: [
+      {
+        icon: Globe,
+        title: "Multi-Currency",
+        description:
+          "Track assets in any currency with manual exchange rates and consolidated reporting.",
+      },
+      {
+        icon: Receipt,
+        title: "Tax Write-offs",
+        description:
+          "Track deductible expenses by category with receipt linking.",
+      },
+      {
+        icon: FileText,
+        title: "Billing Records",
+        description:
+          "Client fee schedules, invoicing, and payment tracking with Stripe integration.",
+      },
+      {
+        icon: ArrowLeftRight,
+        title: "Transfers",
+        description:
+          "Inter-account and inter-entity transfer tracking with full audit trail.",
+      },
+    ],
+  },
+  {
+    id: "data-import-export",
+    icon: Database,
+    title: "Data Import & Export",
+    subtitle: "Your data, your way",
+    description:
+      "Flexible tools for bulk data operations, report generation, and compliance exports. Get your data in and out without friction.",
+    details: [
+      {
+        icon: FileUp,
+        title: "CSV Bulk Import",
+        description:
+          "Upload CSVs with intelligent column mapping and conflict resolution.",
+      },
+      {
+        icon: FileOutput,
+        title: "PDF Reports",
+        description:
+          "Generate portfolio summaries and holdings detail PDFs from templates.",
+      },
+      {
+        icon: Package,
+        title: "GDPR Export",
+        description:
+          "Full org data export in JSON and CSV for data portability compliance.",
+      },
+      {
+        icon: KeyRound,
+        title: "API Access",
+        description:
+          "RESTful API with key auth, rate limiting, and webhook support for 5 resource types.",
       },
     ],
   },
@@ -453,7 +637,7 @@ export function FeaturesPage() {
             </h1>
             <p className="mt-6 text-lg text-zinc-400">
               A comprehensive platform built specifically for enterprises and
-              asset managers. Six core capabilities that transform how you work.
+              asset managers. Eleven capabilities that transform how you work.
             </p>
             <div className="mt-10 flex justify-center gap-4 flex-wrap">
               <Button variant="glow" size="lg" asChild>
