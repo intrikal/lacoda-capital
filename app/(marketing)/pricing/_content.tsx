@@ -95,7 +95,7 @@ const featureComparison = [
       { name: "Performance analytics", starter: "Basic", professional: "Advanced", enterprise: "Custom" },
       { name: "Multi-currency support", starter: true, professional: true, enterprise: true },
       { name: "Real-time valuations", starter: false, professional: true, enterprise: true },
-      { name: "Custom asset classes", starter: false, professional: true, enterprise: true },
+      { name: "10+ asset classes", starter: false, professional: true, enterprise: true },
       { name: "Capital call tracking", starter: false, professional: true, enterprise: true },
       { name: "Fund metrics (TVPI/DPI)", starter: false, professional: true, enterprise: true },
       { name: "Deal pipeline", starter: false, professional: true, enterprise: true },
@@ -107,7 +107,7 @@ const featureComparison = [
       { name: "Document storage", starter: "10 GB", professional: "100 GB", enterprise: "Unlimited" },
       { name: "Version control", starter: true, professional: true, enterprise: true },
       { name: "Expiration alerts", starter: true, professional: true, enterprise: true },
-      { name: "OCR & search", starter: false, professional: true, enterprise: true },
+      { name: "Full-text search", starter: false, professional: true, enterprise: true },
       { name: "E-signature integration", starter: false, professional: true, enterprise: true },
       { name: "CSV bulk import", starter: true, professional: true, enterprise: true },
       { name: "PDF report generation", starter: true, professional: true, enterprise: true },
@@ -125,7 +125,7 @@ const featureComparison = [
   {
     category: "Security & Compliance",
     features: [
-      { name: "SOC 2 Type II", starter: true, professional: true, enterprise: true },
+      { name: "SOC 2 Type II (in progress)", starter: true, professional: true, enterprise: true },
       { name: "Role-based access", starter: true, professional: true, enterprise: true },
       { name: "Audit logging", starter: true, professional: true, enterprise: true },
       { name: "SSO/SAML", starter: false, professional: true, enterprise: true },
@@ -140,7 +140,7 @@ const featureComparison = [
       { name: "Webhooks", starter: false, professional: true, enterprise: true },
       { name: "Bank feeds", starter: false, professional: true, enterprise: true },
       { name: "Custom integrations", starter: false, professional: false, enterprise: true },
-      { name: "Data warehouse sync", starter: false, professional: false, enterprise: true },
+      { name: "Data warehouse sync (coming soon)", starter: false, professional: false, enterprise: false },
     ],
   },
   {
@@ -150,7 +150,7 @@ const featureComparison = [
       { name: "Priority support", starter: false, professional: true, enterprise: true },
       { name: "Phone support", starter: false, professional: false, enterprise: true },
       { name: "Dedicated CSM", starter: false, professional: false, enterprise: true },
-      { name: "Custom onboarding", starter: false, professional: false, enterprise: true },
+      { name: "Guided onboarding", starter: false, professional: false, enterprise: true },
     ],
   },
 ]
@@ -481,8 +481,8 @@ export function PricingPage() {
 
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
               {[
-                { name: "SOC 2 Type II security", tooltip: "Enterprise-grade security certification" },
-                { name: "Bank-grade encryption", tooltip: "AES-256 encryption at rest and in transit" },
+                { name: "Enterprise-grade encryption", tooltip: "AES-256 encryption at rest and in transit" },
+                { name: "Bank-grade encryption", tooltip: "TLS 1.3 in transit, AES-256 at rest" },
                 { name: "Role-based access control", tooltip: "Granular permissions for team members" },
                 { name: "Immutable audit ledger", tooltip: "Complete history of all actions" },
                 { name: "Document versioning", tooltip: "Track changes across document versions" },

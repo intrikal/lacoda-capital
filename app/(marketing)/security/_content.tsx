@@ -22,9 +22,7 @@ import {
   Fingerprint,
   Monitor,
   Cpu,
-  FileWarning,
   RefreshCw,
-  UserCheck,
   ShieldCheck,
   ShieldAlert,
   HardDrive,
@@ -32,7 +30,6 @@ import {
   Network,
   BadgeCheck,
   Scale,
-  Laptop,
   Award,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -53,8 +50,6 @@ const securityPillars = [
       "All data encrypted using AES-256 encryption, the gold standard used by banks, governments, and defense organizations worldwide.",
     details: [
       "AES-256 bit encryption",
-      "Hardware security modules (HSM)",
-      "Automatic key rotation",
       "Encrypted backups",
     ],
   },
@@ -66,7 +61,6 @@ const securityPillars = [
     details: [
       "TLS 1.3 protocol",
       "Perfect forward secrecy",
-      "Certificate pinning",
       "HSTS enforcement",
     ],
   },
@@ -77,8 +71,6 @@ const securityPillars = [
       "Enforce strong authentication across your organization with support for modern authentication standards.",
     details: [
       "TOTP authenticator apps",
-      "Hardware security keys (FIDO2)",
-      "Biometric authentication",
       "SSO/SAML integration",
     ],
   },
@@ -108,14 +100,13 @@ const securityPillars = [
   },
   {
     icon: Monitor,
-    title: "24/7 Security Monitoring",
+    title: "Security Monitoring",
     description:
-      "Our security operations center continuously monitors for threats, anomalies, and suspicious activity.",
+      "Automated monitoring and alerting continuously watches for threats, anomalies, and suspicious activity.",
     details: [
       "Real-time threat detection",
-      "Anomaly detection ML",
+      "Anomaly alerting",
       "Automated incident response",
-      "On-call security team",
     ],
   },
 ]
@@ -126,7 +117,7 @@ const complianceCertifications = [
     icon: Award,
     status: "in_progress",
     description:
-      "Undergoing third-party SOC 2 Type II audit. Report will be available under NDA upon completion.",
+      "SOC 2 Type II audit planned. Compliance controls and audit logging are built into the platform.",
     link: "Contact Security Team",
   },
   {
@@ -146,14 +137,6 @@ const complianceCertifications = [
     link: "Learn More",
   },
   {
-    name: "SOC 1 Type II",
-    icon: FileCheck,
-    status: "in_progress",
-    description:
-      "SSAE 18 audit in progress. Expected completion Q3 2025.",
-    link: "Contact Security Team",
-  },
-  {
     name: "ISO 27001",
     icon: BadgeCheck,
     status: "in_progress",
@@ -166,7 +149,7 @@ const complianceCertifications = [
     icon: CreditCardIcon,
     status: "compliant",
     description:
-      "Payment Card Industry Data Security Standard compliance for secure handling of payment information.",
+      "Payment processing is handled by Stripe, a PCI Level 1 certified provider.",
     link: "Learn More",
   },
 ]
@@ -217,13 +200,12 @@ const securityPractices = [
       "Annual penetration testing by independent security firms",
       "Quarterly vulnerability assessments",
       "Automated security scanning in CI/CD pipeline",
-      "Bug bounty program for responsible disclosure",
     ],
   },
   {
     category: "Operational Security",
     items: [
-      "24/7 security operations center monitoring",
+      "Automated monitoring and alerting",
       "Documented incident response procedures",
       "Regular tabletop exercises and security drills",
       "Threat intelligence integration",
@@ -259,21 +241,6 @@ const enterpriseFeatures = [
     icon: Key,
     title: "Custom Security Policies",
     description: "Configure password requirements, session timeouts, and IP allowlists.",
-  },
-  {
-    icon: Laptop,
-    title: "Device Management",
-    description: "Enforce device trust policies and manage authorized devices.",
-  },
-  {
-    icon: FileWarning,
-    title: "DLP Controls",
-    description: "Data loss prevention with download restrictions and watermarking.",
-  },
-  {
-    icon: UserCheck,
-    title: "User Provisioning",
-    description: "SCIM support for automated user lifecycle management.",
   },
   {
     icon: RefreshCw,
@@ -576,14 +543,11 @@ export function SecurityPage() {
               </h2>
               <p className="mt-4 text-zinc-400 leading-relaxed">
                 Every document uploaded to Lacoda is protected by multiple layers
-                of security. Data is encrypted before it leaves your device,
-                transmitted securely, and stored in encrypted form. Access is
-                strictly controlled and every view is logged.
+                of security. Data is transmitted securely and stored in encrypted
+                form. Access is strictly controlled and every view is logged.
               </p>
               <ul className="mt-8 space-y-4">
                 {[
-                  "Client-side encryption before upload",
-                  "Zero-knowledge architecture options",
                   "Automatic version history with immutable records",
                   "Expiration tracking and compliance alerts",
                   "Secure sharing with time-limited, revocable links",
@@ -736,7 +700,7 @@ export function SecurityPage() {
               },
               {
                 q: "Can I get a copy of your SOC 2 report?",
-                a: "Yes, our SOC 2 Type II report is available upon request under NDA. Please contact security@lacoda.com or request through your account manager. We can also provide our SOC 1 Type II report for customers with financial reporting requirements.",
+                a: "Our SOC 2 Type II audit is planned and in progress. Once complete, the report will be available upon request under NDA. Please contact security@lacoda.com or request through your account manager.",
               },
               {
                 q: "Do you support SSO?",
@@ -744,7 +708,7 @@ export function SecurityPage() {
               },
               {
                 q: "How do you handle security incidents?",
-                a: "We maintain a documented incident response plan with 24/7 monitoring. In the event of a security incident, affected customers are notified within 72 hours with full details and remediation steps. We maintain cyber insurance and conduct regular incident response drills.",
+                a: "We maintain a documented incident response plan with automated monitoring and alerting. In the event of a security incident, affected customers are notified within 72 hours with full details and remediation steps. We maintain cyber insurance and conduct regular incident response drills.",
               },
               {
                 q: "Can I conduct my own security assessment?",
