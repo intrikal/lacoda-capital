@@ -5,6 +5,14 @@ export const metadata: Metadata = {
   title: "API Documentation | Lacoda Capital Holdings",
   description:
     "Explore the Lacoda Capital API. Integrate your systems, automate workflows, and build on top of our asset management platform.",
+  keywords: [
+    "Lacoda API documentation",
+    "asset management API",
+    "REST API",
+  ],
+  alternates: {
+    canonical: "https://lacodacapital.com/docs/api",
+  },
   openGraph: {
     title: "API Documentation | Lacoda Capital Holdings",
     description:

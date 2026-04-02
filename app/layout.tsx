@@ -15,6 +15,7 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://lacodacapital.com"),
   title: "Lacoda Capital Holdings | Asset Management OS",
   description:
     "The operating system for asset management and holdings firms. One unified platform for portfolio tracking, document management, compliance, and reporting.",
@@ -27,6 +28,26 @@ export const metadata: Metadata = {
     "compliance",
     "document vault",
   ],
+  icons: {
+    icon: "/favicon.ico",
+    apple: "/favicon.ico",
+  },
+  twitter: {
+    card: "summary_large_image",
+    site: "@lacodacapital",
+  },
+  openGraph: {
+    images: [{ url: "/opengraph-image", width: 1200, height: 630 }],
+  },
+}
+
+const organizationJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  name: "Lacoda Capital Holdings",
+  url: "https://lacodacapital.com",
+  logo: "https://lacodacapital.com/opengraph-image",
+  sameAs: [],
 }
 
 export default function RootLayout({
@@ -39,6 +60,10 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-zinc-950 text-zinc-100`}
       >
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
+        />
         <PostHogProvider>
           <TooltipProvider delayDuration={200}>
             {children}
