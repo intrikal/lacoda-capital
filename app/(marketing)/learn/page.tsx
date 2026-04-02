@@ -5,6 +5,14 @@ export const metadata: Metadata = {
   title: "Learn | Lacoda Capital Holdings",
   description:
     "Resources, guides, and educational content to help asset managers and holdings firms get the most out of Lacoda.",
+  keywords: [
+    "wealth management guides",
+    "asset management tutorials",
+    "portfolio management help",
+  ],
+  alternates: {
+    canonical: "https://lacodacapital.com/learn",
+  },
   openGraph: {
     title: "Learn | Lacoda Capital Holdings",
     description:

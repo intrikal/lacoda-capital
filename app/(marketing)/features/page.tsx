@@ -5,6 +5,16 @@ export const metadata: Metadata = {
   title: "Features | Lacoda Capital Holdings",
   description:
     "Portfolio tracking, document vault, compliance tools, reporting, and more — everything your asset management firm needs in one platform.",
+  keywords: [
+    "portfolio tracking",
+    "document management",
+    "compliance reporting",
+    "AI extraction",
+    "fund analytics",
+  ],
+  alternates: {
+    canonical: "https://lacodacapital.com/features",
+  },
   openGraph: {
     title: "Features | Lacoda Capital Holdings",
     description:
