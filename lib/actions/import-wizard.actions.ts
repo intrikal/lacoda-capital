@@ -5,6 +5,7 @@ import { db } from "@/app/db"
 import { assets, entities, clients } from "@/app/db/schema"
 import { requireRole } from "@/lib/auth"
 import { createLedgerEvent } from "@/lib/actions/ledger"
+import { captureServerEvent } from "@/lib/analytics/server"
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -325,11 +326,22 @@ export async function executeImportWithConflictResolution(
     }
   }
 
-  return {
+  const result = {
     created,
     updated,
     skipped,
     failed: failedErrors.length,
     errors: failedErrors,
   }
+
+  if (created > 0 || updated > 0) {
+    captureServerEvent(session.userId, "import.wizard_completed", {
+      row_count: created + updated + skipped + failedErrors.length,
+      created,
+      updated,
+      skipped,
+    })
+  }
+
+  return result
 }

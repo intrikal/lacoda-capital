@@ -32,6 +32,11 @@ import {
 import { cn } from "@/lib/utils"
 import { useReducedMotion } from "@/lib/hooks/use-reduced-motion"
 import { submitDemoForm } from "@/lib/actions/contact.actions"
+import posthog from "posthog-js"
+
+const safeCapture = (event: string, properties?: Record<string, unknown>) => {
+  if (typeof window !== "undefined" && posthog.__loaded) posthog.capture(event, properties)
+}
 
 const benefits = [
   {
@@ -113,6 +118,7 @@ export function DemoPage() {
   // Controlled values for Select fields (uncontrolled Selects don't submit with FormData)
   const [aum, setAum] = React.useState("")
   const [role, setRole] = React.useState("")
+  const demoFormStartedRef = React.useRef(false)
 
   const heroSpring = useSpring({
     from: { opacity: 0, transform: "translateY(20px)" },
@@ -138,6 +144,7 @@ export function DemoPage() {
     startTransition(async () => {
       const result = await submitDemoForm(payload)
       if (result.success) {
+        safeCapture("marketing.demo_form_submitted")
         setSubmitted(true)
       } else {
         setError(result.error)
@@ -269,6 +276,12 @@ export function DemoPage() {
                             name="firstName"
                             placeholder="John"
                             required
+                            onFocus={() => {
+                              if (!demoFormStartedRef.current) {
+                                demoFormStartedRef.current = true
+                                safeCapture("marketing.demo_form_started")
+                              }
+                            }}
                           />
                         </div>
                         <div className="space-y-2">
@@ -659,7 +672,7 @@ export function DemoPage() {
           </p>
           <div className="mt-8 flex justify-center gap-4 flex-wrap">
             <Button variant="glow" size="lg" asChild>
-              <Link href="/app">
+              <Link href="/app" onClick={() => safeCapture("marketing.demo_cta_clicked")}>
                 Launch Demo Dashboard
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>

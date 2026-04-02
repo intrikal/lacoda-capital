@@ -30,6 +30,11 @@ import {
 import { cn } from "@/lib/utils"
 import { useReducedMotion } from "@/lib/hooks/use-reduced-motion"
 import { submitContactForm } from "@/lib/actions/contact.actions"
+import posthog from "posthog-js"
+
+const safeCapture = (event: string, properties?: Record<string, unknown>) => {
+  if (typeof window !== "undefined" && posthog.__loaded) posthog.capture(event, properties)
+}
 
 const contactReasons = [
   { value: "demo", label: "Schedule a Demo" },
@@ -126,6 +131,7 @@ export function ContactPage() {
     startTransition(async () => {
       const result = await submitContactForm(formData)
       if (result.success) {
+        safeCapture("marketing.contact_form_submitted")
         setSubmitted(true)
       } else {
         setError(result.error)
