@@ -121,6 +121,7 @@ import type {
   ClientType,
   ClientStatus,
 } from "@/lib/validations/client.schema"
+import { trackClientCreated } from "@/lib/analytics/track"
 
 
 // ─── PROPS INTERFACE ────────────────────────────────────────────────────────────
@@ -260,6 +261,7 @@ export function ClientFormDialog({
         phone: value.phone || null,   // "" → null
       })
       if (!parsed.success) return     // Validation failed — don't submit
+      if (mode === "create") trackClientCreated()
       onSubmit(parsed.data)           // Pass validated data to the parent
       onOpenChange(false)             // Close the dialog
     },

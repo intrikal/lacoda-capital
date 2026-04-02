@@ -65,6 +65,7 @@ import {
 import type { ComplianceControlRecord } from "@/lib/hooks/crud/use-compliance"
 import { ComplianceControlFormDialog } from "@/components/forms/compliance-control-form-dialog"
 import { useLedger } from "@/lib/hooks/crud/use-ledger"
+import { trackEvidenceLinked } from "@/lib/analytics/track"
 
 // ─── STATUS CONFIG ────────────────────────────────────────────────────────────
 
@@ -325,6 +326,8 @@ export default function CompliancePage() {
       { controlId: data.controlId, documentId: data.documentId, status: "pending" },
       {
         onSuccess: () => {
+          const control = controls.find((c) => c.id === data.controlId)
+          if (control?.code) trackEvidenceLinked(control.code)
           setEvidenceTarget(null)
           refetch()
         },

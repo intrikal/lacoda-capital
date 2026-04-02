@@ -16,6 +16,12 @@ import {
 import { cn } from "@/lib/utils"
 import { useReducedMotion } from "@/lib/hooks/use-reduced-motion"
 import { createCheckoutSession } from "@/lib/actions/subscription.actions"
+import { trackSubscriptionUpgradeClicked } from "@/lib/analytics/track"
+import posthog from "posthog-js"
+
+const safeCapture = (event: string, properties?: Record<string, unknown>) => {
+  if (typeof window !== "undefined" && posthog.__loaded) posthog.capture(event, properties)
+}
 
 const plans = [
   {
@@ -204,8 +210,14 @@ export function PricingPage() {
   const [expandedFaq, setExpandedFaq] = React.useState<number | null>(null)
   const [checkoutLoading, setCheckoutLoading] = React.useState<string | null>(null)
 
+  React.useEffect(() => {
+    safeCapture("marketing.pricing_page_viewed")
+  }, [])
+
   const handleCheckout = async (planKey: "starter" | "professional") => {
     setCheckoutLoading(planKey)
+    trackSubscriptionUpgradeClicked(planKey)
+    safeCapture("marketing.plan_selected", { plan: planKey })
     try {
       const interval = annual ? "annual" : "monthly"
       const { url } = await createCheckoutSession({ plan: planKey, interval })
@@ -379,6 +391,7 @@ export function PricingPage() {
                       <Button
                         variant={plan.ctaVariant}
                         className="w-full"
+                        onClick={() => safeCapture("marketing.plan_selected", { plan: plan.planKey })}
                         asChild
                       >
                         <Link href="/demo">{plan.cta}</Link>

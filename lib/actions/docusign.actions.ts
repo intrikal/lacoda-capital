@@ -7,6 +7,7 @@ import {
   getIntegrationByProvider,
   disconnectIntegration,
 } from "@/lib/services/integrations.service"
+import { captureServerEvent } from "@/lib/analytics/server"
 
 /**
  * sendForSignature — Creates a DocuSign envelope for a document request
@@ -64,6 +65,8 @@ export async function sendForSignature(input: {
       signerEmail: input.signerEmail,
     },
   })
+
+  captureServerEvent(session.userId, "docusign.envelope_sent")
 
   return result
 }

@@ -52,6 +52,7 @@ import {
 import { updateTaskSchema } from "@/lib/validations/task.schema"
 import type { UpdateTaskInput } from "@/lib/validations/task.schema"
 import type { TaskRecord } from "@/lib/hooks/crud/use-tasks"
+import { trackTaskCompleted } from "@/lib/analytics/track"
 
 // ─── TYPES ───────────────────────────────────────────────────────────────────
 
@@ -136,6 +137,7 @@ export function TaskFormDialog({
       const parsed = updateTaskSchema.safeParse(payload)
       if (!parsed.success) return
 
+      if (value.status === "completed") trackTaskCompleted()
       onSubmit({ ...parsed.data, title: value.title })
       onOpenChange(false)
     },

@@ -5,6 +5,7 @@ import {
   exportLedgerCSV,
   type LedgerFilters,
 } from "@/lib/services/ledger.service"
+import { captureServerEvent } from "@/lib/analytics/server"
 
 /**
  * exportLedgerAction — Server action to export ledger as CSV.
@@ -36,5 +37,7 @@ export async function exportLedgerAction(filters: {
     search: filters.search,
   }
 
-  return exportLedgerCSV(ledgerFilters)
+  const csv = await exportLedgerCSV(ledgerFilters)
+  captureServerEvent(session.userId, "ledger.exported")
+  return csv
 }

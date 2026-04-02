@@ -5,6 +5,7 @@ import { db } from "@/app/db"
 import { notifications } from "@/app/db/schema"
 import { requireAuth } from "@/lib/auth"
 import type { NotificationRecord, PaginatedResult } from "@/lib/types"
+import { captureServerEvent } from "@/lib/analytics/server"
 
 export async function getNotifications(params?: {
   unreadOnly?: boolean
@@ -48,6 +49,8 @@ export async function markNotificationRead(id: string): Promise<NotificationReco
     .where(eq(notifications.id, id))
     .returning()
 
+  captureServerEvent(session.userId, "notification.marked_read")
+
   return updated as unknown as NotificationRecord
 }
 
@@ -78,5 +81,6 @@ export async function markAllNotificationsRead(): Promise<boolean> {
         isNull(notifications.readAt),
       )
     )
+  captureServerEvent(session.userId, "notifications.marked_all_read")
   return true
 }
