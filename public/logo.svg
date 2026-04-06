@@ -1,0 +1,36 @@
+<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" width="40" height="40">
+  <!-- Outer hexagon -->
+  <path
+    d="M20 2L36.5 11.5V29.5L20 39L3.5 29.5V11.5L20 2Z"
+    stroke="url(#logo-gradient)"
+    stroke-width="2"
+    fill="none"
+  />
+  <!-- Inner connected nodes -->
+  <circle cx="20" cy="12" r="3" fill="url(#logo-gradient)" />
+  <circle cx="12" cy="24" r="3" fill="url(#logo-gradient)" />
+  <circle cx="28" cy="24" r="3" fill="url(#logo-gradient)" />
+  <!-- Connecting lines -->
+  <path
+    d="M20 12L12 24M20 12L28 24M12 24L28 24"
+    stroke="url(#logo-gradient)"
+    stroke-width="1.5"
+    stroke-linecap="round"
+  />
+  <!-- Center point -->
+  <circle cx="20" cy="20" r="2" fill="url(#logo-gradient)" />
+  <!-- Gradient definitions -->
+  <defs>
+    <linearGradient
+      id="logo-gradient"
+      x1="3.5"
+      y1="2"
+      x2="36.5"
+      y2="39"
+      gradientUnits="userSpaceOnUse"
+    >
+      <stop stop-color="#14b8a6" />
+      <stop offset="1" stop-color="#06b6d4" />
+    </linearGradient>
+  </defs>
+</svg>

@@ -4,16 +4,16 @@
  * ============================================================================
  *
  * Tax Write-offs page combining static reference data (IRS limits, categories,
- * requirements) with per-client tax deduction CRUD backed by GraphQL.
+ * requirements) with per-client tax deduction CRUD backed by server actions.
  *
  * ARCHITECTURE:
  *   ┌──────────────────────────────────────────────────────────────┐
  *   │ TaxWriteoffsPage (this file)                                │
  *   │   Static reference data ── categories, limits, charts       │
- *   │   Client deductions  ── useTaxDeductions() → Apollo/GraphQL │
+ *   │   Client deductions  ── useTaxDeductions() → server actions │
  *   │   CRUD actions       ── TaxDeductionFormDialog + AlertDialog│
  *   │         ↓                                                   │
- *   │ POST /api/graphql → taxDeductionResolvers → tax_deductions  │
+ *   │ lib/actions/tax-deduction.actions.ts → Drizzle → tax_deductions │
  *   └──────────────────────────────────────────────────────────────┘
  *
  * CONSUMERS:

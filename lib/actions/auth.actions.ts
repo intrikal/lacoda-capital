@@ -197,7 +197,7 @@ export async function logoutAction() {
  * Quick demo access — signs in with hardcoded credentials and redirects to
  * the chosen portal view (admin dashboard or client portal).
  *
- * The Supabase session is real (so GraphQL/API calls work), but the
+ * The Supabase session is real (so server action/API calls work), but the
  * `user-role` cookie is overridden to control which portal renders.
  */
 export async function demoLoginAction(
@@ -316,4 +316,28 @@ export async function getSessionUserAndOrgId(): Promise<{ userId: string; orgId:
     where: eq(orgMembers.userId, user.id),
   });
   return { userId: user.id, orgId: member?.orgId ?? "" };
+}
+
+/**
+ * getSessionUserIdentity — Returns userId, orgId, fullName, and email for UI display.
+ */
+export async function getSessionUserIdentity(): Promise<{
+  userId: string;
+  orgId: string;
+  fullName: string | null;
+  email: string;
+} | null> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+  const [member, userRow] = await Promise.all([
+    db.query.orgMembers.findFirst({ where: eq(orgMembers.userId, user.id) }),
+    db.query.users.findFirst({ where: eq(users.id, user.id), columns: { fullName: true, email: true } }),
+  ]);
+  return {
+    userId: user.id,
+    orgId: member?.orgId ?? "",
+    fullName: userRow?.fullName ?? null,
+    email: userRow?.email ?? user.email ?? "",
+  };
 }

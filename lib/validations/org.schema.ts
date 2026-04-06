@@ -7,10 +7,10 @@
  *   Zod validation schemas for organization member management mutations.
  *
  * DATA FLOW:
- *   Form submission → Zod validation → GraphQL mutation → resolver → Drizzle → DB
+ *   Form submission → Zod validation → server action → Drizzle → DB
  *
  * CONSUMERS:
- *   - lib/graphql/resolvers/org.ts — validates mutation inputs server-side
+ *   - lib/actions/org.actions.ts — validates inputs server-side
  *   - components/forms/ — form-level validation (if needed)
  */
 

@@ -4,11 +4,11 @@
  * ============================================================================
  *
  * Zod validation schemas for billing record (advisory fee invoice) inputs.
- * Used by both the GraphQL resolver (server-side) and the form dialog (client-side)
+ * Used by both the server action (server-side) and the form dialog (client-side)
  * to validate billing record creation and updates.
  *
  * CONSUMERS:
- *   - lib/graphql/resolvers/billing-record.ts  (server validation)
+ *   - lib/actions/billing-record.actions.ts  (server validation)
  *   - components/forms/billing-record-form-dialog.tsx  (client validation)
  */
 

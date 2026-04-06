@@ -2,8 +2,8 @@
  * lib/types/index.ts
  *
  * Standalone TypeScript interfaces for all 18 domain entities.
- * These replace the GraphQL codegen-generated types from lib/graphql/generated/types.ts.
- * Each interface maps directly to its Drizzle ORM table definition.
+ * Each interface maps directly to its Drizzle ORM table definition,
+ * used by server actions for type-safe data access.
  */
 
 // ─── Client ───────────────────────────────────────────────────────────────────

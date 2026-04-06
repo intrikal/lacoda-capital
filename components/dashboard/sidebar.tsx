@@ -45,7 +45,7 @@ type NavItem = {
   description: string
 }
 
-const mainNavigation: NavItem[] = [
+export const mainNavigation: NavItem[] = [
   { name: "Overview", href: "/app", icon: LayoutDashboard, description: "Dashboard home" },
   { name: "Pipeline", href: "/app/pipeline", icon: GitBranch, description: "Deal flow" },
   { name: "Clients", href: "/app/clients", icon: Users, description: "Client management" },
@@ -66,7 +66,7 @@ const mainNavigation: NavItem[] = [
   { name: "Notifications", href: "/app/notifications", icon: Bell, description: "Alerts & updates" },
 ]
 
-const secondaryNavigation: NavItem[] = [
+export const secondaryNavigation: NavItem[] = [
   { name: "Settings", href: "/app/settings", icon: Settings, description: "Account preferences" },
   { name: "Help", href: "/app/help", icon: HelpCircle, description: "Guides & support" },
 ]
@@ -97,7 +97,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   return (
     <aside
       className={cn(
-        "fixed left-0 top-0 bottom-0 z-40 flex flex-col border-r border-zinc-800/60 bg-zinc-950 transition-all duration-200 overflow-y-auto",
+        "fixed left-0 top-0 bottom-0 z-40 hidden md:flex flex-col border-r border-zinc-800/60 bg-zinc-950 transition-all duration-200 overflow-y-auto",
         sidebarWidth
       )}
     >

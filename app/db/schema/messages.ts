@@ -30,8 +30,8 @@
  *   resolver increments it on new messages and resets it via markConversationRead.
  *
  * CONSUMERS:
- *   - lib/graphql/resolvers/message.ts  (CRUD resolvers)
- *   - lib/hooks/crud/use-messages.ts    (React hooks via Apollo Client)
+ *   - lib/actions/message.actions.ts    (CRUD server actions)
+ *   - lib/hooks/crud/use-messages.ts    (React hooks via server actions)
  *   - app/(dashboard)/app/messages/     (advisor messaging page)
  *   - app/(client)/client/messages/     (client portal messaging page)
  */

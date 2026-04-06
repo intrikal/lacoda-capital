@@ -9,7 +9,7 @@
  *   to the admin Vault page at app/(dashboard)/app/vault/page.tsx.
  *
  * DATA SOURCE:
- *   All data comes from the Apollo-backed hooks in lib/hooks/crud/use-documents.ts:
+ *   All data comes from the server-action-backed hooks in lib/hooks/crud/use-documents.ts:
  *     - useDocuments()       → fetches document list + computes status stats
  *     - useCreateDocument()  → creates a new document record after file upload
  *     - useDeleteDocument()  → removes a document record from the database
@@ -39,9 +39,8 @@
  *
  * RELATED FILES:
  *   app/(dashboard)/app/vault/page.tsx           — Admin vault page (same data)
- *   lib/hooks/crud/use-documents.ts              — Apollo hooks consumed here
- *   lib/graphql/operations/document.ts           — GraphQL operations
- *   app/(client)/client/layout.tsx               — Wraps with ApolloProvider
+ *   lib/hooks/crud/use-documents.ts              — server-action hooks consumed here
+ *   lib/actions/document.actions.ts              — server actions
  *   utils/supabase/client.ts                     — Supabase browser client
  */
 "use client"

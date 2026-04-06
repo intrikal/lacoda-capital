@@ -29,8 +29,8 @@
  *   benchmarks → clients (many-to-one: each benchmark optionally belongs to one client)
  *
  * CONSUMERS:
- *   - lib/graphql/resolvers/benchmark.ts   (CRUD resolvers)
- *   - lib/hooks/crud/use-benchmarks.ts     (React hook via Apollo Client)
+ *   - lib/actions/benchmark.actions.ts     (CRUD server actions)
+ *   - lib/hooks/crud/use-benchmarks.ts     (React hook via server actions)
  *   - app/(dashboard)/app/benchmarks/      (advisor dashboard benchmarks page)
  */
 

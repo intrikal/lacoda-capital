@@ -10,8 +10,8 @@
  *
  * DATA SOURCE:
  *   `useReports` hook from `@/lib/hooks/crud/use-reports`
- *   Fetches reports from the GraphQL API (same as the advisor page).
- *   The resolver enforces org-scoping, so clients only see their own org's reports.
+ *   Fetches reports via server actions (same as the advisor page).
+ *   Org-scoping is enforced in the server action, so clients only see their own org's reports.
  *
  * DB ENUMS:
  *   reportType: portfolio_summary | asset_allocation | performance |

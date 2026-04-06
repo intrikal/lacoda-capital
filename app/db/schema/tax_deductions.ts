@@ -28,8 +28,8 @@
  *   tax_deductions → clients (many-to-one)
  *
  * CONSUMERS:
- *   - lib/graphql/resolvers/tax-deduction.ts   (CRUD resolvers)
- *   - lib/hooks/crud/use-tax-deductions.ts     (React hook via Apollo Client)
+ *   - lib/actions/tax-deduction.actions.ts      (CRUD server actions)
+ *   - lib/hooks/crud/use-tax-deductions.ts     (React hook via server actions)
  *   - app/(dashboard)/app/tax-writeoffs/       (advisor tax deductions page)
  */
 
