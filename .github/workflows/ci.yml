@@ -52,8 +52,11 @@
 name: CI
 
 # ── TRIGGER ──────────────────────────────────────────────────────────────────
-# `pull_request` fires on any PR open, update, or sync targeting `main`.
+# Fires on direct pushes to `main` and on any PR targeting `main`.
 on:
+  push:
+    branches:
+      - main
   pull_request:
     branches:
       - main
