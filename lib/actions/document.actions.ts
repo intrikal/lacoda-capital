@@ -8,7 +8,7 @@ import { requireAuth, requireRole } from "@/lib/auth"
 import { blockDemoMutation } from "@/lib/demo/guard"
 import { createDocumentSchema, updateDocumentSchema, uploadDocumentSchema } from "@/lib/validations/document.schema"
 import type { DocumentRecord, PaginatedResult } from "@/lib/types"
-import { captureServerEvent } from "@/lib/analytics/posthog-server"
+import { captureServerEvent } from "@/lib/analytics/server"
 import { createClient } from "@/utils/supabase/server"
 
 export async function getDocuments(params?: {

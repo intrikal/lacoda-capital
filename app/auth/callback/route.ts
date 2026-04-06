@@ -6,6 +6,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/app/db";
 import { users, orgs, orgMembers } from "@/app/db/schema";
 import { dispatchAlert } from "@/lib/alerts";
+import { captureServerEvent } from "@/lib/analytics/server";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -167,6 +168,10 @@ export async function GET(request: NextRequest) {
     // New user without an org → onboarding flow
     role = "pending";
     redirectTo = "/onboarding";
+
+    captureServerEvent(user.id, "marketing.signup_completed", {
+      method: code ? "oauth" : "email",
+    });
 
     dispatchAlert({
       title: "New user signup",

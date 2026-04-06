@@ -10,6 +10,9 @@ const footerNavigation = {
   ],
   resources: [
     { name: "Learn", href: "/learn" },
+    { name: "FAQ", href: "/faq" },
+    { name: "API Docs", href: "/docs/api" },
+    { name: "Blog", href: "/blog" },
     { name: "Contact", href: "/contact" },
   ],
   company: [

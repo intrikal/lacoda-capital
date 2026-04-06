@@ -55,7 +55,7 @@ PostHog is integrated in three files:
 - If `NEXT_PUBLIC_POSTHOG_KEY` is not set, the provider renders children without PostHog — no errors
 
 ### Server-side tracking
-**File**: `lib/analytics/posthog-server.ts`
+**File**: `lib/analytics/server.ts`
 
 - For server-side event tracking (e.g., from Server Actions)
 

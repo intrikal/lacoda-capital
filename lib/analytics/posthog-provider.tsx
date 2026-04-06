@@ -24,6 +24,10 @@ function initPostHog() {
     capture_pageleave: true,
     persistence: "localStorage",
     autocapture: false,
+    session_recording: {
+      maskAllInputs: true,
+      maskTextSelector: "[data-ph-mask]",
+    },
   })
 }
 

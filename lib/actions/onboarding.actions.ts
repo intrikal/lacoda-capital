@@ -5,7 +5,7 @@ import { db } from "@/app/db"
 import { orgs, orgMembers, users, documents, clients, entities } from "@/app/db/schema"
 import { requireAuth } from "@/lib/auth"
 import { createLedgerEvent } from "@/lib/actions/ledger"
-import { captureServerEvent } from "@/lib/analytics/posthog-server"
+import { captureServerEvent } from "@/lib/analytics/server"
 
 // ─── Provision admin org (new user signup) ──────────────────────────────────
 
@@ -63,6 +63,7 @@ export async function provisionAdminOrg(input: {
   })
 
   captureServerEvent(session.userId, "onboarding.org_provisioned", { org_id: org.id })
+  captureServerEvent(session.userId, "marketing.onboarding_completed", { org_id: org.id })
 
   return { success: true }
 }

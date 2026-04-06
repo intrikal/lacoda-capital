@@ -72,7 +72,7 @@ const mockCreateLedgerEvent = vi.fn().mockResolvedValue(undefined)
 const mockCaptureEvent = vi.fn()
 
 vi.mock("@/lib/actions/ledger", () => ({ createLedgerEvent: (...a: unknown[]) => mockCreateLedgerEvent(...a) }))
-vi.mock("@/lib/analytics/posthog-server", () => ({ captureServerEvent: (...a: unknown[]) => mockCaptureEvent(...a) }))
+vi.mock("@/lib/analytics/server", () => ({ captureServerEvent: (...a: unknown[]) => mockCaptureEvent(...a) }))
 
 import {
   listKycRecords,

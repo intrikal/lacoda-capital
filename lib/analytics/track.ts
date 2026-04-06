@@ -85,3 +85,9 @@ export function trackClientCreated() {
 export function trackTaskCompleted() {
   safeCapture("task.completed")
 }
+
+// ─── Marketing Funnel Events ─────────────────────────────────────────────────
+
+export function trackHomepageCtaClicked(cta: string, location: string) {
+  safeCapture("marketing.homepage_cta_clicked", { cta, location })
+}

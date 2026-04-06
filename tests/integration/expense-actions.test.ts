@@ -83,7 +83,7 @@ vi.mock("@/lib/actions/ledger", () => ({
   createLedgerEvent: (...a: unknown[]) => mockCreateLedgerEvent(...a),
 }))
 
-vi.mock("@/lib/analytics/posthog-server", () => ({
+vi.mock("@/lib/analytics/server", () => ({
   captureServerEvent: (...a: unknown[]) => mockCaptureEvent(...a),
 }))
 

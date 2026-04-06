@@ -1,3 +1,4 @@
+import { Suspense } from "react"
 import type { Metadata } from "next"
 import { DemoPage } from "./_content"
 
@@ -24,5 +25,9 @@ export const metadata: Metadata = {
 }
 
 export default function Page() {
-  return <DemoPage />
+  return (
+    <Suspense>
+      <DemoPage />
+    </Suspense>
+  )
 }

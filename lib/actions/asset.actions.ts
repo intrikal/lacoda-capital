@@ -7,7 +7,7 @@ import { requireAuth, requireRole } from "@/lib/auth"
 import { blockDemoMutation } from "@/lib/demo/guard"
 import { createAssetSchema, updateAssetSchema } from "@/lib/validations/asset.schema"
 import { createLedgerEvent } from "@/lib/actions/ledger"
-import { captureServerEvent } from "@/lib/analytics/posthog-server"
+import { captureServerEvent } from "@/lib/analytics/server"
 import type { AssetRecord, PaginatedResult } from "@/lib/types"
 
 // ─── List with filters ──────────────────────────────────────────────────────

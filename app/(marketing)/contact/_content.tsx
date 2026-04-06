@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 import { useReducedMotion } from "@/lib/hooks/use-reduced-motion"
+import { useUtmParams } from "@/lib/hooks/use-utm-params"
 import { submitContactForm } from "@/lib/actions/contact.actions"
 import posthog from "posthog-js"
 
@@ -105,6 +106,7 @@ const departments = [
 
 export function ContactPage() {
   const reducedMotion = useReducedMotion()
+  const utm = useUtmParams()
   const [submitted, setSubmitted] = React.useState(false)
   const [isPending, startTransition] = React.useTransition()
   const [error, setError] = React.useState<string | null>(null)
@@ -133,10 +135,13 @@ export function ContactPage() {
       return
     }
     setError(null)
+    const payload = Object.keys(utm).length > 0
+      ? { ...formData, utm }
+      : formData
     startTransition(async () => {
-      const result = await submitContactForm(formData)
+      const result = await submitContactForm(payload)
       if (result.success) {
-        safeCapture("marketing.contact_form_submitted")
+        safeCapture("marketing.contact_form_submitted", utm)
         setSubmitted(true)
       } else {
         setError(result.error)

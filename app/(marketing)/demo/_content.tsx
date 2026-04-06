@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 import { useReducedMotion } from "@/lib/hooks/use-reduced-motion"
+import { useUtmParams } from "@/lib/hooks/use-utm-params"
 import { submitDemoForm } from "@/lib/actions/contact.actions"
 import posthog from "posthog-js"
 
@@ -103,6 +104,7 @@ const timeSlots = [
 
 export function DemoPage() {
   const reducedMotion = useReducedMotion()
+  const utm = useUtmParams()
   const [submitted, setSubmitted] = React.useState(false)
   const [isPending, startTransition] = React.useTransition()
   const [error, setError] = React.useState<string | null>(null)
@@ -144,11 +146,12 @@ export function DemoPage() {
       role: role || undefined,
       preferredDate: selectedDate ?? undefined,
       preferredTime: selectedTime ?? undefined,
+      ...(Object.keys(utm).length > 0 && { utm }),
     }
     startTransition(async () => {
       const result = await submitDemoForm(payload)
       if (result.success) {
-        safeCapture("marketing.demo_form_submitted")
+        safeCapture("marketing.demo_form_submitted", utm)
         setSubmitted(true)
       } else {
         setError(result.error)
@@ -174,6 +177,7 @@ export function DemoPage() {
       company: "",
       preferredDate: selectedDate ?? undefined,
       preferredTime: selectedTime ?? undefined,
+      ...(Object.keys(utm).length > 0 && { utm }),
     }
     startTransition(async () => {
       const result = await submitDemoForm(payload)

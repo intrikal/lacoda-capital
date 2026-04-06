@@ -110,6 +110,7 @@ export async function submitContactForm(raw: unknown): Promise<ActionResult> {
       subject: input.subject,
       reason: input.reason ?? null,
       message: input.message,
+      metadata: input.utm ? { utm: input.utm } : {},
     })
   } catch (err) {
     console.error("[contact.actions] DB insert failed:", err)
@@ -154,6 +155,7 @@ export async function submitDemoForm(raw: unknown): Promise<ActionResult> {
       role: input.role ?? null,
       preferredDate: input.preferredDate ?? null,
       preferredTime: input.preferredTime ?? null,
+      metadata: input.utm ? { utm: input.utm } : {},
     })
   } catch (err) {
     console.error("[contact.actions] DB insert failed:", err)

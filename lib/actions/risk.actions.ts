@@ -5,7 +5,7 @@ import { db } from "@/app/db"
 import { riskProfiles } from "@/app/db/schema"
 import { requireAdvisor } from "@/lib/auth"
 import { createLedgerEvent } from "@/lib/actions/ledger"
-import { captureServerEvent } from "@/lib/analytics/posthog-server"
+import { captureServerEvent } from "@/lib/analytics/server"
 import type { RiskProfile, NewRiskProfile } from "@/app/db/schema"
 
 // ─── Types ─────────────────────────────────────────────��─────────────────────

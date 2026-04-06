@@ -32,8 +32,19 @@ export function captureServerEvent(
   try {
     const ph = getPostHog()
     if (!ph) return
-    ph.capture({ distinctId: userId, event, properties: properties ?? {} })
+    ph.capture({
+      distinctId: userId,
+      event,
+      properties: { ...properties, $lib: "posthog-node" },
+    })
   } catch {
     // Never throw from analytics
+  }
+}
+
+export async function shutdownPostHog() {
+  if (_posthog) {
+    await _posthog.shutdown()
+    _posthog = null
   }
 }

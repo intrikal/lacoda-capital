@@ -7,6 +7,7 @@ import { createClient } from "@/utils/supabase/server";
 import { db } from "@/app/db";
 import { orgMembers, orgs, users } from "@/app/db/schema";
 import { checkRateLimit, AUTH_RATE_LIMITS } from "@/lib/rate-limiter";
+import { captureServerEvent } from "@/lib/analytics/server";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -126,6 +127,9 @@ export async function signupAction(
 
   // If the user is immediately active (no email confirmation required)
   if (data.session) {
+    captureServerEvent(data.session.user.id, "marketing.signup_completed", {
+      method: "email",
+    });
     await setRoleCookie("pending");
     redirect("/onboarding");
   }

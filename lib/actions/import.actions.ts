@@ -5,7 +5,7 @@ import { db } from "@/app/db"
 import { assets, entities, clients } from "@/app/db/schema"
 import { requireRole } from "@/lib/auth"
 import { createLedgerEvent } from "@/lib/actions/ledger"
-import { captureServerEvent } from "@/lib/analytics/posthog-server"
+import { captureServerEvent } from "@/lib/analytics/server"
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 

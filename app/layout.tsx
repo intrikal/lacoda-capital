@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { PostHogProvider } from "@/lib/analytics/posthog-provider"
+import { GoogleTagManager, GoogleTagManagerNoscript } from "@/lib/analytics/gtm"
 import "./globals.css"
 
 const geistSans = Geist({
@@ -32,11 +33,7 @@ export const metadata: Metadata = {
     icon: "/favicon.ico",
     apple: "/favicon.ico",
   },
-  twitter: {
-    card: "summary_large_image",
-    site: "@lacodacapital",
-  },
-  openGraph: {
+openGraph: {
     images: [{ url: "/opengraph-image", width: 1200, height: 630 }],
   },
 }
@@ -57,9 +54,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
+      <head>
+        <GoogleTagManager />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-zinc-950 text-zinc-100`}
       >
+        <GoogleTagManagerNoscript />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}

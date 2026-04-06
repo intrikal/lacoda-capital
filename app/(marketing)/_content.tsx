@@ -29,9 +29,14 @@ import {
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import posthog from "posthog-js"
 
 import { TestimonialsSection } from "@/components/marketing/testimonials-section"
 import { useReducedMotion } from "@/lib/hooks/use-reduced-motion"
+
+const safeCapture = (event: string, properties?: Record<string, unknown>) => {
+  if (typeof window !== "undefined" && posthog.__loaded) posthog.capture(event, properties)
+}
 
 // Dynamically import 3D component and animations to avoid SSR issues
 const BioFabricLedger = dynamic(
@@ -152,13 +157,13 @@ function HeroSection() {
 
           <div className="mt-10 flex items-center gap-4 flex-wrap">
             <Button variant="glow" size="lg" asChild>
-              <Link href="/demo">
+              <Link href="/demo" onClick={() => safeCapture("marketing.homepage_cta_clicked", { cta: "request_demo", location: "hero" })}>
                 Request Demo
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
             <Button variant="outline" size="lg" asChild>
-              <Link href="/platform">Learn More</Link>
+              <Link href="/platform" onClick={() => safeCapture("marketing.homepage_cta_clicked", { cta: "learn_more", location: "hero" })}>Learn More</Link>
             </Button>
           </div>
 
@@ -575,7 +580,7 @@ function LiveLedgerSection() {
 
             <div className="mt-10">
               <Button variant="glow" asChild>
-                <Link href="/platform">
+                <Link href="/platform" onClick={() => safeCapture("marketing.homepage_cta_clicked", { cta: "explore_platform", location: "live_ledger" })}>
                   Explore the Platform
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
@@ -633,7 +638,7 @@ function TrustSection() {
 
             <div className="mt-10">
               <Button variant="outline" asChild>
-                <Link href="/security">
+                <Link href="/security" onClick={() => safeCapture("marketing.homepage_cta_clicked", { cta: "security", location: "trust" })}>
                   Learn about our security
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
@@ -690,7 +695,7 @@ function CTASection() {
 
           <div className="mt-10 flex items-center justify-center gap-4 flex-wrap">
             <Button variant="glow" size="xl" asChild>
-              <Link href="/demo">
+              <Link href="/demo" onClick={() => safeCapture("marketing.homepage_cta_clicked", { cta: "schedule_demo", location: "bottom_cta" })}>
                 Schedule a Demo
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
