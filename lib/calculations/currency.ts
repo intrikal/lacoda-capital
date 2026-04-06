@@ -11,7 +11,7 @@
 
 import { db } from "@/app/db"
 import { exchangeRates } from "@/app/db/schema"
-import { and, eq, lte, desc, or } from "drizzle-orm"
+import { and, eq, lte, desc } from "drizzle-orm"
 
 export interface ConversionResult {
   convertedAmount: number

@@ -23,7 +23,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { cn } from "@/lib/utils"
+
 import { TestimonialsSection } from "@/components/marketing/testimonials-section"
 import { useReducedMotion } from "@/lib/hooks/use-reduced-motion"
 

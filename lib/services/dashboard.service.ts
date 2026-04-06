@@ -9,7 +9,7 @@
 
 import { db } from "@/app/db"
 import { assets, clients, ledgerEvents } from "@/app/db/schema"
-import { count, sum, desc, isNull, sql } from "drizzle-orm"
+import { count, desc, isNull, sql } from "drizzle-orm"
 import type {
   KPIData,
   AllocationData,
@@ -18,12 +18,8 @@ import type {
   DashboardSummary,
 } from "@/lib/types/mock"
 
-export async function getDashboardSummary(
-  orgCurrency?: string
-): Promise<DashboardSummary> {
+export async function getDashboardSummary(): Promise<DashboardSummary> {
   // Aggregate total portfolio value from assets.currentValue
-  // When orgCurrency is provided, values are summed in their original currency
-  // (currency conversion happens at the caller level for mixed-currency portfolios)
   const [assetAgg] = await db
     .select({
       totalValue: sql<number>`COALESCE(SUM(CAST(${assets.currentValue} AS DOUBLE PRECISION)), 0)`,

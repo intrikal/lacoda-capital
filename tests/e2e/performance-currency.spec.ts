@@ -97,7 +97,6 @@ test.describe("Multi-Currency", () => {
     const fromField = page.getByLabel(/from currency/i)
     const toField = page.getByLabel(/to currency/i)
     const rateField = page.getByLabel(/^rate$/i)
-    const dateField = page.getByLabel(/effective date/i)
 
     if (!(await fromField.isVisible().catch(() => false))) {
       test.skip()
@@ -141,7 +140,6 @@ test.describe("Edge Cases", () => {
 
     // Check for any red-colored percentage in the performance column
     // This validates the CSS class application
-    const redPercentage = page.locator(".text-red-400").first()
     // May or may not be visible depending on data — just check the mechanism
   })
 })

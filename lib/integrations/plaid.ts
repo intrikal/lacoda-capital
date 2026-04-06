@@ -22,7 +22,7 @@
 
 import { db } from "@/app/db"
 import { integrations } from "@/app/db/schema"
-import { eq, and } from "drizzle-orm"
+import { eq } from "drizzle-orm"
 
 // ─── Configuration ──────────────────────────────────────────────────────────
 
@@ -79,7 +79,7 @@ export async function createLinkToken(userId: string, orgId: string): Promise<st
   const webhookUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/api/webhooks/plaid`
 
   const data = await plaidRequest<LinkTokenResponse>("/link/token/create", {
-    user: { client_user_id: userId },
+    user: { client_user_id: `${orgId}:${userId}` },
     client_name: "Lacoda Capital",
     products: ["auth", "transactions", "investments"],
     country_codes: ["US"],

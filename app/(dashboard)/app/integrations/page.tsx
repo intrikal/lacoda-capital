@@ -4,7 +4,6 @@ import * as React from "react"
 import { useSpring, animated, config } from "@react-spring/web"
 import {
   Landmark,
-  PenLine,
   CreditCard,
   Mail,
   Cloud,
@@ -285,7 +284,7 @@ function IntegrationCard({
 export default function IntegrationsPage() {
   const { integrations: liveIntegrations, providers, isLoading, stats, refetch } = useIntegrations()
   const { mutate: disconnect, isPending: isDisconnecting } = useDisconnectIntegration()
-  const { connect: plaidConnect, exchangeToken: plaidExchange, isPending: isPlaidPending } = usePlaidConnect()
+  const { connect: plaidConnect, isPending: isPlaidPending } = usePlaidConnect()
   const { connect: stripeConnect, isPending: isStripePending } = useStripeConnect()
   const { connect: oauthConnect, isPending: isOAuthPending } = useOAuthConnect()
 

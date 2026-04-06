@@ -4,9 +4,16 @@
  * Defines per-plan limits for AUM, team members, and storage.
  * Provides pure functions used by server actions and the billing UI
  * to check whether an org is approaching or exceeding its plan limits.
+ *
+ * Tiers (Option A — 4 paid tiers):
+ *   Starter      $299/mo   $500K AUM    2 seats   10 GB
+ *   Growth       $599/mo   $1.5M AUM    3 seats   25 GB
+ *   Professional $999/mo   $3M   AUM    5 seats   50 GB
+ *   Elite        $1,499/mo $5M   AUM   10 seats  100 GB
+ *   Enterprise   Custom    Unlimited   Unlimited  Unlimited
  */
 
-export type PlanTier = "free" | "starter" | "professional" | "enterprise";
+export type PlanTier = "free" | "starter" | "growth" | "professional" | "elite" | "enterprise";
 
 export interface PlanLimits {
   /** Maximum AUM in dollars. Infinity for unlimited. */
@@ -39,24 +46,44 @@ export const PLAN_LIMITS: Record<PlanTier, PlanLimits> = {
     displayName: "Free",
   },
   starter: {
-    maxAum: 25_000_000, // $25M
-    maxTeamMembers: 3,
+    maxAum: 500_000,            // $500K
+    maxTeamMembers: 2,
     maxStorageBytes: 10 * 1024 * 1024 * 1024, // 10 GB
     apiAccess: false,
     customIntegrations: false,
-    monthlyPrice: 499,
-    annualPricePerMonth: 399,
+    monthlyPrice: 299,
+    annualPricePerMonth: 239,   // 20% off
     displayName: "Starter",
   },
+  growth: {
+    maxAum: 1_500_000,          // $1.5M
+    maxTeamMembers: 3,
+    maxStorageBytes: 25 * 1024 * 1024 * 1024, // 25 GB
+    apiAccess: false,
+    customIntegrations: false,
+    monthlyPrice: 599,
+    annualPricePerMonth: 479,   // 20% off
+    displayName: "Growth",
+  },
   professional: {
-    maxAum: 100_000_000, // $100M
+    maxAum: 3_000_000,          // $3M
+    maxTeamMembers: 5,
+    maxStorageBytes: 50 * 1024 * 1024 * 1024, // 50 GB
+    apiAccess: true,
+    customIntegrations: false,
+    monthlyPrice: 999,
+    annualPricePerMonth: 799,   // 20% off
+    displayName: "Professional",
+  },
+  elite: {
+    maxAum: 5_000_000,          // $5M
     maxTeamMembers: 10,
     maxStorageBytes: 100 * 1024 * 1024 * 1024, // 100 GB
     apiAccess: true,
-    customIntegrations: false,
+    customIntegrations: true,
     monthlyPrice: 1499,
-    annualPricePerMonth: 1199,
-    displayName: "Professional",
+    annualPricePerMonth: 1199,  // 20% off
+    displayName: "Elite",
   },
   enterprise: {
     maxAum: Infinity,
@@ -64,19 +91,40 @@ export const PLAN_LIMITS: Record<PlanTier, PlanLimits> = {
     maxStorageBytes: Infinity,
     apiAccess: true,
     customIntegrations: true,
-    monthlyPrice: -1, // Custom
+    monthlyPrice: -1,           // Custom
     annualPricePerMonth: -1,
     displayName: "Enterprise",
   },
 };
 
+/** Ordered tier progression for upgrade logic. */
+export const PLAN_ORDER: PlanTier[] = [
+  "free",
+  "starter",
+  "growth",
+  "professional",
+  "elite",
+  "enterprise",
+];
+
+/** Returns true if targetPlan is higher than currentPlan. */
+export function isUpgrade(currentPlan: PlanTier, targetPlan: PlanTier): boolean {
+  return PLAN_ORDER.indexOf(targetPlan) > PLAN_ORDER.indexOf(currentPlan);
+}
+
 /** Stripe Price ID mapping — maps plan + interval to env var. */
 export const STRIPE_PRICE_IDS: Record<string, string | undefined> = {
-  starter_monthly: process.env.STRIPE_PRICE_STARTER_MONTHLY,
-  starter_annual: process.env.STRIPE_PRICE_STARTER_ANNUAL,
+  starter_monthly:      process.env.STRIPE_PRICE_STARTER_MONTHLY,
+  starter_annual:       process.env.STRIPE_PRICE_STARTER_ANNUAL,
+  growth_monthly:       process.env.STRIPE_PRICE_GROWTH_MONTHLY,
+  growth_annual:        process.env.STRIPE_PRICE_GROWTH_ANNUAL,
   professional_monthly: process.env.STRIPE_PRICE_PROFESSIONAL_MONTHLY,
-  professional_annual: process.env.STRIPE_PRICE_PROFESSIONAL_ANNUAL,
+  professional_annual:  process.env.STRIPE_PRICE_PROFESSIONAL_ANNUAL,
+  elite_monthly:        process.env.STRIPE_PRICE_ELITE_MONTHLY,
+  elite_annual:         process.env.STRIPE_PRICE_ELITE_ANNUAL,
 };
+
+export type PaidPlanTier = "starter" | "growth" | "professional" | "elite";
 
 export type BillingInterval = "monthly" | "annual";
 
@@ -142,7 +190,8 @@ function checkResource(
 
 function formatUsage(value: number, unit: string): string {
   if (unit === "dollars") {
-    return `$${(value / 1_000_000).toFixed(1)}M`;
+    if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
+    return `$${(value / 1_000).toFixed(0)}K`;
   }
   if (unit === "bytes") {
     const gb = value / (1024 * 1024 * 1024);
@@ -191,4 +240,14 @@ export function canAddTeamMember(plan: PlanTier, currentCount: number): boolean 
   const limit = PLAN_LIMITS[plan].maxTeamMembers;
   if (limit === Infinity) return true;
   return currentCount < limit;
+}
+
+/**
+ * nextUpgradeTier — Returns the next tier above the current plan, or null if already at top.
+ */
+export function nextUpgradeTier(current: PlanTier): PaidPlanTier | null {
+  const paidTiers: PaidPlanTier[] = ["starter", "growth", "professional", "elite"];
+  const idx = paidTiers.indexOf(current as PaidPlanTier);
+  if (idx === -1 || idx === paidTiers.length - 1) return null;
+  return paidTiers[idx + 1];
 }

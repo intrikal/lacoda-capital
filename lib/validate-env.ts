@@ -1,6 +1,4 @@
 const REQUIRED = [
-  { key: "DATABASE_URL", reason: "needed for database connection" },
-  { key: "DIRECT_URL", reason: "needed for migrations" },
   { key: "NEXT_PUBLIC_SUPABASE_URL", reason: "needed for Supabase client" },
   {
     key: "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY",
@@ -9,9 +7,20 @@ const REQUIRED = [
 ] as const
 
 const OPTIONAL = [
+  { key: "DATABASE_URL", label: "DATABASE_URL not set — database features disabled (demo mode only)" },
+  { key: "DIRECT_URL", label: "DIRECT_URL not set — migrations will not work" },
   { key: "NEXT_PUBLIC_SENTRY_DSN", label: "Sentry not configured — error tracking disabled" },
   { key: "NEXT_PUBLIC_POSTHOG_KEY", label: "PostHog not configured — analytics disabled" },
   { key: "STRIPE_SECRET_KEY", label: "Stripe not configured — billing features disabled" },
+  { key: "STRIPE_WEBHOOK_SECRET", label: "Stripe webhook secret not set — webhook verification disabled" },
+  { key: "STRIPE_PRICE_STARTER_MONTHLY", label: "Stripe Starter monthly price not set" },
+  { key: "STRIPE_PRICE_STARTER_ANNUAL", label: "Stripe Starter annual price not set" },
+  { key: "STRIPE_PRICE_GROWTH_MONTHLY", label: "Stripe Growth monthly price not set" },
+  { key: "STRIPE_PRICE_GROWTH_ANNUAL", label: "Stripe Growth annual price not set" },
+  { key: "STRIPE_PRICE_PROFESSIONAL_MONTHLY", label: "Stripe Professional monthly price not set" },
+  { key: "STRIPE_PRICE_PROFESSIONAL_ANNUAL", label: "Stripe Professional annual price not set" },
+  { key: "STRIPE_PRICE_ELITE_MONTHLY", label: "Stripe Elite monthly price not set" },
+  { key: "STRIPE_PRICE_ELITE_ANNUAL", label: "Stripe Elite annual price not set" },
   { key: "PLAID_CLIENT_ID", label: "Plaid not configured — bank sync disabled" },
   { key: "DOCUSIGN_INTEGRATION_KEY", label: "DocuSign not configured — e-signatures disabled" },
   { key: "QUICKBOOKS_CLIENT_ID", label: "QuickBooks not configured — accounting sync disabled" },

@@ -4,7 +4,6 @@ import * as React from "react"
 import { useSpring, animated, config } from "@react-spring/web"
 import {
   TrendingUp,
-  TrendingDown,
   BarChart3,
   Target,
   Zap,

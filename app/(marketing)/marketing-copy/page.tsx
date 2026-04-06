@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { useSpring, animated, config, useTrail } from "@react-spring/web"
+import { useSpring, animated, config } from "@react-spring/web"
 import {
   ArrowRight,
   Shield,
@@ -12,7 +12,6 @@ import {
   Users,
   CheckCircle2,
   Building2,
-  TrendingUp,
   Briefcase,
   Wallet,
   FolderLock,
@@ -24,14 +23,12 @@ import {
   PieChart,
   Zap,
   Globe,
-  Clock,
   Eye,
   RefreshCw,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { cn } from "@/lib/utils"
 import { useReducedMotion } from "@/lib/hooks/use-reduced-motion"
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -81,45 +78,6 @@ function FadeInSection({ children, className, delay = 0 }: FadeInSectionProps) {
   )
 }
 
-function StaggeredList({ children, className }: { children: React.ReactNode[], className?: string }) {
-  const [isVisible, setIsVisible] = React.useState(false)
-  const ref = React.useRef<HTMLDivElement>(null)
-  const reducedMotion = useReducedMotion()
-
-  React.useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setIsVisible(true)
-        }
-      },
-      { threshold: 0.1 }
-    )
-
-    if (ref.current) {
-      observer.observe(ref.current)
-    }
-
-    return () => observer.disconnect()
-  }, [])
-
-  const trail = useTrail(children.length, {
-    opacity: isVisible ? 1 : 0,
-    transform: isVisible ? "translateY(0px)" : "translateY(20px)",
-    config: config.gentle,
-    immediate: reducedMotion,
-  })
-
-  return (
-    <div ref={ref} className={className}>
-      {trail.map((style, index) => (
-        <animated.div key={index} style={style}>
-          {children[index]}
-        </animated.div>
-      ))}
-    </div>
-  )
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Hero Section

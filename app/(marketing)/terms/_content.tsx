@@ -118,10 +118,10 @@ export function TermsPage() {
                     </h2>
                     <div className="space-y-4 text-zinc-300 leading-relaxed">
                       <p>
-                        Welcome to Lacoda Capital Holdings ("Lacoda," "we," "our," or "us"). By accessing or using our platform, website, applications, APIs, or any related services (collectively, the "Service"), you agree to be bound by these Terms of Service ("Terms").
+                        Welcome to Lacoda Capital Holdings (&quot;Lacoda,&quot; &quot;we,&quot; &quot;our,&quot; or &quot;us&quot;). By accessing or using our platform, website, applications, APIs, or any related services (collectively, the &quot;Service&quot;), you agree to be bound by these Terms of Service (&quot;Terms&quot;).
                       </p>
                       <p>
-                        If you are using the Service on behalf of an organization, you represent and warrant that you have the authority to bind that organization to these Terms, and "you" refers to both you individually and the organization.
+                        If you are using the Service on behalf of an organization, you represent and warrant that you have the authority to bind that organization to these Terms, and &quot;you&quot; refers to both you individually and the organization.
                       </p>
                       <p>
                         If you do not agree to these Terms, you must not access or use the Service. We recommend that you print or save a copy of these Terms for your records.
@@ -140,7 +140,7 @@ export function TermsPage() {
                       </p>
                       <ul className="list-disc pl-6 text-zinc-400 space-y-2">
                         <li>Portfolio management and asset tracking across multiple asset classes</li>
-                        <li>Secure document storage and organization (the "Vault")</li>
+                        <li>Secure document storage and organization (the &quot;Vault&quot;)</li>
                         <li>Financial reporting, analytics, and performance measurement</li>
                         <li>Entity structure management and organizational charts</li>
                         <li>Stakeholder communication and collaboration tools</li>
@@ -193,7 +193,7 @@ export function TermsPage() {
                         <li><strong className="text-zinc-300">Payment Method:</strong> You authorize us to charge your designated payment method for all fees due</li>
                         <li><strong className="text-zinc-300">Taxes:</strong> All fees are exclusive of taxes. You are responsible for all applicable taxes, excluding taxes on our net income</li>
                         <li><strong className="text-zinc-300">Late Payments:</strong> Overdue amounts accrue interest at 1.5% per month or the maximum legal rate, whichever is lower</li>
-                        <li><strong className="text-zinc-300">Price Changes:</strong> We may modify pricing with 30 days' written notice. New prices apply at your next renewal</li>
+                        <li><strong className="text-zinc-300">Price Changes:</strong> We may modify pricing with 30 days&apos; written notice. New prices apply at your next renewal</li>
                         <li><strong className="text-zinc-300">Refunds:</strong> Fees are non-refundable except as expressly stated or required by law</li>
                       </ul>
                       <p>
@@ -239,7 +239,7 @@ export function TermsPage() {
                         The Service, including all content, features, functionality, software, designs, and documentation, is owned by Lacoda Capital Holdings and is protected by copyright, trademark, patent, trade secret, and other intellectual property laws.
                       </p>
                       <p>
-                        "Lacoda," "Lacoda Capital," the Lacoda logo, and other marks are trademarks of Lacoda Capital Holdings. You may not use our trademarks without prior written permission.
+                        &quot;Lacoda,&quot; &quot;Lacoda Capital,&quot; the Lacoda logo, and other marks are trademarks of Lacoda Capital Holdings. You may not use our trademarks without prior written permission.
                       </p>
                       <p>
                         Subject to your compliance with these Terms, we grant you a limited, non-exclusive, non-transferable, revocable license to access and use the Service for your internal business purposes during the subscription term.
@@ -257,7 +257,7 @@ export function TermsPage() {
                     </h2>
                     <div className="space-y-4 text-zinc-300 leading-relaxed">
                       <p>
-                        You retain all ownership rights to the data, documents, and content you upload to the Service ("Your Data"). We do not claim ownership of Your Data.
+                        You retain all ownership rights to the data, documents, and content you upload to the Service (&quot;Your Data&quot;). We do not claim ownership of Your Data.
                       </p>
                       <p>
                         By using the Service, you grant us a limited, worldwide, non-exclusive license to access, process, store, transmit, and display Your Data solely as necessary to:
@@ -281,7 +281,7 @@ export function TermsPage() {
                     </h2>
                     <div className="space-y-4 text-zinc-300 leading-relaxed">
                       <p>
-                        Each party agrees to maintain the confidentiality of the other party's Confidential Information. "Confidential Information" means non-public information designated as confidential or that reasonably should be understood to be confidential, including:
+                        Each party agrees to maintain the confidentiality of the other party&apos;s Confidential Information. &quot;Confidential Information&quot; means non-public information designated as confidential or that reasonably should be understood to be confidential, including:
                       </p>
                       <ul className="list-disc pl-6 text-zinc-400 space-y-2">
                         <li>Your Data and financial information</li>
@@ -305,7 +305,7 @@ export function TermsPage() {
                     </h2>
                     <div className="space-y-4 text-zinc-300 leading-relaxed">
                       <p className="uppercase text-sm tracking-wide">
-                        THE SERVICE IS PROVIDED "AS IS" AND "AS AVAILABLE" WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND NON-INFRINGEMENT.
+                        THE SERVICE IS PROVIDED &quot;AS IS&quot; AND &quot;AS AVAILABLE&quot; WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND NON-INFRINGEMENT.
                       </p>
                       <p>
                         We do not warrant that:
@@ -347,7 +347,7 @@ export function TermsPage() {
                     </h2>
                     <div className="space-y-4 text-zinc-300 leading-relaxed">
                       <p>
-                        You agree to indemnify, defend, and hold harmless Lacoda Capital Holdings, its officers, directors, employees, agents, and affiliates from and against any claims, damages, losses, liabilities, costs, and expenses (including reasonable attorneys' fees) arising from:
+                        You agree to indemnify, defend, and hold harmless Lacoda Capital Holdings, its officers, directors, employees, agents, and affiliates from and against any claims, damages, losses, liabilities, costs, and expenses (including reasonable attorneys&apos; fees) arising from:
                       </p>
                       <ul className="list-disc pl-6 text-zinc-400 space-y-2">
                         <li>Your use of the Service</li>
@@ -372,7 +372,7 @@ export function TermsPage() {
                         <strong className="text-zinc-100">By You:</strong> You may terminate your account at any time by providing written notice. No refunds will be provided for prepaid fees, and you remain responsible for any outstanding amounts.
                       </p>
                       <p>
-                        <strong className="text-zinc-100">By Us:</strong> We may suspend or terminate your access immediately if you: (a) breach these Terms; (b) fail to pay fees when due; (c) become subject to bankruptcy proceedings; or (d) pose a security risk. For other reasons, we will provide 30 days' notice.
+                        <strong className="text-zinc-100">By Us:</strong> We may suspend or terminate your access immediately if you: (a) breach these Terms; (b) fail to pay fees when due; (c) become subject to bankruptcy proceedings; or (d) pose a security risk. For other reasons, we will provide 30 days&apos; notice.
                       </p>
                       <p>
                         <strong className="text-zinc-100">Effect of Termination:</strong> Upon termination:
@@ -420,7 +420,7 @@ export function TermsPage() {
                         We may update these Terms from time to time to reflect changes in our practices, technology, legal requirements, or business operations.
                       </p>
                       <p>
-                        For material changes, we will provide at least 30 days' notice via email or a prominent notice within the Service. The updated Terms will indicate the "Last updated" date.
+                        For material changes, we will provide at least 30 days&apos; notice via email or a prominent notice within the Service. The updated Terms will indicate the &quot;Last updated&quot; date.
                       </p>
                       <p>
                         Your continued use of the Service after the effective date of updated Terms constitutes your acceptance of the changes. If you do not agree, you must stop using the Service and may terminate your account.

@@ -55,10 +55,6 @@ test.describe("Discord alert payload format", () => {
     if (await notificationBell.isVisible()) {
       await notificationBell.click()
 
-      // Verify the notification dropdown/panel appears
-      const notificationPanel = page.locator(
-        '[data-testid="notification-panel"], [role="dialog"]',
-      )
       // The panel may or may not be visible depending on auth state
       // In a real E2E test with proper auth, we'd verify alert content
     }
@@ -75,11 +71,6 @@ test.describe("In-app notification after alert", () => {
   }) => {
     await page.goto("/app")
     await page.waitForLoadState("networkidle")
-
-    // Look for notification badge/count indicator
-    const badge = page.locator(
-      '[data-testid="notification-count"], [data-testid="unread-badge"]',
-    )
 
     // In a full E2E setup with seeded data, we would:
     // 1. Record the initial badge count
@@ -104,7 +95,7 @@ test.describe("In-app notification after alert", () => {
 // ============================================================================
 
 test.describe("Discord embed structure", () => {
-  test("embed contains required fields", async ({ request }) => {
+  test("embed contains required fields", async () => {
     // Direct API test: call an internal test endpoint that triggers an alert
     // This validates the full server-side dispatch path
     //

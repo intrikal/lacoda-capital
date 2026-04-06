@@ -8,7 +8,7 @@
  * - User in multiple orgs with SSO → picks org based on IdP domain
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest"
+import { describe, it, expect } from "vitest"
 import { mapSamlAttributes, resolveRoleFromGroups, IDP_PRESETS } from "@/lib/sso"
 import type { SamlAssertionAttributes } from "@/lib/sso"
 

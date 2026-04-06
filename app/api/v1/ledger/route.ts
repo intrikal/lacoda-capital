@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import * as Sentry from "@sentry/nextjs"
-import { eq, and, desc, gte, lte, like } from "drizzle-orm"
+import { eq, and, gte, lte } from "drizzle-orm"
 import { db } from "@/app/db"
-import { ledgerEvents, users } from "@/app/db/schema"
+import { ledgerEvents } from "@/app/db/schema"
 import { authenticateApiRequest, apiResponse } from "@/lib/api-middleware"
 
 /**

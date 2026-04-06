@@ -54,7 +54,6 @@ test.describe("AI Document Extraction", () => {
     await expect(page.getByRole("dialog")).toBeVisible({ timeout: 35_000 })
 
     // Check for yellow-highlighted inputs (border-yellow-500 class)
-    const yellowInputs = page.locator("input.border-yellow-500")
     // This test just checks the mechanism works — actual highlighting depends on AI output
   })
 

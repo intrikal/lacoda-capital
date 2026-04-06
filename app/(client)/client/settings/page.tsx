@@ -291,7 +291,7 @@ export default function ClientSettingsPage() {
                         <div className="flex items-center justify-between p-3 rounded-lg border border-zinc-800">
                           <div>
                             <p className="text-sm font-medium text-zinc-100">Make decisions on your behalf</p>
-                            <p className="text-xs text-zinc-500">Can authorize transactions if you're incapacitated</p>
+                            <p className="text-xs text-zinc-500">Can authorize transactions if you&apos;re incapacitated</p>
                           </div>
                           <Switch />
                         </div>

@@ -1,10 +1,11 @@
 "use server"
 
 import { eq, and, count, isNull, inArray, ilike, or } from "drizzle-orm"
+import type { SQL } from "drizzle-orm"
 import { db } from "@/app/db"
 import { documents } from "@/app/db/schema"
 import { requireAuth, requireRole } from "@/lib/auth"
-import { createDocumentSchema, updateDocumentSchema, uploadDocumentSchema } from "@/lib/validations/document.schema"
+import { createDocumentSchema, updateDocumentSchema } from "@/lib/validations/document.schema"
 import type { DocumentRecord, PaginatedResult } from "@/lib/types"
 import { captureServerEvent } from "@/lib/analytics/posthog-server"
 import { createClient } from "@/utils/supabase/server"
@@ -98,7 +99,7 @@ export async function deleteDocument(id: string): Promise<boolean> {
 }
 
 export async function getSignedUrl(storagePath: string): Promise<string> {
-  const session = await requireAuth()
+  await requireAuth()
   const supabase = await createClient()
 
   const { data, error } = await supabase.storage
@@ -147,26 +148,29 @@ export async function uploadDocument(input: UploadDocumentInput): Promise<Docume
   })
 
   const version = existing ? existing.version + 1 : 1
-  const previousVersionId = existing?.id ?? null
 
   // Build storage path: {orgId}/{folder ?? 'general'}/{timestamp}_{filename}
   const folder = input.folder || "general"
   const timestamp = Date.now()
   const storagePath = `${session.orgId}/${folder}/${timestamp}_${input.fileName}`
 
-  const { fileName: _fileName, sizeBytes, ...rest } = input
-
   const [created] = await db
     .insert(documents)
     .values({
-      ...rest,
+      name: input.name,
+      folder: input.folder,
+      mimeType: input.mimeType,
+      clientId: input.clientId,
+      entityId: input.entityId,
+      assetId: input.assetId,
+      status: input.status,
+      tags: input.tags ?? [],
       orgId: session.orgId!,
       uploadedBy: session.memberId!,
       storagePath,
       version,
-      sizeBytes: BigInt(sizeBytes),
+      sizeBytes: BigInt(input.sizeBytes),
       expiresAt: input.expiresAt ? new Date(input.expiresAt) : null,
-      tags: input.tags ?? [],
       metadata: {},
     })
     .returning()
@@ -198,7 +202,7 @@ export async function bulkUpdateDocuments(ids: string[], update: BulkUpdateInput
   if (update.tags !== undefined) setData.tags = update.tags
   if (update.status !== undefined) setData.status = update.status
 
-  const result = await db.update(documents).set(setData).where(inArray(documents.id, ids))
+  await db.update(documents).set(setData).where(inArray(documents.id, ids))
   return ids.length
 }
 
@@ -221,7 +225,7 @@ export async function getDocumentsSearch(
   const rows = await db
     .select()
     .from(documents)
-    .where(and(...(conditions.filter(Boolean) as any[])))
+    .where(and(...conditions.filter((c): c is SQL => c !== null && c !== undefined)))
 
   // Client-side tag filtering (tags is a JSON array in PostgreSQL)
   if (tagFilter && tagFilter.length > 0) {

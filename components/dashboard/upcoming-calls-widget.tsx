@@ -33,17 +33,17 @@ function daysUntil(date: Date): number {
 
 export function UpcomingCallsWidget() {
   const [calls, setCalls] = useState<UpcomingCall[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loaded, setLoaded] = useState(false)
+  const loading = !loaded
 
   useEffect(() => {
     let cancelled = false
-    setLoading(true)
     getUpcomingCapitalCalls(30)
       .then((data) => {
-        if (!cancelled) setCalls(data as unknown as UpcomingCall[])
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
+        if (!cancelled) {
+          setCalls(data as unknown as UpcomingCall[])
+          setLoaded(true)
+        }
       })
     return () => { cancelled = true }
   }, [])

@@ -251,7 +251,7 @@ describe("Google Calendar event sync — pull events", () => {
 
     // Verify upserts
     for (const event of events.items) {
-      const existing = await mockDb.findCalendarEventByGoogleId(TEST_ORG_ID, event.id)
+      await mockDb.findCalendarEventByGoogleId(TEST_ORG_ID, event.id)
       await mockDb.upsertCalendarEvent(TEST_ORG_ID, {
         title: event.summary,
         googleEventId: event.id,

@@ -37,7 +37,7 @@ import {
   Calendar,
   DollarSign,
 } from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
@@ -269,7 +269,7 @@ export default function ClientGoalsPage() {
             <div>
               <p className="font-medium text-zinc-100">On Track for Success</p>
               <p className="text-sm text-zinc-400 mt-1">
-                Based on your current contribution rate and market conditions, you're on track to meet
+                Based on your current contribution rate and market conditions, you&apos;re on track to meet
                 4 out of 5 goals. Consider increasing your monthly contribution to the Dream Vacation Home
                 goal to stay on schedule.
               </p>

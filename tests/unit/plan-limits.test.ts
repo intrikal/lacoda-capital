@@ -16,7 +16,6 @@ import {
   hasWarning,
   canAddTeamMember,
   PLAN_LIMITS,
-  type PlanTier,
   type UsageSnapshot,
 } from "@/lib/stripe/plan-limits"
 
@@ -25,9 +24,9 @@ import {
 // ============================================================================
 
 describe("plan-limits — AUM checks", () => {
-  it("Starter with $30M AUM → over limit warning (exceeded)", () => {
+  it("Starter with $600K AUM → over limit (exceeded)", () => {
     const usage: UsageSnapshot = {
-      currentAum: 30_000_000,
+      currentAum: 600_000,
       teamMemberCount: 1,
       storageUsedBytes: 0,
     }
@@ -38,9 +37,9 @@ describe("plan-limits — AUM checks", () => {
     expect(aumStatus.message).toContain("exceeded")
   })
 
-  it("Pro with $30M AUM → under limit (ok)", () => {
+  it("Pro with $2M AUM → under limit (ok)", () => {
     const usage: UsageSnapshot = {
-      currentAum: 30_000_000,
+      currentAum: 2_000_000,
       teamMemberCount: 1,
       storageUsedBytes: 0,
     }
@@ -50,9 +49,9 @@ describe("plan-limits — AUM checks", () => {
     expect(aumStatus.ratio).toBeLessThan(0.8)
   })
 
-  it("Starter with $20M AUM → warning (80% threshold)", () => {
+  it("Starter with $400K AUM → warning (80% threshold)", () => {
     const usage: UsageSnapshot = {
-      currentAum: 20_000_000,
+      currentAum: 400_000,
       teamMemberCount: 1,
       storageUsedBytes: 0,
     }
@@ -62,9 +61,9 @@ describe("plan-limits — AUM checks", () => {
     expect(aumStatus.message).toContain("80%")
   })
 
-  it("Starter with $15M AUM → ok (60%)", () => {
+  it("Starter with $300K AUM → ok (60%)", () => {
     const usage: UsageSnapshot = {
-      currentAum: 15_000_000,
+      currentAum: 300_000,
       teamMemberCount: 1,
       storageUsedBytes: 0,
     }
@@ -89,10 +88,10 @@ describe("plan-limits — AUM checks", () => {
 // ============================================================================
 
 describe("plan-limits — team member limits", () => {
-  it("Starter adding 4th member → warning (exceeded)", () => {
+  it("Starter adding 3rd member → exceeded (limit is 2)", () => {
     const usage: UsageSnapshot = {
       currentAum: 0,
-      teamMemberCount: 4,
+      teamMemberCount: 3,
       storageUsedBytes: 0,
     }
     const statuses = checkPlanUsage("starter", usage)
@@ -101,10 +100,10 @@ describe("plan-limits — team member limits", () => {
     expect(memberStatus.message).toContain("exceeded")
   })
 
-  it("Pro adding 4th member → ok (under 10 limit)", () => {
+  it("Pro adding 3rd member → ok (under 5 limit)", () => {
     const usage: UsageSnapshot = {
       currentAum: 0,
-      teamMemberCount: 4,
+      teamMemberCount: 3,
       storageUsedBytes: 0,
     }
     const statuses = checkPlanUsage("professional", usage)
@@ -112,26 +111,27 @@ describe("plan-limits — team member limits", () => {
     expect(memberStatus.level).toBe("ok")
   })
 
-  it("Starter with 3 members → at limit but warning (100%)", () => {
+  it("Starter with 2 members → at limit (warning at 100%)", () => {
     const usage: UsageSnapshot = {
       currentAum: 0,
-      teamMemberCount: 3,
+      teamMemberCount: 2,
       storageUsedBytes: 0,
     }
     const statuses = checkPlanUsage("starter", usage)
     const memberStatus = statuses.find((s) => s.resource === "team_members")!
-    // 3/3 = 100% which is > 80% → warning, but not > 100% → not exceeded
+    // 2/2 = 100% which is > 80% → warning, but not > 100% → not exceeded
     expect(memberStatus.level).toBe("warning")
   })
 
-  it("Pro with 8 members → warning (80%)", () => {
+  it("Pro with 5 members → at limit (warning at 100%)", () => {
     const usage: UsageSnapshot = {
       currentAum: 0,
-      teamMemberCount: 8,
+      teamMemberCount: 5,
       storageUsedBytes: 0,
     }
     const statuses = checkPlanUsage("professional", usage)
     const memberStatus = statuses.find((s) => s.resource === "team_members")!
+    // 5/5 = 100% → warning (>= 80% but not > 100%)
     expect(memberStatus.level).toBe("warning")
   })
 })
@@ -165,11 +165,11 @@ describe("plan-limits — storage limits", () => {
     expect(storageStatus.level).toBe("warning")
   })
 
-  it("Pro using 50GB → ok (50% of 100GB limit)", () => {
+  it("Pro using 25GB → ok (50% of 50GB limit)", () => {
     const usage: UsageSnapshot = {
       currentAum: 0,
       teamMemberCount: 1,
-      storageUsedBytes: 50 * GB,
+      storageUsedBytes: 25 * GB,
     }
     const statuses = checkPlanUsage("professional", usage)
     const storageStatus = statuses.find((s) => s.resource === "storage")!
@@ -184,7 +184,7 @@ describe("plan-limits — storage limits", () => {
 describe("plan-limits — helper functions", () => {
   it("hasExceededLimit returns true when AUM over limit", () => {
     const usage: UsageSnapshot = {
-      currentAum: 30_000_000,
+      currentAum: 600_000,
       teamMemberCount: 1,
       storageUsedBytes: 0,
     }
@@ -193,8 +193,8 @@ describe("plan-limits — helper functions", () => {
 
   it("hasExceededLimit returns false when within limits", () => {
     const usage: UsageSnapshot = {
-      currentAum: 10_000_000,
-      teamMemberCount: 2,
+      currentAum: 200_000,
+      teamMemberCount: 1,
       storageUsedBytes: 1024 * 1024 * 1024,
     }
     expect(hasExceededLimit("starter", usage)).toBe(false)
@@ -202,7 +202,7 @@ describe("plan-limits — helper functions", () => {
 
   it("hasWarning returns true when approaching limits", () => {
     const usage: UsageSnapshot = {
-      currentAum: 22_000_000,
+      currentAum: 450_000,
       teamMemberCount: 1,
       storageUsedBytes: 0,
     }
@@ -211,31 +211,31 @@ describe("plan-limits — helper functions", () => {
 
   it("hasWarning returns false when well within limits", () => {
     const usage: UsageSnapshot = {
-      currentAum: 5_000_000,
+      currentAum: 100_000,
       teamMemberCount: 1,
       storageUsedBytes: 0,
     }
     expect(hasWarning("starter", usage)).toBe(false)
   })
 
-  it("canAddTeamMember — Starter with 2 members → true", () => {
-    expect(canAddTeamMember("starter", 2)).toBe(true)
+  it("canAddTeamMember — Starter with 1 member → true", () => {
+    expect(canAddTeamMember("starter", 1)).toBe(true)
   })
 
-  it("canAddTeamMember — Starter with 3 members → false (at limit)", () => {
-    expect(canAddTeamMember("starter", 3)).toBe(false)
+  it("canAddTeamMember — Starter with 2 members → false (at limit)", () => {
+    expect(canAddTeamMember("starter", 2)).toBe(false)
   })
 
   it("canAddTeamMember — Enterprise with 100 members → true", () => {
     expect(canAddTeamMember("enterprise", 100)).toBe(true)
   })
 
-  it("canAddTeamMember — Pro with 9 members → true", () => {
-    expect(canAddTeamMember("professional", 9)).toBe(true)
+  it("canAddTeamMember — Pro with 4 members → true", () => {
+    expect(canAddTeamMember("professional", 4)).toBe(true)
   })
 
-  it("canAddTeamMember — Pro with 10 members → false", () => {
-    expect(canAddTeamMember("professional", 10)).toBe(false)
+  it("canAddTeamMember — Pro with 5 members → false (at limit)", () => {
+    expect(canAddTeamMember("professional", 5)).toBe(false)
   })
 })
 
@@ -244,32 +244,32 @@ describe("plan-limits — helper functions", () => {
 // ============================================================================
 
 describe("plan-limits — PLAN_LIMITS config", () => {
-  it("Starter has correct AUM limit ($25M)", () => {
-    expect(PLAN_LIMITS.starter.maxAum).toBe(25_000_000)
+  it("Starter has correct AUM limit ($500K)", () => {
+    expect(PLAN_LIMITS.starter.maxAum).toBe(500_000)
   })
 
-  it("Pro has correct AUM limit ($100M)", () => {
-    expect(PLAN_LIMITS.professional.maxAum).toBe(100_000_000)
+  it("Pro has correct AUM limit ($3M)", () => {
+    expect(PLAN_LIMITS.professional.maxAum).toBe(3_000_000)
   })
 
   it("Enterprise has unlimited AUM", () => {
     expect(PLAN_LIMITS.enterprise.maxAum).toBe(Infinity)
   })
 
-  it("Starter team member limit is 3", () => {
-    expect(PLAN_LIMITS.starter.maxTeamMembers).toBe(3)
+  it("Starter team member limit is 2", () => {
+    expect(PLAN_LIMITS.starter.maxTeamMembers).toBe(2)
   })
 
-  it("Pro team member limit is 10", () => {
-    expect(PLAN_LIMITS.professional.maxTeamMembers).toBe(10)
+  it("Pro team member limit is 5", () => {
+    expect(PLAN_LIMITS.professional.maxTeamMembers).toBe(5)
   })
 
   it("Starter storage is 10GB", () => {
     expect(PLAN_LIMITS.starter.maxStorageBytes).toBe(10 * 1024 * 1024 * 1024)
   })
 
-  it("Pro storage is 100GB", () => {
-    expect(PLAN_LIMITS.professional.maxStorageBytes).toBe(100 * 1024 * 1024 * 1024)
+  it("Pro storage is 50GB", () => {
+    expect(PLAN_LIMITS.professional.maxStorageBytes).toBe(50 * 1024 * 1024 * 1024)
   })
 
   it("Starter does not have API access", () => {
@@ -288,12 +288,12 @@ describe("plan-limits — PLAN_LIMITS config", () => {
     expect(PLAN_LIMITS.free.monthlyPrice).toBe(0)
   })
 
-  it("Starter monthly price is $499", () => {
-    expect(PLAN_LIMITS.starter.monthlyPrice).toBe(499)
+  it("Starter monthly price is $299", () => {
+    expect(PLAN_LIMITS.starter.monthlyPrice).toBe(299)
   })
 
-  it("Pro monthly price is $1,499", () => {
-    expect(PLAN_LIMITS.professional.monthlyPrice).toBe(1499)
+  it("Pro monthly price is $999", () => {
+    expect(PLAN_LIMITS.professional.monthlyPrice).toBe(999)
   })
 
   it("Free plan has no AUM limit (0)", () => {
@@ -308,19 +308,19 @@ describe("plan-limits — PLAN_LIMITS config", () => {
 describe("plan-limits — message formatting", () => {
   it("exceeded message mentions 'exceeded'", () => {
     const statuses = checkPlanUsage("starter", {
-      currentAum: 30_000_000,
+      currentAum: 600_000,
       teamMemberCount: 0,
       storageUsedBytes: 0,
     })
     const aum = statuses.find((s) => s.resource === "aum")!
     expect(aum.message).toContain("exceeded")
-    expect(aum.message).toContain("$30.0M")
-    expect(aum.message).toContain("$25.0M")
+    expect(aum.message).toContain("$600")
+    expect(aum.message).toContain("$500")
   })
 
   it("warning message shows percentage", () => {
     const statuses = checkPlanUsage("starter", {
-      currentAum: 22_500_000,
+      currentAum: 450_000,
       teamMemberCount: 0,
       storageUsedBytes: 0,
     })
@@ -330,7 +330,7 @@ describe("plan-limits — message formatting", () => {
 
   it("ok status has null message", () => {
     const statuses = checkPlanUsage("starter", {
-      currentAum: 5_000_000,
+      currentAum: 100_000,
       teamMemberCount: 1,
       storageUsedBytes: 0,
     })

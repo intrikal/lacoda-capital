@@ -40,7 +40,6 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest"
-import { createHmac } from "crypto"
 
 // ─── Mock DocuSign API layer ─────────────────────────────────────────────────
 //

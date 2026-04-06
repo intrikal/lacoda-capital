@@ -53,6 +53,13 @@ export {
   beneficiaryDesignationEnum,
   transferTypeEnum,
   transferStatusEnum,
+  expenseCategoryEnum,
+  expenseStatusEnum,
+  riskToleranceEnum,
+  riskAlertStatusEnum,
+  kycStatusEnum,
+  kycTierEnum,
+  amlStatusEnum,
 } from "./00_enums";
 
 // ============================================================================
@@ -343,3 +350,21 @@ export type {
   TransferRecord,
   NewTransfer,
 } from "./transfers";
+
+// ============================================================================
+// Expenses (Portfolio Spending)
+// ============================================================================
+export { expenses, expensesRelations } from "./expenses";
+export type { Expense, NewExpense } from "./expenses";
+
+// ============================================================================
+// Risk Profiles
+// ============================================================================
+export { riskProfiles, riskProfilesRelations } from "./risk_profiles";
+export type { RiskProfile, NewRiskProfile } from "./risk_profiles";
+
+// ============================================================================
+// KYC / AML Records
+// ============================================================================
+export { kycRecords, kycRecordsRelations } from "./kyc_records";
+export type { KycRecord, NewKycRecord } from "./kyc_records";

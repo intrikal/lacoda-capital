@@ -47,7 +47,6 @@ const INTEGRATIONS_URL = "/app/integrations"
 const DASHBOARD_URL = "/app"
 const CALENDAR_URL = "/app/calendar"
 const GOOGLE_AUTH_BASE = "https://accounts.google.com/o/oauth2/v2/auth"
-const CALLBACK_URL = "/api/webhooks/google-calendar/callback"
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
 

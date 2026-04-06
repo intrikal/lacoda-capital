@@ -166,7 +166,7 @@ export async function updateOrgMemberRole(id: string, input: unknown): Promise<O
           eq(orgMembers.orgId, session.orgId!),
           eq(orgMembers.role, "admin"),
           // Don't count soft-deleted members
-          eq(orgMembers.deletedAt, null as any)
+          isNull(orgMembers.deletedAt)
         )
       )
     if (adminCount.length <= 1) {
@@ -236,7 +236,7 @@ export async function removeOrgMember(id: string): Promise<boolean> {
           eq(orgMembers.orgId, session.orgId!),
           eq(orgMembers.role, "admin"),
           // Don't count soft-deleted members
-          eq(orgMembers.deletedAt, null as any)
+          isNull(orgMembers.deletedAt)
         )
       )
     if (adminCount.length <= 1) {

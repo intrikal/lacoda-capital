@@ -21,7 +21,7 @@ function resolveConflicts(
   let updated = 0
   let skipped = 0
 
-  for (const row of duplicateRows) {
+  for (let i = 0; i < duplicateRows.length; i++) {
     switch (mode) {
       case "skip":
         skipped++

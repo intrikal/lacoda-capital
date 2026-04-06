@@ -2,10 +2,70 @@
 
 import { eq, count } from "drizzle-orm"
 import { db } from "@/app/db"
-import { orgs, orgMembers, users, assets, documents, clients, entities } from "@/app/db/schema"
+import { orgs, orgMembers, users, documents, clients, entities } from "@/app/db/schema"
 import { requireAuth } from "@/lib/auth"
 import { createLedgerEvent } from "@/lib/actions/ledger"
 import { captureServerEvent } from "@/lib/analytics/posthog-server"
+
+// ─── Provision admin org (new user signup) ──────────────────────────────────
+
+/**
+ * provisionAdminOrg()
+ *
+ * Called at the end of the onboarding tour for a brand-new user who has no org yet.
+ * Creates the `users` row, an `orgs` row, and an `org_members` row with role "admin".
+ *
+ * Safe to call multiple times — skips everything if the user is already provisioned.
+ */
+export async function provisionAdminOrg(input: {
+  fullName?: string
+  phone?: string
+}): Promise<{ success: boolean }> {
+  const session = await requireAuth()
+
+  // Already provisioned — nothing to do
+  if (session.orgId) return { success: true }
+
+  // Upsert the public users row (matches Supabase auth.users.id)
+  await db
+    .insert(users)
+    .values({
+      id: session.userId,
+      email: session.email,
+      fullName: input.fullName?.trim() || null,
+    })
+    .onConflictDoNothing()
+
+  // Build a URL-safe slug from the email prefix + random suffix
+  const emailPrefix = session.email
+    .split("@")[0]
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+  const slug = `${emailPrefix}-${Math.random().toString(36).slice(2, 6)}`
+
+  // Create the org
+  const orgName = input.fullName?.trim()
+    ? `${input.fullName.trim()}'s Firm`
+    : `${session.email.split("@")[0]}'s Firm`
+
+  const [org] = await db
+    .insert(orgs)
+    .values({ name: orgName, slug })
+    .returning()
+
+  // Create the admin membership
+  await db.insert(orgMembers).values({
+    orgId: org.id,
+    userId: session.userId,
+    role: "admin",
+  })
+
+  captureServerEvent(session.userId, "onboarding.org_provisioned", { org_id: org.id })
+
+  return { success: true }
+}
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -53,19 +113,6 @@ export async function getOnboardingState(): Promise<OnboardingState> {
       orgInfo: null,
     }
   }
-
-  // Check if org has any assets — if yes, skip wizard
-  const [assetCount] = await db
-    .select({ total: count() })
-    .from(assets)
-    .where(
-      eq(assets.entityId,
-        db.select({ id: entities.id }).from(entities)
-          .innerJoin(clients, eq(entities.clientId, clients.id))
-          .where(eq(clients.orgId, session.orgId))
-          .limit(1) as unknown as string
-      )
-    )
 
   // Simplified: just check if any entities exist (which implies assets might)
   const [entityCount] = await db

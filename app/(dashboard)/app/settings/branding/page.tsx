@@ -4,18 +4,17 @@ import * as React from "react"
 import { useSpring, animated, config } from "@react-spring/web"
 import {
   Palette,
-  Upload,
   Eye,
   Check,
   AlertTriangle,
   Globe,
-  Image,
+  Image as ImageIcon,
   Type,
   Paintbrush,
   Building2,
   FileText,
-  ExternalLink,
 } from "lucide-react"
+import NextImage from "next/image"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -146,7 +145,7 @@ export default function BrandingSettingsPage() {
           {/* Logo */}
           <div className="border border-zinc-800 rounded-lg p-5">
             <div className="flex items-center gap-2 mb-4">
-              <Image className="h-4 w-4 text-teal-400" />
+              <ImageIcon className="h-4 w-4 text-teal-400" />
               <h3 className="font-medium text-white">Logo</h3>
             </div>
             <div>
@@ -163,10 +162,13 @@ export default function BrandingSettingsPage() {
               </p>
               {logoUrl && (
                 <div className="mt-3 bg-zinc-950 border border-zinc-800 rounded-md p-4 flex items-center justify-center">
-                  <img
+                  <NextImage
                     src={logoUrl}
                     alt="Logo preview"
+                    width={200}
+                    height={40}
                     className="h-10 object-contain"
+                    unoptimized
                     onError={(e) => {
                       (e.target as HTMLImageElement).style.display = "none"
                     }}
@@ -297,10 +299,13 @@ export default function BrandingSettingsPage() {
                 {/* Header */}
                 <div className="px-4 py-3 flex items-center gap-3" style={{ borderBottom: `2px solid ${primaryColor}` }}>
                   {logoUrl ? (
-                    <img
+                    <NextImage
                       src={logoUrl}
                       alt="Preview"
+                      width={120}
+                      height={24}
                       className="h-6 object-contain"
+                      unoptimized
                       onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }}
                     />
                   ) : (

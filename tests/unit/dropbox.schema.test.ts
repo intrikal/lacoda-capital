@@ -99,7 +99,6 @@ const dropboxSettingsSchema = z.object({
   expires_at: z.number(),
 })
 
-type DropboxSettings = z.infer<typeof dropboxSettingsSchema>
 
 /**
  * The shape of a single file object returned by Dropbox's

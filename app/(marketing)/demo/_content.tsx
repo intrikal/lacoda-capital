@@ -9,7 +9,6 @@ import {
   Calendar,
   Users,
   Shield,
-  Clock,
   Play,
   BarChart3,
   FileText,

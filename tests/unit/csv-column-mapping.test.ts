@@ -10,10 +10,6 @@ import { describe, it, expect } from "vitest"
  */
 
 // Simplified mapping validation logic (mirrors import.actions.ts)
-const REQUIRED_FIELDS = ["name"]
-const OPTIONAL_FIELDS = ["assetClass", "entityName", "value", "currency", "description", "address"]
-const ALL_FIELDS = [...REQUIRED_FIELDS, ...OPTIONAL_FIELDS]
-
 const VALID_ASSET_CLASSES = [
   "real_estate", "equities", "fixed_income", "private_equity",
   "venture_capital", "hedge_funds", "commodities", "cash",

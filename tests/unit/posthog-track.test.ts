@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
+import { describe, it, expect, vi, beforeEach } from "vitest"
 
 // Mock posthog-js
 vi.mock("posthog-js", () => {
@@ -26,7 +26,6 @@ import {
   trackReportGenerated,
   trackSearchPerformed,
   identifyUser,
-  resetIdentity,
 } from "@/lib/analytics/track"
 
 describe("PostHog tracking helpers", () => {

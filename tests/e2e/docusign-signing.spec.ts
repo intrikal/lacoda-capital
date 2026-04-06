@@ -44,7 +44,6 @@ import { test, expect, type Page } from "@playwright/test"
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-const VAULT_URL = "/app/vault"
 const INTEGRATIONS_URL = "/app/integrations"
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────

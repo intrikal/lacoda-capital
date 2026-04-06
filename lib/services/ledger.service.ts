@@ -2,7 +2,10 @@
 
 import { db } from "@/app/db"
 import { ledgerEvents, users } from "@/app/db/schema"
-import { eq, desc, and, gte, lte, like } from "drizzle-orm"
+import { eq, desc, and, gte, lte } from "drizzle-orm"
+import type { InferSelectModel } from "drizzle-orm"
+
+type LedgerEventRow = InferSelectModel<typeof ledgerEvents>
 
 /**
  * LedgerRow — Database result with actor name resolved.
@@ -80,10 +83,10 @@ export async function getLedgerEntries(
     conditions.push(eq(ledgerEvents.actorUserId, filters.actorId))
   }
   if (filters.action) {
-    conditions.push(eq(ledgerEvents.action, filters.action as any))
+    conditions.push(eq(ledgerEvents.action, filters.action as LedgerEventRow["action"]))
   }
   if (filters.targetType) {
-    conditions.push(eq(ledgerEvents.targetType, filters.targetType as any))
+    conditions.push(eq(ledgerEvents.targetType, filters.targetType as LedgerEventRow["targetType"]))
   }
   if (filters.after) {
     conditions.push(gte(ledgerEvents.createdAt, filters.after))
@@ -249,16 +252,16 @@ export async function exportLedgerCSV(
  * New code should use the functions above.
  */
 
-import type { LedgerEntry } from "@/lib/types/mock"
+import type { LedgerEntry, LedgerActionType } from "@/lib/types/mock"
 
 function toLedgerEntry(row: typeof ledgerEvents.$inferSelect): LedgerEntry {
   return {
     id: row.id,
     timestamp: row.createdAt.toISOString(),
-    action: row.action as any,
+    action: row.action as LedgerActionType,
     user: row.actorUserId ?? "system",
     entity: row.targetId,
-    entityType: row.targetType as any,
+    entityType: row.targetType as LedgerEntry["entityType"],
     details: (row.payload as Record<string, unknown>)?.details as string ?? "",
     isSensitive:
       ((row.payload as Record<string, unknown>)?.isSensitive as boolean) ??
@@ -291,7 +294,7 @@ export async function getLedgerEntriesByAction(
   const rows = await db
     .select()
     .from(ledgerEvents)
-    .where(eq(ledgerEvents.action, action as any))
+    .where(eq(ledgerEvents.action, action as LedgerEventRow["action"]))
   return rows.map(toLedgerEntry)
 }
 

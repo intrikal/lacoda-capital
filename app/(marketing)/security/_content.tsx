@@ -11,9 +11,7 @@ import {
   Eye,
   Server,
   FileCheck,
-  Clock,
   Users,
-  AlertTriangle,
   CheckCircle2,
   ExternalLink,
   Building2,
@@ -26,7 +24,6 @@ import {
   RefreshCw,
   UserCheck,
   ShieldCheck,
-  ShieldAlert,
   HardDrive,
   Cloud,
   Network,
@@ -36,9 +33,8 @@ import {
   Award,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { cn } from "@/lib/utils"
 import { useReducedMotion } from "@/lib/hooks/use-reduced-motion"
 
 // ─────────────────────────────────────────────────────────────────────────────

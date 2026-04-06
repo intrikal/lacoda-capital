@@ -6,7 +6,7 @@
 
 import { db } from "@/app/db"
 import { clients } from "@/app/db/schema"
-import { eq, count, isNull } from "drizzle-orm"
+import { eq, isNull } from "drizzle-orm"
 import type { Client } from "@/lib/types/mock"
 import type { ClientProfile } from "@/app/db/schema/clients"
 

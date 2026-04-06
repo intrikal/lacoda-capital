@@ -180,7 +180,7 @@ async function mockSalesforceRevoke(page: Page) {
 
 // ─── Shared setup ───────────────────────────────────────────────────────────
 
-test.beforeEach(async ({ page }) => {
+test.beforeEach(async () => {
   // Authenticate as a test advisor user.
   // In practice, use a test session cookie or login flow.
   // playwright.config.ts -> use: { storageState: 'tests/e2e/.auth/advisor.json' }

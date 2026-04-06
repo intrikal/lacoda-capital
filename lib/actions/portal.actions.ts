@@ -3,7 +3,7 @@
 import { captureServerEvent } from "@/lib/analytics/server"
 import { eq, and } from "drizzle-orm"
 import { db } from "@/app/db"
-import { stakeholderPortals, ledgerEvents, clients, orgs } from "@/app/db/schema"
+import { stakeholderPortals, clients } from "@/app/db/schema"
 import { getSessionOrRedirect } from "@/lib/auth"
 import { requirePermission, type DbRole } from "@/lib/permissions"
 import { createLedgerEvent } from "@/lib/actions/ledger"

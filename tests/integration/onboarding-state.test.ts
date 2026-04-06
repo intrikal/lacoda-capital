@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest"
+import { describe, it, expect } from "vitest"
 
 /**
  * Integration test: Onboarding wizard state persistence.
@@ -17,7 +17,7 @@ interface WizardState {
 
 // Simulates the wizard state management (mirrors first-login-wizard.tsx)
 function createWizardManager() {
-  let state: WizardState = {
+  const state: WizardState = {
     currentStep: 0,
     completedSteps: new Set(),
     orgInfo: null,

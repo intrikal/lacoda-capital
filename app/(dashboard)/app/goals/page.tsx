@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useSpring, animated, config } from "@react-spring/web"
-import { format, differenceInMonths } from "date-fns"
+import { format } from "date-fns"
 import {
   Target,
   Plus,

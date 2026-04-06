@@ -12,7 +12,6 @@ import {
   Briefcase,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Avatar } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import type { LedgerActionType, ActivityItem } from "@/lib/types/mock"

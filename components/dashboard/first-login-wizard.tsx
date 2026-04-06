@@ -14,7 +14,6 @@ import {
   Loader2,
   Plus,
   Upload,
-  Globe,
   DollarSign,
   Clock,
   SkipForward,
@@ -32,6 +31,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogTitle,
 } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 import {
@@ -40,7 +40,6 @@ import {
   inviteTeamMember,
   type OnboardingState,
 } from "@/lib/actions/onboarding.actions"
-import { createAsset } from "@/lib/actions/asset.actions"
 
 // ─── Step definitions ───────────────────────────────────────────────────────
 
@@ -201,17 +200,14 @@ export function FirstLoginWizard() {
 
   if (loading || !state || !state.showWizard || dismissed) return null
 
-  const step = WIZARD_STEPS[currentStep]
-  const stepDef = WIZARD_STEPS[currentStep]
-
   return (
     <Dialog open={true} onOpenChange={(open) => !open && setDismissed(true)}>
       <DialogContent className="max-w-lg gap-0 overflow-hidden rounded-2xl border-zinc-800 bg-zinc-900 p-0 shadow-2xl sm:max-w-xl">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-zinc-800 px-6 py-4">
           <div>
-            <h2 className="text-lg font-semibold text-zinc-100">Welcome to Lacoda Capital</h2>
-            <p className="text-sm text-zinc-500">Let's get your workspace set up</p>
+            <DialogTitle className="text-lg font-semibold text-zinc-100">Welcome to Lacoda Capital</DialogTitle>
+            <p className="text-sm text-zinc-500">Let&apos;s get your workspace set up</p>
           </div>
           <button
             onClick={() => setDismissed(true)}

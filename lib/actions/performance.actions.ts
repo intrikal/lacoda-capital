@@ -1,6 +1,6 @@
 "use server"
 
-import { eq, and, desc, isNull, sql } from "drizzle-orm"
+import { eq, and, isNull } from "drizzle-orm"
 import { db } from "@/app/db"
 import { assets, valuations, entities, clients } from "@/app/db/schema"
 import { requireAuth } from "@/lib/auth"
@@ -21,7 +21,7 @@ import type { Valuation, PeriodReturns, TWRDataPoint } from "@/lib/calculations/
 export async function getAssetPerformance(
   assetId: string
 ): Promise<PeriodReturns & { hasData: boolean }> {
-  const session = await requireAuth()
+  await requireAuth()
 
   const vals = await db
     .select({ value: valuations.value, date: valuations.asOfDate })
@@ -48,7 +48,7 @@ export async function getAssetPerformance(
 export async function getAssetTWRTimeSeries(
   assetId: string
 ): Promise<TWRDataPoint[]> {
-  const session = await requireAuth()
+  await requireAuth()
 
   const vals = await db
     .select({ value: valuations.value, date: valuations.asOfDate })

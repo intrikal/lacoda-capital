@@ -27,17 +27,17 @@ function formatPercent(value: number): string {
 
 export function TWRChart({ assetId }: TWRChartProps) {
   const [data, setData] = useState<TWRDataPoint[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loadedForId, setLoadedForId] = useState("")
+  const loading = loadedForId !== assetId
 
   useEffect(() => {
     let cancelled = false
-    setLoading(true)
     getAssetTWRTimeSeries(assetId)
       .then((result) => {
-        if (!cancelled) setData(result)
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
+        if (!cancelled) {
+          setData(result)
+          setLoadedForId(assetId)
+        }
       })
     return () => { cancelled = true }
   }, [assetId])

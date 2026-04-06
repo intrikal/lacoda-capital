@@ -70,14 +70,6 @@ interface UseClientTransfersReturn {
   addTransfer: (input: CreateTransferInput) => void
 }
 
-const EMPTY_STATS: TransferStats = {
-  pendingCount: 0,
-  pendingTotal: 0,
-  completedThisMonthCount: 0,
-  completedThisMonthTotal: 0,
-  linkedAccountsCount: 2,
-}
-
 function computeStats(transfers: ClientTransfer[]): TransferStats {
   const now = new Date()
   const pending = transfers.filter(

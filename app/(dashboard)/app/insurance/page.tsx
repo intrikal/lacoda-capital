@@ -65,7 +65,6 @@ import { formatCurrency } from "@/lib/utils"
 import { useReducedMotion } from "@/lib/hooks/use-reduced-motion"
 import {
   AllocationChart,
-  PerformanceChart,
 } from "@/components/dashboard/charts"
 import {
   useInsurancePolicies,

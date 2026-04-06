@@ -73,7 +73,7 @@ export default function ForgotPasswordPage() {
               Forgot your password?
             </h2>
             <p className="text-lg text-zinc-400 max-w-md">
-              No worries. We'll send you secure instructions to reset your
+              No worries. We&apos;ll send you secure instructions to reset your
               password and get you back to managing your portfolio.
             </p>
 
@@ -81,7 +81,7 @@ export default function ForgotPasswordPage() {
             <div className="mt-12 p-4 rounded-lg border border-zinc-800 bg-zinc-950/50">
               <p className="text-sm text-zinc-400">
                 <span className="font-medium text-zinc-300">Security tip:</span>{" "}
-                We'll never ask for your password via email. The reset link
+                We&apos;ll never ask for your password via email. The reset link
                 expires in 1 hour for your protection.
               </p>
             </div>
@@ -124,7 +124,7 @@ export default function ForgotPasswordPage() {
                   </h1>
                   <p className="text-zinc-400">
                     Enter the email address associated with your account and
-                    we'll send you a link to reset your password.
+                    we&apos;ll send you a link to reset your password.
                   </p>
                 </div>
 
@@ -185,14 +185,14 @@ export default function ForgotPasswordPage() {
                   Check your email
                 </h1>
                 <p className="text-zinc-400 mb-2">
-                  We've sent a password reset link to:
+                  We&apos;ve sent a password reset link to:
                 </p>
                 <p className="text-zinc-100 font-medium mb-6">{email}</p>
 
                 <div className="p-4 rounded-lg border border-zinc-800 bg-zinc-900/50 text-left mb-8">
                   <p className="text-sm text-zinc-400">
                     <span className="font-medium text-zinc-300">
-                      Didn't receive the email?
+                      Didn&apos;t receive the email?
                     </span>{" "}
                     Check your spam folder, or make sure you entered the correct
                     email address.

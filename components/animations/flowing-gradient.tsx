@@ -62,7 +62,7 @@ export function FlowingGradient({ className }: FlowingGradientProps) {
   const containerRef = React.useRef<HTMLDivElement>(null)
 
   // Blob configurations - teal/cyan palette matching Lacoda brand
-  const blobs = [
+  const blobs = React.useMemo(() => [
     // Large primary blobs
     { color: "#14b8a6", size: 80, x: 60, y: 40, duration: 20, delay: 0, opacity: 0.4, blur: 80 },
     { color: "#06b6d4", size: 70, x: 80, y: 60, duration: 25, delay: 2, opacity: 0.35, blur: 90 },
@@ -77,7 +77,7 @@ export function FlowingGradient({ className }: FlowingGradientProps) {
     { color: "#99f6e4", size: 35, x: 75, y: 25, duration: 16, delay: 2, opacity: 0.3, blur: 45 },
     { color: "#67e8f9", size: 30, x: 85, y: 70, duration: 19, delay: 4, opacity: 0.25, blur: 50 },
     { color: "#a5f3fc", size: 25, x: 55, y: 55, duration: 21, delay: 1, opacity: 0.2, blur: 40 },
-  ]
+  ], [])
 
   // Generate keyframe animations dynamically
   React.useEffect(() => {
@@ -120,7 +120,7 @@ export function FlowingGradient({ className }: FlowingGradientProps) {
       const el = document.getElementById("flowing-gradient-animations")
       if (el) el.remove()
     }
-  }, [reducedMotion])
+  }, [reducedMotion, blobs])
 
   return (
     <div

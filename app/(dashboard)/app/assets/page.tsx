@@ -25,7 +25,6 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import {
   Table,
@@ -802,7 +801,7 @@ export default function AssetsPage() {
           if (formMode === "create") {
             createAsset.mutate(data, { onSuccess: refetch })
           } else if (editingAsset) {
-            const { entityId: _entityId, ...input } = data
+            const { ...input } = data
             updateAsset.mutate({ id: editingAsset.id, input }, { onSuccess: refetch })
           }
         }}

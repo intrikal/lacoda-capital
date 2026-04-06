@@ -25,7 +25,6 @@
  */
 
 import { describe, it, expect } from "vitest"
-import { createHmac } from "crypto"
 
 // ─── Helpers & Types ─────────────────────────────────────────────────────────
 

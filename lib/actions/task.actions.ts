@@ -3,7 +3,7 @@
 import { captureServerEvent } from "@/lib/analytics/server"
 import { eq, and, count } from "drizzle-orm"
 import { db } from "@/app/db"
-import { tasks, users, clients, entities, assets, documents } from "@/app/db/schema"
+import { tasks } from "@/app/db/schema"
 import { requireAuth, requireRole } from "@/lib/auth"
 import { createTaskSchema, updateTaskSchema } from "@/lib/validations/task.schema"
 import type { TaskRecord, PaginatedResult } from "@/lib/types"

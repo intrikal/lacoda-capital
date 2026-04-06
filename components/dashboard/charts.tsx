@@ -18,9 +18,6 @@ import {
   Legend,
   ResponsiveContainer,
   ComposedChart,
-  RadialBarChart,
-  RadialBar,
-  Treemap,
 } from "recharts"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
@@ -58,9 +55,16 @@ export const pieColors = [
 // Custom Tooltip
 // ─────────────────────────────────────────────────────────────────────────────
 
+interface TooltipPayloadEntry {
+  value: number
+  name: string
+  color: string
+  dataKey: string
+}
+
 interface CustomTooltipProps {
   active?: boolean
-  payload?: any[]
+  payload?: TooltipPayloadEntry[]
   label?: string
   formatter?: (value: number) => string
 }
@@ -844,12 +848,6 @@ interface GoalProgressProps {
 }
 
 export function GoalProgress({ goals, className }: GoalProgressProps) {
-  const data = goals.map((goal) => ({
-    name: goal.name,
-    value: Math.min((goal.current / goal.target) * 100, 100),
-    fill: goal.color,
-  }))
-
   return (
     <Card className={className}>
       <CardHeader>

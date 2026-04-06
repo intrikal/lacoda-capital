@@ -76,28 +76,6 @@ const ORG_ID = "org_test_001"
 const USER_ID = "user_test_001"
 const INTEGRATION_ID = "intg_sf_test_001"
 
-// ─── Salesforce API mock helper ─────────────────────────────────────────────
-
-function makeSFFetchMock(responses: Record<string, { status: number; body: unknown }>) {
-  return vi.fn(async (url: string) => {
-    const urlObj = new URL(url as string)
-
-    // Check for exact path matches or partial matches
-    for (const [pattern, response] of Object.entries(responses)) {
-      if (urlObj.pathname.includes(pattern) || urlObj.href.includes(pattern)) {
-        return new Response(JSON.stringify(response.body), {
-          status: response.status,
-          headers: { "Content-Type": "application/json" },
-        })
-      }
-    }
-
-    return new Response(
-      JSON.stringify([{ errorCode: "NOT_FOUND", message: `No mock for ${urlObj.pathname}` }]),
-      { status: 404, headers: { "Content-Type": "application/json" } },
-    )
-  })
-}
 
 // ============================================================================
 // 1. FIELD MAPPING VALIDATION
@@ -1108,7 +1086,7 @@ describe("Edge cases — pagination handling", () => {
 
   it("follows nextRecordsUrl for cursor-based pagination", async () => {
     let callCount = 0
-    global.fetch = vi.fn(async (url: string) => {
+    global.fetch = vi.fn(async () => {
       callCount++
       if (callCount === 1) {
         // First page

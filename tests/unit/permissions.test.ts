@@ -32,9 +32,6 @@ import {
   canInvite,
   canChangeRole,
   canRemove,
-  type DbRole,
-  type Resource,
-  type Action,
 } from "@/lib/permissions"
 
 // ============================================================================

@@ -27,6 +27,7 @@ import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
 import { Logo } from "@/components/marketing/logo"
 import { createClient } from "@/utils/supabase/client"
+import { provisionAdminOrg } from "@/lib/actions/onboarding.actions"
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Step definitions
@@ -267,7 +268,10 @@ export default function OnboardingPage() {
       const updateData: Record<string, unknown> = { onboarding_completed: true }
       if (profileName.trim()) updateData.full_name = profileName.trim()
       if (profilePhone.trim()) updateData.phone = profilePhone.trim()
-      await supabase.auth.updateUser({ data: updateData })
+      await Promise.all([
+        supabase.auth.updateUser({ data: updateData }),
+        provisionAdminOrg({ fullName: profileName.trim() || undefined, phone: profilePhone.trim() || undefined }),
+      ])
       setIsSaving(false)
       setIsComplete(true)
     } else {
@@ -336,7 +340,7 @@ export default function OnboardingPage() {
                   Ready when<br />you are.
                 </h2>
                 <p className="text-lg text-zinc-400 max-w-md">
-                  Open your dashboard when you're ready. You can revisit this
+                  Open your dashboard when you&apos;re ready. You can revisit this
                   walkthrough anytime from Settings.
                 </p>
               </>
@@ -380,7 +384,7 @@ export default function OnboardingPage() {
               </div>
 
               <h1 className="text-2xl font-bold text-zinc-100 mb-3">
-                You're all set
+                You&apos;re all set
               </h1>
               <p className="text-zinc-400 mb-10">
                 The walkthrough is complete. Your dashboard is ready whenever

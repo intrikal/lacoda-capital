@@ -63,7 +63,6 @@ import {
 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -195,9 +194,9 @@ export default function TasksPage() {
   }
 
   return (
-    <animated.div style={spring} className="space-y-6">
+    <animated.div style={spring}>
       {/* ── Header ─────────────────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="pb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-zinc-100">Tasks</h1>
           <p className="text-zinc-400 mt-1">
@@ -262,67 +261,63 @@ export default function TasksPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* ── Stats Cards ────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-zinc-400">Total Tasks</p>
-              <CheckSquare className="h-4 w-4 text-zinc-500" />
-            </div>
-            <p className="text-2xl font-bold text-zinc-100 mt-2">
-              {stats.total}
-            </p>
-          </CardContent>
-        </Card>
+      {/* ── Two-panel layout ──────────────────────────────────────────────── */}
+      <div className="flex flex-col lg:grid lg:grid-cols-[220px_1fr] rounded-xl border border-zinc-800/60 overflow-hidden">
 
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-zinc-400">Pending</p>
-              <Clock className="h-4 w-4 text-amber-400" />
-            </div>
-            <p className="text-2xl font-bold text-amber-400 mt-2">
-              {stats.pending}
-            </p>
-          </CardContent>
-        </Card>
+        {/* ── Left sticky sidebar ────────────────────────────────────────── */}
+        <aside className="flex flex-col gap-5 p-5 border-b lg:border-b-0 lg:border-r border-zinc-800/60 lg:sticky lg:top-14 lg:h-[calc(100vh-80px)] lg:overflow-y-auto bg-zinc-900/40">
 
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-zinc-400">In Progress</p>
-              <Loader2 className="h-4 w-4 text-blue-400" />
-            </div>
-            <p className="text-2xl font-bold text-blue-400 mt-2">
-              {stats.inProgress}
-            </p>
-          </CardContent>
-        </Card>
+          {/* Stats */}
+          <div className="space-y-1">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-600 mb-2">Overview</p>
+            {[
+              { label: "Total",       value: stats.total,      color: "text-zinc-300",    icon: CheckSquare },
+              { label: "Pending",     value: stats.pending,    color: "text-amber-400",   icon: Clock },
+              { label: "In Progress", value: stats.inProgress, color: "text-blue-400",    icon: Loader2 },
+              { label: "Completed",   value: stats.completed,  color: "text-emerald-400", icon: CheckCircle2 },
+            ].map((s) => (
+              <div key={s.label} className="flex items-center justify-between py-1.5 px-2 rounded-lg hover:bg-zinc-800/40 transition-colors">
+                <div className="flex items-center gap-2">
+                  {React.createElement(s.icon, { className: cn("h-3.5 w-3.5", s.color) })}
+                  <span className="text-sm text-zinc-400">{s.label}</span>
+                </div>
+                <span className={cn("text-sm font-bold tabular-nums", s.color)}>{s.value}</span>
+              </div>
+            ))}
+          </div>
 
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-zinc-400">Completed</p>
-              <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-            </div>
-            <p className="text-2xl font-bold text-emerald-400 mt-2">
-              {stats.completed}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+          <div className="border-t border-zinc-800/60" />
 
-      {/* ── Filter Tabs + Task List ────────────────────────────────────── */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
-          <TabsTrigger value="all">All</TabsTrigger>
-          <TabsTrigger value="pending">Pending</TabsTrigger>
-          <TabsTrigger value="in_progress">In Progress</TabsTrigger>
-          <TabsTrigger value="completed">Completed</TabsTrigger>
-        </TabsList>
+          {/* Filter */}
+          <div className="space-y-0.5">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-600 mb-2">Filter</p>
+            {[
+              { id: "all",         label: "All Tasks",    count: stats.total },
+              { id: "pending",     label: "Pending",      count: stats.pending },
+              { id: "in_progress", label: "In Progress",  count: stats.inProgress },
+              { id: "completed",   label: "Completed",    count: stats.completed },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={cn(
+                  "w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors",
+                  activeTab === tab.id
+                    ? "bg-tiffany-500/10 text-tiffany-500"
+                    : "text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-100"
+                )}
+              >
+                <span>{tab.label}</span>
+                <span className={cn("text-xs font-mono", activeTab === tab.id ? "text-tiffany-400" : "text-zinc-600")}>
+                  {tab.count}
+                </span>
+              </button>
+            ))}
+          </div>
+        </aside>
 
-        <TabsContent value={activeTab} className="mt-6">
+        {/* ── Right panel ────────────────────────────────────────────────── */}
+        <div className="p-5 lg:p-6 min-w-0">
           {isLoading ? (
             <Card>
               <CardContent className="p-8 text-center text-zinc-500">
@@ -353,11 +348,7 @@ export default function TasksPage() {
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4 min-w-0">
-                          {/* Priority indicator */}
-                          <div className={cn(
-                            "p-2 rounded-lg shrink-0",
-                            priority.bg
-                          )}>
+                          <div className={cn("p-2 rounded-lg shrink-0", priority.bg)}>
                             <PriorityIcon className={cn("h-4 w-4", priority.color)} />
                           </div>
 
@@ -369,44 +360,31 @@ export default function TasksPage() {
                               {task.title}
                             </p>
                             <div className="flex items-center gap-3 mt-1 text-sm text-zinc-500 flex-wrap">
-                              {/* Priority badge */}
                               <span className={cn(
                                 "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs border",
-                                priority.color,
-                                priority.border,
-                                priority.bg
+                                priority.color, priority.border, priority.bg
                               )}>
                                 {priority.label}
                               </span>
-
-                              {/* Due date */}
                               {task.dueDate && (
                                 <span className="flex items-center gap-1">
                                   <Calendar className="h-3 w-3" />
                                   {format(new Date(task.dueDate), "MMM d, yyyy")}
                                 </span>
                               )}
-
-                              {/* Description preview */}
                               {task.description && (
-                                <span className="truncate max-w-[200px]">
-                                  {task.description}
-                                </span>
+                                <span className="truncate max-w-[200px]">{task.description}</span>
                               )}
                             </div>
                           </div>
                         </div>
 
                         <div className="flex items-center gap-3 shrink-0">
-                          {/* Status badge */}
                           <div className="flex items-center gap-1.5">
                             <StatusIcon className={cn("h-4 w-4", status.color)} />
-                            <span className={cn("text-sm", status.color)}>
-                              {status.label}
-                            </span>
+                            <span className={cn("text-sm hidden sm:inline", status.color)}>{status.label}</span>
                           </div>
 
-                          {/* Actions dropdown */}
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -414,45 +392,24 @@ export default function TasksPage() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  setEditTarget(task)
-                                  setCreateOpen(false)
-                                }}
-                              >
+                              <DropdownMenuItem onClick={() => { setEditTarget(task); setCreateOpen(false) }}>
                                 Edit
                               </DropdownMenuItem>
-
-                              {/* Mark Complete / Reopen based on current status */}
                               {task.status !== "completed" && (
                                 <DropdownMenuItem
-                                  onClick={() =>
-                                    updateMutation.mutate({
-                                      id: task.id,
-                                      input: { status: "completed" },
-                                    })
-                                  }
+                                  onClick={() => updateMutation.mutate({ id: task.id, input: { status: "completed" } })}
                                 >
                                   Mark Complete
                                 </DropdownMenuItem>
                               )}
                               {task.status === "completed" && (
                                 <DropdownMenuItem
-                                  onClick={() =>
-                                    updateMutation.mutate({
-                                      id: task.id,
-                                      input: { status: "pending" },
-                                    })
-                                  }
+                                  onClick={() => updateMutation.mutate({ id: task.id, input: { status: "pending" } })}
                                 >
                                   Reopen
                                 </DropdownMenuItem>
                               )}
-
-                              <DropdownMenuItem
-                                className="text-red-400"
-                                onClick={() => setDeleteTarget(task.id)}
-                              >
+                              <DropdownMenuItem className="text-red-400" onClick={() => setDeleteTarget(task.id)}>
                                 Delete
                               </DropdownMenuItem>
                             </DropdownMenuContent>
@@ -465,8 +422,8 @@ export default function TasksPage() {
               })}
             </div>
           )}
-        </TabsContent>
-      </Tabs>
+        </div>
+      </div>
     </animated.div>
   )
 }

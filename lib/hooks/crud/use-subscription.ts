@@ -48,7 +48,7 @@ export function useSubscription() {
   }, [fetchData])
 
   const checkout = React.useCallback(
-    async (plan: "starter" | "professional", interval: BillingInterval) => {
+    async (plan: "starter" | "growth" | "professional" | "elite", interval: BillingInterval) => {
       const { url } = await createCheckoutSession({ plan, interval })
       window.location.href = url
     },

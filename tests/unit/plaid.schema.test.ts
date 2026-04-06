@@ -81,9 +81,9 @@ describe("integrationProviderEnum — valid values", () => {
     "docusign",
     "quickbooks",
     "google_drive",
+    "google_calendar",
     "dropbox",
     "salesforce",
-    "hubspot",
     "other",
   ] as const
 

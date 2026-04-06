@@ -1,9 +1,9 @@
 "use server"
 
 import { captureServerEvent } from "@/lib/analytics/server"
-import { eq, and, desc, sql } from "drizzle-orm"
+import { eq, desc } from "drizzle-orm"
 import { db } from "@/app/db"
-import { valuations, assets, entities, clients } from "@/app/db/schema"
+import { valuations, assets } from "@/app/db/schema"
 import { requireAuth, requireRole } from "@/lib/auth"
 import { createValuationSchema } from "@/lib/validations/valuation.schema"
 import { createLedgerEvent } from "@/lib/actions/ledger"

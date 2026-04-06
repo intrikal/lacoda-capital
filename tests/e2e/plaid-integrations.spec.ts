@@ -51,7 +51,6 @@ import { test, expect, type Page, type Route } from "@playwright/test"
 
 const INTEGRATIONS_URL = "/app/integrations"
 const PLAID_LINK_TOKEN = "link-sandbox-test-abc123"
-const PLAID_PUBLIC_TOKEN = "public-sandbox-test-abc123"
 const PLAID_ACCESS_TOKEN = "access-sandbox-test-abc123"
 const PLAID_ITEM_ID = "item_test_abc123"
 
@@ -168,7 +167,7 @@ async function mockPlaidBalances(page: Page) {
 
 // ─── Shared setup ─────────────────────────────────────────────────────────
 
-test.beforeEach(async ({ page }) => {
+test.beforeEach(async () => {
   // Authenticate as a test advisor user
   // In practice, you'd use a test session cookie or login flow
   // For now we assume auth state is pre-seeded via storage state:
@@ -455,8 +454,6 @@ test.describe("Plaid not configured (env vars missing)", () => {
     // The UI should reflect this (provider.configured = false)
     await page.goto(INTEGRATIONS_URL)
 
-    // Depending on implementation: either "Not Configured" badge or disabled button
-    const notConfiguredIndicator = page.getByText(/not configured|coming soon/i).first()
     // This may or may not be visible depending on the test environment's env vars
     // We just verify the page doesn't crash
     await expect(page.locator("body")).not.toContainText("Something went wrong")

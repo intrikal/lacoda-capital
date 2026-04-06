@@ -71,7 +71,6 @@ test.describe("Client portal — Messages (/client/messages)", () => {
     const input = page.getByPlaceholder("Type a message...")
     await expect(input).toBeVisible({ timeout: 5_000 })
     // Input starts empty; send button (icon button next to input) should be disabled
-    const sendButton = page.getByRole("button").filter({ has: page.locator("svg[class*='lucide-send'], [data-lucide='send']") }).last()
     // Alternatively target by position: the button immediately after the input
     const inputContainer = input.locator("..")
     await expect(inputContainer.locator("button[disabled]")).toBeVisible()

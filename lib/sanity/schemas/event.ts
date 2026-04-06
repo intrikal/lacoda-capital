@@ -1,6 +1,15 @@
 // Sanity Schema for Events
 // Copy this to your Sanity Studio's schemas folder
 
+import type { Rule } from "sanity"
+
+interface EventPreviewSelection {
+  title: string
+  date: string
+  location: string
+  media: unknown
+}
+
 export const eventSchema = {
   name: "event",
   title: "Events",
@@ -10,7 +19,7 @@ export const eventSchema = {
       name: "title",
       title: "Event Title",
       type: "string",
-      validation: (Rule: any) => Rule.required(),
+      validation: (rule: Rule) => rule.required(),
     },
     {
       name: "slug",
@@ -20,20 +29,20 @@ export const eventSchema = {
         source: "title",
         maxLength: 96,
       },
-      validation: (Rule: any) => Rule.required(),
+      validation: (rule: Rule) => rule.required(),
     },
     {
       name: "description",
       title: "Description",
       type: "text",
       rows: 4,
-      validation: (Rule: any) => Rule.required(),
+      validation: (rule: Rule) => rule.required(),
     },
     {
       name: "date",
       title: "Start Date",
       type: "date",
-      validation: (Rule: any) => Rule.required(),
+      validation: (rule: Rule) => rule.required(),
     },
     {
       name: "endDate",
@@ -46,7 +55,7 @@ export const eventSchema = {
       title: "Time",
       type: "string",
       description: "e.g., 9:00 AM EST",
-      validation: (Rule: any) => Rule.required(),
+      validation: (rule: Rule) => rule.required(),
     },
     {
       name: "location",
@@ -57,19 +66,19 @@ export const eventSchema = {
           name: "venue",
           title: "Venue",
           type: "string",
-          validation: (Rule: any) => Rule.required(),
+          validation: (rule: Rule) => rule.required(),
         },
         {
           name: "city",
           title: "City",
           type: "string",
-          validation: (Rule: any) => Rule.required(),
+          validation: (rule: Rule) => rule.required(),
         },
         {
           name: "country",
           title: "Country",
           type: "string",
-          validation: (Rule: any) => Rule.required(),
+          validation: (rule: Rule) => rule.required(),
         },
         {
           name: "isVirtual",
@@ -92,7 +101,7 @@ export const eventSchema = {
           { title: "Webinar", value: "webinar" },
         ],
       },
-      validation: (Rule: any) => Rule.required(),
+      validation: (rule: Rule) => rule.required(),
     },
     {
       name: "role",
@@ -106,7 +115,7 @@ export const eventSchema = {
           { title: "Attendee", value: "attendee" },
         ],
       },
-      validation: (Rule: any) => Rule.required(),
+      validation: (rule: Rule) => rule.required(),
     },
     {
       name: "topic",
@@ -175,7 +184,7 @@ export const eventSchema = {
       location: "location.city",
       media: "image",
     },
-    prepare({ title, date, location, media }: any) {
+    prepare({ title, date, location, media }: EventPreviewSelection) {
       return {
         title,
         subtitle: `${date} - ${location}`,
