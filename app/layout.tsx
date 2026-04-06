@@ -29,6 +29,9 @@ export const metadata: Metadata = {
     "compliance",
     "document vault",
   ],
+  verification: {
+    google: "REPLACE_WITH_GOOGLE_SEARCH_CONSOLE_CODE",
+  },
   icons: {
     icon: "/favicon.ico",
     apple: "/favicon.ico",

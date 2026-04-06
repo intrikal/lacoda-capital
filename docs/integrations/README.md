@@ -30,6 +30,18 @@ These power the key workflows — payments, financial data, signatures, accounti
 | **Google Drive** | [google-drive-setup.md](google-drive-setup.md) | Import documents from Google Drive | No |
 | **Dropbox** | [dropbox-setup.md](dropbox-setup.md) | Import and sync documents from Dropbox | No |
 | **Salesforce** | [salesforce-setup.md](salesforce-setup.md) | CRM sync (clients, deals, activity) | No |
+| **Google Calendar** | [google-calendar-setup.md](google-calendar-setup.md) | Bidirectional calendar sync, booking | Yes |
+
+---
+
+## System Integrations
+
+| Guide | What it covers |
+|---|---|
+| **[Booking & Scheduling](booking-scheduling-setup.md)** | Public booking form → Sanity review → Google Calendar + email |
+| **[Edge Functions](../edge-functions.md)** | All 13 Supabase Edge Functions, deployment, pg_cron |
+| **[AI Agents](../ai-agents.md)** | 4 Claude-powered agents, prompts, schemas, UI |
+| **[Deployment](../deployment.md)** | Local setup, migrations, CI/CD, Vercel, env vars |
 
 ---
 
@@ -40,6 +52,7 @@ The app works without these — they add email, analytics, error tracking, and C
 | Integration | Guide | What it does |
 |---|---|---|
 | **Resend** | [resend-setup.md](resend-setup.md) | Transactional emails (invitations, alerts, digest) |
+| **Google Tag Manager** | [gtm-setup.md](gtm-setup.md) | Conversion pixels, ad tracking tags |
 | **PostHog** | [posthog-setup.md](posthog-setup.md) | Product analytics and event tracking |
 | **Sentry** | [sentry-setup.md](sentry-setup.md) | Error tracking, performance monitoring |
 | **Sanity CMS** | [sanity-setup.md](sanity-setup.md) | Headless CMS for marketing content |
@@ -119,6 +132,7 @@ All environment variables are documented in `.env.example` with links to the rel
 | `AZURE_CLIENT_ID` | [Microsoft OAuth](microsoft-oauth-setup.md) |
 | `NEXT_PUBLIC_SENTRY_DSN` | [Sentry](sentry-setup.md) |
 | `SENTRY_ORG` / `SENTRY_PROJECT` / `SENTRY_AUTH_TOKEN` | [Sentry](sentry-setup.md) |
+| `NEXT_PUBLIC_GTM_ID` | [Google Tag Manager](gtm-setup.md) |
 | `NEXT_PUBLIC_POSTHOG_KEY` / `NEXT_PUBLIC_POSTHOG_HOST` | [PostHog](posthog-setup.md) |
 | `NEXT_PUBLIC_SANITY_PROJECT_ID` / `SANITY_API_TOKEN` | [Sanity](sanity-setup.md) |
 
