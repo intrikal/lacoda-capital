@@ -94,7 +94,7 @@ const INTEGRATION_ID = "intg_test_001"
 // ─── Plaid API mock responses ─────────────────────────────────────────────
 
 function makePlaidFetchMock(responses: Record<string, unknown>) {
-  return vi.fn(async (url: string, options?: RequestInit) => {
+  return vi.fn(async (url: string) => {
     const endpoint = new URL(url as string).pathname
 
     if (endpoint in responses) {

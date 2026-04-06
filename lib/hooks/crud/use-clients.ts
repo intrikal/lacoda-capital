@@ -32,7 +32,7 @@ export function useClients(params?: { search?: string; status?: string }) {
     } finally {
       setIsLoading(false)
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, [params?.search, params?.status])
 
   useEffect(() => { load() }, [load])

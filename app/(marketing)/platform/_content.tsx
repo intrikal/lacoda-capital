@@ -12,11 +12,6 @@ import {
   Bell,
   Users,
   CheckCircle2,
-  Brain,
-  LineChart,
-  Building2,
-  Wallet,
-  Database,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"

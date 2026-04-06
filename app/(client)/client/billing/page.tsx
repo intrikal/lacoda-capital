@@ -246,7 +246,7 @@ export default function ClientBillingPage() {
               <div className="flex items-center gap-3">
                 <TrendingDown className="h-5 w-5 text-emerald-400" />
                 <div>
-                  <p className="font-medium text-zinc-100">You're saving money</p>
+                  <p className="font-medium text-zinc-100">You&apos;re saving money</p>
                   <p className="text-sm text-zinc-400">
                     Your effective rate is 15% below industry average
                   </p>

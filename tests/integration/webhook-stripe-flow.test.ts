@@ -5,7 +5,7 @@
  * ledger event created → alert dispatched on failure.
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest"
+import { describe, it, expect, beforeEach } from "vitest"
 
 // ─── In-memory simulated database ──────────────────────────────────────────
 

@@ -58,7 +58,7 @@ import {
   type LucideIcon,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { useReducedMotion } from "@/lib/hooks/use-reduced-motion"
@@ -820,7 +820,7 @@ export function FeaturesPage() {
                     <span className="text-green-400">&apos;your-api-key&apos;</span>
                     {"\n"}
                     <span className="text-zinc-500">{"})"}</span>;{"\n\n"}
-                    <span className="text-gray-500">// Get portfolio summary</span>
+                    <span className="text-gray-500">{"// Get portfolio summary"}</span>
                     {"\n"}
                     <span className="text-purple-400">const</span>{" "}
                     <span className="text-zinc-200">portfolio</span> ={" "}

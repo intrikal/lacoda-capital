@@ -3,7 +3,7 @@
 import { captureServerEvent } from "@/lib/analytics/server"
 import { eq, and, desc, isNull, sql, lte } from "drizzle-orm"
 import { db } from "@/app/db"
-import { capitalEvents, assets, notifications, entities, clients } from "@/app/db/schema"
+import { capitalEvents, assets, entities, clients } from "@/app/db/schema"
 import { requireRole, requireAuth } from "@/lib/auth"
 import { createLedgerEvent } from "@/lib/actions/ledger"
 import { createCapitalEventSchema, updateCapitalEventStatusSchema } from "@/lib/validations/capital-event.schema"

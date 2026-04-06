@@ -560,7 +560,9 @@ export const premiumFrequencyEnum = pgEnum("premium_frequency", [
 export const subscriptionPlanEnum = pgEnum("subscription_plan", [
   "free",
   "starter",
+  "growth",
   "professional",
+  "elite",
   "enterprise",
 ]);
 
@@ -817,4 +819,130 @@ export const transferStatusEnum = pgEnum("transfer_status", [
   "completed",
   "cancelled",
   "failed",
+]);
+
+// ─── Expenses ────────────────────────────────────────────────────────────────
+
+/**
+ * expenseCategoryEnum — what type of expense this is.
+ *
+ * "renovation"        → construction, remodel, or structural work on a property
+ * "maintenance"       → routine upkeep (HVAC, landscaping, plumbing)
+ * "capital_improvement" → upgrades that increase property value or useful life
+ * "property_tax"      → local property or land taxes
+ * "insurance"         → property/casualty insurance premiums
+ * "management_fee"    → property manager or fund management fees
+ * "legal"             → attorney fees, title work, escrow costs
+ * "financing"         → loan origination, refinance closing costs, points
+ * "utilities"         → electricity, gas, water, internet
+ * "professional_services" → accounting, consulting, appraisal
+ * "marketing"         → listing fees, staging, photography
+ * "other"             → anything that does not fit above
+ */
+export const expenseCategoryEnum = pgEnum("expense_category", [
+  "renovation",
+  "maintenance",
+  "capital_improvement",
+  "property_tax",
+  "insurance",
+  "management_fee",
+  "legal",
+  "financing",
+  "utilities",
+  "professional_services",
+  "marketing",
+  "other",
+]);
+
+/**
+ * expenseStatusEnum — payment lifecycle state.
+ *
+ * "pending"   → approved but not yet paid
+ * "paid"      → payment confirmed
+ * "overdue"   → past due date with no payment
+ * "disputed"  → under review or contested
+ * "cancelled" → voided before payment
+ */
+export const expenseStatusEnum = pgEnum("expense_status", [
+  "pending",
+  "paid",
+  "overdue",
+  "disputed",
+  "cancelled",
+]);
+
+// ─── Risk Profiles ───────────────────────────────────────────────────────────
+
+/**
+ * riskToleranceEnum — client's stated risk appetite.
+ *
+ * "conservative"    → capital preservation, minimal volatility
+ * "moderate"        → balanced growth and protection
+ * "aggressive"      → maximum growth, accepts high drawdowns
+ * "speculative"     → concentrated bets, illiquid positions, high risk
+ */
+export const riskToleranceEnum = pgEnum("risk_tolerance", [
+  "conservative",
+  "moderate",
+  "aggressive",
+  "speculative",
+]);
+
+/**
+ * riskAlertStatusEnum — current breach status of a risk limit.
+ *
+ * "normal"   → all metrics within defined limits
+ * "watch"    → approaching a threshold (e.g. 80% of drawdown limit)
+ * "breach"   → limit has been crossed — requires action
+ * "resolved" → breach acknowledged and addressed
+ */
+export const riskAlertStatusEnum = pgEnum("risk_alert_status", [
+  "normal",
+  "watch",
+  "breach",
+  "resolved",
+]);
+
+// ─── KYC / AML ───────────────────────────────────────────────────────────────
+
+/**
+ * kycStatusEnum — overall KYC verification lifecycle.
+ *
+ * "not_started"   → no KYC process initiated yet
+ * "in_progress"   → documents requested or under review
+ * "approved"      → identity verified, client may transact
+ * "rejected"      → verification failed — client cannot transact
+ * "expired"       → review period lapsed, renewal required
+ * "suspended"     → temporarily blocked pending investigation
+ */
+export const kycStatusEnum = pgEnum("kyc_status", [
+  "not_started",
+  "in_progress",
+  "approved",
+  "rejected",
+  "expired",
+  "suspended",
+]);
+
+/**
+ * kycTierEnum — depth of due diligence performed.
+ *
+ * "standard"  → CDD (Customer Due Diligence) — standard clients
+ * "enhanced"  → EDD (Enhanced Due Diligence) — PEPs, high-risk, large accounts
+ */
+export const kycTierEnum = pgEnum("kyc_tier", ["standard", "enhanced"]);
+
+/**
+ * amlStatusEnum — Anti-Money Laundering screening result.
+ *
+ * "not_screened"   → client has not been run through AML checks
+ * "clear"          → no matches on sanctions, PEP, or adverse media lists
+ * "review"         → potential match found — requires manual review
+ * "flagged"        → confirmed match — escalation required
+ */
+export const amlStatusEnum = pgEnum("aml_status", [
+  "not_screened",
+  "clear",
+  "review",
+  "flagged",
 ]);

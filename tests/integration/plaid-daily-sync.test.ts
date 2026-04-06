@@ -152,7 +152,7 @@ describe("getAccountBalances()", () => {
     const { db } = await import("@/app/db")
     vi.mocked(db.query.integrations.findFirst).mockResolvedValue(MOCK_INTEGRATION as never)
 
-    const { setMock, whereMock } = makeUpdateChain()
+    const { setMock } = makeUpdateChain()
     vi.mocked(db.update).mockReturnValue({ set: setMock } as never)
   })
 

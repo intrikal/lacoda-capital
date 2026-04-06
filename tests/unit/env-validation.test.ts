@@ -2,16 +2,25 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 import { validateEnv } from "@/lib/validate-env"
 
 const REQUIRED_KEYS = [
-  "DATABASE_URL",
-  "DIRECT_URL",
   "NEXT_PUBLIC_SUPABASE_URL",
   "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY",
 ]
 
 const OPTIONAL_KEYS = [
+  "DATABASE_URL",
+  "DIRECT_URL",
   "NEXT_PUBLIC_SENTRY_DSN",
   "NEXT_PUBLIC_POSTHOG_KEY",
   "STRIPE_SECRET_KEY",
+  "STRIPE_WEBHOOK_SECRET",
+  "STRIPE_PRICE_STARTER_MONTHLY",
+  "STRIPE_PRICE_STARTER_ANNUAL",
+  "STRIPE_PRICE_GROWTH_MONTHLY",
+  "STRIPE_PRICE_GROWTH_ANNUAL",
+  "STRIPE_PRICE_PROFESSIONAL_MONTHLY",
+  "STRIPE_PRICE_PROFESSIONAL_ANNUAL",
+  "STRIPE_PRICE_ELITE_MONTHLY",
+  "STRIPE_PRICE_ELITE_ANNUAL",
   "PLAID_CLIENT_ID",
   "DOCUSIGN_INTEGRATION_KEY",
   "QUICKBOOKS_CLIENT_ID",
@@ -22,17 +31,26 @@ const OPTIONAL_KEYS = [
 
 // Full set of required vars with dummy values
 const allRequired: Record<string, string> = {
-  DATABASE_URL: "postgresql://user:pass@localhost:5432/db",
-  DIRECT_URL: "postgresql://user:pass@localhost:5432/db",
   NEXT_PUBLIC_SUPABASE_URL: "https://example.supabase.co",
   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY: "eyJhbGciOiJIUzI1NiJ9.test",
 }
 
 // Full set of optional vars with dummy values
 const allOptional: Record<string, string> = {
+  DATABASE_URL: "postgresql://user:pass@localhost:5432/db",
+  DIRECT_URL: "postgresql://user:pass@localhost:5432/db",
   NEXT_PUBLIC_SENTRY_DSN: "https://sentry.io/123",
   NEXT_PUBLIC_POSTHOG_KEY: "phc_test",
   STRIPE_SECRET_KEY: "sk_test_123",
+  STRIPE_WEBHOOK_SECRET: "whsec_test",
+  STRIPE_PRICE_STARTER_MONTHLY: "price_test_sm",
+  STRIPE_PRICE_STARTER_ANNUAL: "price_test_sa",
+  STRIPE_PRICE_GROWTH_MONTHLY: "price_test_gm",
+  STRIPE_PRICE_GROWTH_ANNUAL: "price_test_ga",
+  STRIPE_PRICE_PROFESSIONAL_MONTHLY: "price_test_pm",
+  STRIPE_PRICE_PROFESSIONAL_ANNUAL: "price_test_pa",
+  STRIPE_PRICE_ELITE_MONTHLY: "price_test_em",
+  STRIPE_PRICE_ELITE_ANNUAL: "price_test_ea",
   PLAID_CLIENT_ID: "plaid_client_test",
   DOCUSIGN_INTEGRATION_KEY: "docusign_key_test",
   QUICKBOOKS_CLIENT_ID: "qb_client_test",
@@ -70,23 +88,26 @@ describe("validateEnv", () => {
     for (const [key, value] of Object.entries(allRequired)) {
       vi.stubEnv(key, value)
     }
-    vi.stubEnv("DATABASE_URL", undefined as unknown as string)
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", undefined as unknown as string)
 
-    expect(() => validateEnv()).toThrow("DATABASE_URL")
+    expect(() => validateEnv()).toThrow("NEXT_PUBLIC_SUPABASE_URL")
   })
 
   it("throws with ALL missing var names in a single error", () => {
     // Leave all required vars unset
-    expect(() => validateEnv()).toThrowError((err: Error) => {
-      for (const key of REQUIRED_KEYS) {
-        if (!err.message.includes(key)) return false
-      }
-      return true
-    })
+    let thrownMessage = ""
+    try {
+      validateEnv()
+    } catch (e) {
+      thrownMessage = (e as Error).message
+    }
+    for (const key of REQUIRED_KEYS) {
+      expect(thrownMessage).toContain(key)
+    }
   })
 
   it("throws with a reason for each missing var", () => {
-    expect(() => validateEnv()).toThrowError(/needed for database connection/)
+    expect(() => validateEnv()).toThrowError(/needed for Supabase/)
   })
 
   it("error message references .env.example", () => {

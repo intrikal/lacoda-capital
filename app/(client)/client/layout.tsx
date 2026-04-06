@@ -41,6 +41,7 @@ import {
   PanelLeftClose,
   Bell,
   LogOut,
+  CreditCard,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { logoutAction, getSessionUserAndOrgId } from "@/lib/actions/auth.actions"
@@ -96,6 +97,12 @@ const navGroups: NavGroup[] = [
         href: "/client/vault",
         icon: FolderLock,
         description: "Statements, tax docs & shared files",
+      },
+      {
+        name: "Expenses",
+        href: "/client/expenses",
+        icon: CreditCard,
+        description: "Portfolio spending & equity opportunities",
       },
     ],
   },

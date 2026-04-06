@@ -30,6 +30,7 @@ const BASE = {
 } as const
 
 beforeEach(() => {
+  vi.clearAllMocks()
   mockInsert.mockResolvedValue([])
 })
 

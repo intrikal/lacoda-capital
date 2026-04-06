@@ -49,7 +49,6 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { useReducedMotion } from "@/lib/hooks/use-reduced-motion"
 import { useReports } from "@/lib/hooks/crud/use-reports"
-import type { ReportRecord } from "@/lib/hooks/crud/use-reports"
 
 // ─── DISPLAY CONFIG ─────────────────────────────────────────────────────────
 //

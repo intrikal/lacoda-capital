@@ -3,16 +3,14 @@
 import * as React from "react"
 import { useSpring, animated, config } from "@react-spring/web"
 import { format, formatDistanceToNow } from "date-fns"
+import type { LucideIcon } from "lucide-react"
 import {
   Search,
-  Filter,
   Download,
   Shield,
   FileText,
   User,
   Briefcase,
-  AlertTriangle,
-  ChevronDown,
   Loader,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -73,7 +71,7 @@ const actionColors: Record<string, string> = {
   compliance_approved: "bg-emerald-500/10 text-emerald-400",
 }
 
-const targetTypeIcons: Record<string, any> = {
+const targetTypeIcons: Record<string, LucideIcon> = {
   asset: Briefcase,
   document: FileText,
   user: User,
@@ -159,7 +157,6 @@ export default function LedgerPage() {
   const [searchQuery, setSearchQuery] = React.useState("")
   const [actionFilter, setActionFilter] = React.useState<string>("")
   const [targetTypeFilter, setTargetTypeFilter] = React.useState<string>("")
-  const [cursor, setCursor] = React.useState<string | null>(null)
   const [nextCursor, setNextCursor] = React.useState<string | null>(null)
   const [hasMore, setHasMore] = React.useState(false)
 

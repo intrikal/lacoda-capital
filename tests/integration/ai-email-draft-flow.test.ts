@@ -92,7 +92,6 @@ vi.mock("@/lib/agents/email-draft", async (importOriginal) => {
       run: vi.fn(async (prompt: string) => {
         // Verify the prompt contains required context
         const hasDeadline = prompt.includes("2024-04-15")
-        const hasDocType = prompt.includes("k1") || prompt.includes("K-1")
         const hasUploadUrl = prompt.includes("portal/upload/req-1")
 
         return {

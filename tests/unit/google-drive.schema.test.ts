@@ -74,7 +74,7 @@
  *   tests/unit/plaid.schema.test.ts    — Sibling test file for patterns
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
+import { describe, it, expect } from "vitest"
 import { z } from "zod"
 import {
   createIntegrationSchema,
@@ -109,7 +109,6 @@ const googleDriveSettingsSchema = z.object({
   syncDirection: z.enum(["drive_to_vault", "vault_to_drive", "bidirectional"]).optional(),
 })
 
-type GoogleDriveSettings = z.infer<typeof googleDriveSettingsSchema>
 
 /**
  * Maps Google-specific MIME types to real file extensions for export.
@@ -761,11 +760,8 @@ describe("createIntegrationSchema — Google Drive integration record", () => {
       provider: "google_drive",
       name: "   ",
     })
-    // Zod processes: "   " → min(1) passes (3 chars) → trim → ""
-    expect(result.success).toBe(true)
-    if (result.success) {
-      expect(result.data.name).toBe("") // Trimmed to empty — server should handle this
-    }
+    // Zod processes: trim → "" → min(1) fails
+    expect(result.success).toBe(false)
   })
 })
 
@@ -908,7 +904,6 @@ describe("edge cases — unsupported file types", () => {
 
 describe("edge cases — large file handling", () => {
   const ONE_MB = 1024 * 1024
-  const ONE_GB = 1024 * ONE_MB
 
   it("allows a 10MB file — exactly at a common size limit", () => {
     // Our uploadDocumentSchema has a 50MB limit; 10MB is fine

@@ -106,11 +106,11 @@ import {
   Phone,           // Phone handset for phone number
   MoreHorizontal,  // Three dots "..." for actions dropdown
   FileText,        // Document icon for "Documents" button
-  TrendingUp,      // Upward trend for AUM stat
   Filter,          // Funnel for type filter dropdown
   Download,        // Download arrow for "Export" button
   Loader2,         // Spinning loader for loading state
   AlertCircle,     // Circle with ! for error state
+  X as XIcon,      // X for closing the detail panel
 } from "lucide-react"
 
 /**
@@ -128,13 +128,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -172,7 +165,7 @@ import { formatCurrency } from "@/lib/utils"
  * PageHeader = The top section with title, description, and action buttons
  * Tabs = A row of clickable tab buttons for filtering
  */
-import { ContentCard, StatCard, PageHeader, Tabs } from "@/components/dashboard/content-card"
+import { ContentCard, PageHeader } from "@/components/dashboard/content-card"
 
 /**
  * CRUD hooks — Our custom hooks that connect to the API.
@@ -226,134 +219,6 @@ const statusConfig: Record<string, { label: string; color: string; bg: string }>
   prospect: { label: "Prospect", color: "text-blue-400", bg: "bg-blue-500/10" },
 }
 
-
-// ─── CLIENT DETAIL DRAWER ───────────────────────────────────────────────────────
-/**
- * ClientDetailDrawer — A modal that shows a single client's details.
- *
- * Opens when you CLICK on a client row in the list.
- * Shows: avatar, name, type, contact info, AUM, status, and action buttons.
- *
- * PROPS:
- *   client  — The client to display (or null if none selected)
- *   open    — Whether the drawer is visible
- *   onClose — Callback to close the drawer
- *   onEdit  — Callback when "Edit Client" is clicked (opens the form dialog)
- */
-function ClientDetailDrawer({
-  client,
-  open,
-  onClose,
-  onEdit,
-}: {
-  client: ClientRecord | null
-  open: boolean
-  onClose: () => void
-  onEdit: (client: ClientRecord) => void
-}) {
-  // Early return pattern: if no client is selected, render nothing.
-  // This is a common React pattern — component returns null = nothing rendered.
-  if (!client) return null
-
-  // Look up the icon and status config for this client's type/status.
-  const TypeIcon = typeIcons[client.clientType]
-  const status = statusConfig[client.clientStatus]
-
-  return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg bg-zinc-900 border-zinc-800">
-        <DialogHeader>
-          <div className="flex items-center gap-3">
-            {/* Avatar — Shows initials of the client's name.
-                fallback = the text to extract initials from.
-                size="lg" = large size variant. */}
-            <Avatar fallback={client.displayName} size="lg" />
-            <div>
-              <DialogTitle>{client.displayName}</DialogTitle>
-              <DialogDescription className="flex items-center gap-2 mt-1">
-                <TypeIcon className="h-4 w-4" />
-                {/* "capitalize" CSS class makes first letter uppercase:
-                    "individual" → "Individual" */}
-                <span className="capitalize">{client.clientType}</span>
-              </DialogDescription>
-            </div>
-          </div>
-        </DialogHeader>
-
-        <div className="space-y-6 mt-4">
-          {/* ── Contact Info ─────────────────────────────────────────── */}
-          <div className="space-y-3">
-            {/* Conditional rendering with && (AND operator):
-                If client.email exists (truthy), render the <a> element.
-                If null/undefined/empty string, skip it entirely.
-
-                This is equivalent to: if (client.email) { return <a>...</a> }
-            */}
-            {client.email && (
-              <a
-                href={`mailto:${client.email}`}  // Opens email client
-                className="flex items-center gap-3 text-sm text-zinc-300 hover:text-tiffany-500 transition-colors"
-              >
-                <Mail className="h-4 w-4 text-zinc-500" />
-                {client.email}
-              </a>
-            )}
-            {client.phone && (
-              <a
-                href={`tel:${client.phone}`}  // Opens phone dialer on mobile
-                className="flex items-center gap-3 text-sm text-zinc-300 hover:text-tiffany-500 transition-colors"
-              >
-                <Phone className="h-4 w-4 text-zinc-500" />
-                {client.phone}
-              </a>
-            )}
-          </div>
-
-          {/* ── AUM Card ─────────────────────────────────────────────── */}
-          <div className="p-4 rounded-lg bg-zinc-800/50">
-            <p className="text-sm text-zinc-400">Assets Under Management</p>
-            <p className="text-2xl font-bold text-zinc-100 mt-1">
-              {formatCurrency(client.totalAUM ?? 0)}
-            </p>
-            <p className="text-xs text-zinc-500 mt-1">
-              {/* Pluralization: "1 active asset" vs "3 active assets" */}
-              {client.assetCount} active asset{client.assetCount !== 1 ? "s" : ""}
-            </p>
-          </div>
-
-          {/* ── Status + Client Since ────────────────────────────────── */}
-          <div className="space-y-3">
-            <div className="flex justify-between text-sm">
-              <span className="text-zinc-400">Status</span>
-              <Badge className={cn(status.color, status.bg)}>{status.label}</Badge>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-zinc-400">Client Since</span>
-              <span className="text-zinc-100">
-                {/* format() from date-fns: "MMMM yyyy" = "January 2024" */}
-                {format(new Date(client.createdAt), "MMMM yyyy")}
-              </span>
-            </div>
-          </div>
-
-          {/* ── Action Buttons ────────────────────────────────────────── */}
-          <div className="flex gap-2">
-            <Button
-              className="flex-1"  // flex-1 = take up equal space
-              onClick={() => { onClose(); onEdit(client) }}
-            >
-              Edit Client
-            </Button>
-            <Button variant="outline" className="flex-1">
-              <FileText className="h-4 w-4 mr-2" />
-              Documents
-            </Button>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
-  )
-}
 
 
 // ─── DELETE CONFIRMATION DIALOG ─────────────────────────────────────────────────
@@ -633,92 +498,115 @@ export default function ClientsPage() {
    *   transition-*  = Smooth animation for property changes
    */
   return (
-    <div className="space-y-6">
+    <div>
       {/* ── Page Header ──────────────────────────────────────────────── */}
-      <PageHeader
-        title="Clients"
-        description={`${filteredClients.length} clients · ${formatCurrency(filteredAUM)} AUM`}
-        actions={
-          <>
-            {/* <> ... </> is a React FRAGMENT — groups elements without
-                adding an extra DOM node. Needed because `actions` expects
-                a single JSX element, but we have two buttons. */}
-            <Button variant="outline" size="sm">
-              <Download className="h-4 w-4 mr-2" />
-              Export
-            </Button>
-            <Button size="sm" onClick={handleAddClient}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Client
-            </Button>
-          </>
-        }
-      />
-
-      {/* ── Stats Cards Row ──────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          label="Total Clients"
-          value={stats.total}
-          icon={<Users className="h-4 w-4 text-tiffany-500" />}
-        />
-        <StatCard
-          label="Active Clients"
-          value={stats.active}
-          subtext={`${stats.total > 0 ? Math.round((stats.active / stats.total) * 100) : 0}% of total`}
-          icon={<User className="h-4 w-4 text-emerald-400" />}
-        />
-        <StatCard
-          label="Avg AUM per Client"
-          value={formatCurrency(stats.avgAUM)}
-          icon={<TrendingUp className="h-4 w-4 text-tiffany-500" />}
-        />
-        <StatCard
-          label="Prospects"
-          value={stats.prospects}
-          subtext="Pending conversion"
-          icon={<Briefcase className="h-4 w-4 text-blue-400" />}
+      <div className="pb-6">
+        <PageHeader
+          title="Clients"
+          description={`${filteredClients.length} clients · ${formatCurrency(filteredAUM)} AUM`}
+          actions={
+            <>
+              <Button variant="outline" size="sm">
+                <Download className="h-4 w-4 mr-2" />
+                Export
+              </Button>
+              <Button size="sm" onClick={handleAddClient}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Client
+              </Button>
+            </>
+          }
         />
       </div>
 
-      {/* ── Tab Bar ──────────────────────────────────────────────────── */}
-      <Tabs
-        tabs={tabs}
-        activeTab={activeTab}
-        onTabChange={(id) => setActiveTab(id as TabId)}
-      />
+      {/* ── Three-panel layout ───────────────────────────────────────── */}
+      <div className="flex flex-col lg:grid lg:grid-cols-[220px_1fr_300px] rounded-xl border border-zinc-800/60 overflow-hidden">
 
-      {/* ── Search + Filter Row ──────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1 max-w-md">
-          {/* Absolutely positioned search icon inside the input */}
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
-          <Input
-            placeholder="Search clients…"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 bg-zinc-900/50 border-zinc-800/60"
-          />
-        </div>
-        <Select value={typeFilter} onValueChange={setTypeFilter}>
-          <SelectTrigger className="w-full sm:w-[160px] bg-zinc-900/50 border-zinc-800/60">
-            <Filter className="h-4 w-4 mr-2 text-zinc-500" />
-            <SelectValue placeholder="Type" />
-          </SelectTrigger>
-          <SelectContent className="bg-zinc-900 border-zinc-800">
-            <SelectItem value="all">All Types</SelectItem>
-            <SelectItem value="individual">Individual</SelectItem>
-            <SelectItem value="institution">Institution</SelectItem>
-            <SelectItem value="trust">Trust</SelectItem>
-            <SelectItem value="fund">Fund</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+        {/* ── Left sticky panel ──────────────────────────────────────── */}
+        <aside className="flex flex-col gap-5 p-5 border-b lg:border-b-0 lg:border-r border-zinc-800/60 lg:sticky lg:top-14 lg:h-[calc(100vh-80px)] lg:overflow-y-auto bg-zinc-900/40">
 
-      {/* ── Client List ──────────────────────────────────────────────── */}
-      {/* ContentCard is a styled container. noPadding removes default padding
-          so the list rows stretch edge-to-edge with their own padding. */}
-      <ContentCard noPadding>
+          {/* Stats */}
+          <div className="space-y-1">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-600 mb-2">Overview</p>
+            {[
+              { label: "Total", value: stats.total, color: "text-zinc-100", icon: Users },
+              { label: "Active", value: stats.active, color: "text-emerald-400", icon: User },
+              { label: "Prospects", value: stats.prospects, color: "text-blue-400", icon: Briefcase },
+              { label: "Inactive", value: stats.inactive, color: "text-zinc-500", icon: User },
+            ].map((s) => (
+              <div key={s.label} className="flex items-center justify-between py-1.5 px-2 rounded-lg hover:bg-zinc-800/40 transition-colors">
+                <div className="flex items-center gap-2">
+                  {React.createElement(s.icon, { className: cn("h-3.5 w-3.5", s.color) })}
+                  <span className="text-sm text-zinc-400">{s.label}</span>
+                </div>
+                <span className={cn("text-sm font-bold tabular-nums", s.color)}>{s.value}</span>
+              </div>
+            ))}
+            <div className="px-2 pt-1">
+              <div className="flex justify-between text-xs text-zinc-600">
+                <span>Avg AUM</span>
+                <span className="text-zinc-400 font-medium">{formatCurrency(stats.avgAUM)}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="border-t border-zinc-800/60" />
+
+          {/* Status tabs */}
+          <div className="space-y-0.5">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-600 mb-2">Filter by Status</p>
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as TabId)}
+                className={cn(
+                  "w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors",
+                  activeTab === tab.id
+                    ? "bg-tiffany-500/10 text-tiffany-500"
+                    : "text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-100"
+                )}
+              >
+                <span>{tab.label}</span>
+                <span className={cn("text-xs font-mono", activeTab === tab.id ? "text-tiffany-400" : "text-zinc-600")}>
+                  {tab.count}
+                </span>
+              </button>
+            ))}
+          </div>
+
+          <div className="border-t border-zinc-800/60" />
+
+          {/* Search + type filter */}
+          <div className="space-y-3">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-600">Search</p>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
+              <Input
+                placeholder="Search clients…"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 bg-zinc-900/50 border-zinc-800/60 h-9"
+              />
+            </div>
+            <Select value={typeFilter} onValueChange={setTypeFilter}>
+              <SelectTrigger className="bg-zinc-900/50 border-zinc-800/60 h-9">
+                <Filter className="h-4 w-4 mr-2 text-zinc-500" />
+                <SelectValue placeholder="Type" />
+              </SelectTrigger>
+              <SelectContent className="bg-zinc-900 border-zinc-800">
+                <SelectItem value="all">All Types</SelectItem>
+                <SelectItem value="individual">Individual</SelectItem>
+                <SelectItem value="institution">Institution</SelectItem>
+                <SelectItem value="trust">Trust</SelectItem>
+                <SelectItem value="fund">Fund</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </aside>
+
+        {/* ── Right main panel ───────────────────────────────────────── */}
+        <div className="p-4 lg:p-5 min-w-0">
+          <ContentCard noPadding>
         {isLoading ? (
           /* ── Loading State ───────────────────────────────────────── */
           <div className="flex items-center justify-center h-40 text-zinc-500">
@@ -855,17 +743,105 @@ export default function ClientsPage() {
           </div>
         )}
       </ContentCard>
+        </div>{/* end center panel */}
 
-      {/* ── Modals (rendered at the bottom, outside the main layout) ── */}
-      {/* These are "portaled" — they render into document.body, not
-          inside this component's DOM tree. This prevents z-index/overflow issues. */}
+        {/* ── Right detail panel ─────────────────────────────────────── */}
+        <div className="hidden lg:flex flex-col border-l border-zinc-800/60 lg:sticky lg:top-14 lg:h-[calc(100vh-80px)] lg:overflow-y-auto bg-zinc-900/20">
+          {selectedClient ? (
+            (() => {
+              const TypeIcon = typeIcons[selectedClient.clientType]
+              const status = statusConfig[selectedClient.clientStatus]
+              return (
+                <div className="flex flex-col h-full">
+                  {/* Header */}
+                  <div className="p-5 border-b border-zinc-800/60">
+                    <div className="flex items-start justify-between mb-3">
+                      <Avatar fallback={selectedClient.displayName} size="lg" />
+                      <button
+                        onClick={() => setSelectedClient(null)}
+                        className="text-zinc-600 hover:text-zinc-400 transition-colors"
+                        aria-label="Close"
+                      >
+                        <XIcon className="h-4 w-4" />
+                      </button>
+                    </div>
+                    <p className="text-sm font-semibold text-zinc-100 leading-snug">{selectedClient.displayName}</p>
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <TypeIcon className="h-3.5 w-3.5 text-zinc-500" />
+                      <span className="text-xs text-zinc-500 capitalize">{selectedClient.clientType}</span>
+                    </div>
+                  </div>
 
-      <ClientDetailDrawer
-        client={selectedClient}
-        open={!!selectedClient}    // !! converts to boolean: null → false, object → true
-        onClose={() => setSelectedClient(null)}
-        onEdit={handleEditClient}
-      />
+                  {/* Body */}
+                  <div className="flex-1 p-5 space-y-5 overflow-y-auto">
+                    {/* AUM */}
+                    <div className="p-4 rounded-xl bg-zinc-800/50">
+                      <p className="text-xs text-zinc-500 mb-1">Assets Under Management</p>
+                      <p className="text-xl font-bold text-zinc-100">{formatCurrency(selectedClient.totalAUM ?? 0)}</p>
+                      <p className="text-xs text-zinc-500 mt-0.5">
+                        {selectedClient.assetCount} asset{selectedClient.assetCount !== 1 ? "s" : ""}
+                      </p>
+                    </div>
+
+                    {/* Status + Since */}
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center text-sm">
+                        <span className="text-zinc-500">Status</span>
+                        <Badge className={cn(status.color, status.bg, "text-xs")}>{status.label}</Badge>
+                      </div>
+                      <div className="flex justify-between items-center text-sm">
+                        <span className="text-zinc-500">Client since</span>
+                        <span className="text-zinc-300 text-xs">{format(new Date(selectedClient.createdAt), "MMM yyyy")}</span>
+                      </div>
+                    </div>
+
+                    {/* Contact */}
+                    {(selectedClient.email || selectedClient.phone) && (
+                      <div className="space-y-2">
+                        <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-600">Contact</p>
+                        {selectedClient.email && (
+                          <a
+                            href={`mailto:${selectedClient.email}`}
+                            className="flex items-center gap-2 text-xs text-zinc-400 hover:text-tiffany-500 transition-colors truncate"
+                          >
+                            <Mail className="h-3.5 w-3.5 shrink-0 text-zinc-600" />
+                            {selectedClient.email}
+                          </a>
+                        )}
+                        {selectedClient.phone && (
+                          <a
+                            href={`tel:${selectedClient.phone}`}
+                            className="flex items-center gap-2 text-xs text-zinc-400 hover:text-tiffany-500 transition-colors"
+                          >
+                            <Phone className="h-3.5 w-3.5 shrink-0 text-zinc-600" />
+                            {selectedClient.phone}
+                          </a>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Actions */}
+                  <div className="p-5 border-t border-zinc-800/60 space-y-2">
+                    <Button className="w-full" size="sm" onClick={() => handleEditClient(selectedClient)}>
+                      Edit Client
+                    </Button>
+                    <Button variant="outline" className="w-full" size="sm">
+                      <FileText className="h-3.5 w-3.5 mr-2" />
+                      Documents
+                    </Button>
+                  </div>
+                </div>
+              )
+            })()
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full gap-3 text-zinc-600 p-6 text-center">
+              <Users className="h-8 w-8 opacity-40" />
+              <p className="text-xs leading-relaxed">Select a client to view details</p>
+            </div>
+          )}
+        </div>
+      </div>{/* end three-panel grid */}
 
       <ClientFormDialog
         mode={formMode}
@@ -883,6 +859,5 @@ export default function ClientsPage() {
         onConfirm={handleDeleteConfirm}
         isPending={deleteMutation.isPending}
       />
-    </div>
-  )
+    </div>  )
 }

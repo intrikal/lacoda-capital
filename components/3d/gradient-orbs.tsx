@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { useState } from "react"
 import { Canvas, useFrame, useThree } from "@react-three/fiber"
 import { Float, Environment, MeshTransmissionMaterial } from "@react-three/drei"
 import * as THREE from "three"
@@ -132,7 +133,8 @@ interface GlassOrbProps {
 function GlassOrb({ config, reducedMotion, mousePosition }: GlassOrbProps) {
   const meshRef = React.useRef<THREE.Mesh>(null)
   const initialPosition = React.useRef(new THREE.Vector3(...config.position))
-  const time = React.useRef(Math.random() * 100) // Random phase offset
+  const [initialTime] = useState(() => Math.random() * 100)
+  const time = React.useRef(initialTime) // Random phase offset
 
   useFrame((state, delta) => {
     if (!meshRef.current || reducedMotion) return
@@ -268,7 +270,7 @@ function ParticleField({ reducedMotion }: { reducedMotion: boolean }) {
   const pointsRef = React.useRef<THREE.Points>(null)
   const particleCount = 200
 
-  const geometry = React.useMemo(() => {
+  const [geometry] = useState(() => {
     const geo = new THREE.BufferGeometry()
     const positions = new Float32Array(particleCount * 3)
     for (let i = 0; i < particleCount; i++) {
@@ -278,7 +280,7 @@ function ParticleField({ reducedMotion }: { reducedMotion: boolean }) {
     }
     geo.setAttribute("position", new THREE.BufferAttribute(positions, 3))
     return geo
-  }, [])
+  })
 
   useFrame((state) => {
     if (!pointsRef.current || reducedMotion) return
@@ -319,15 +321,10 @@ function CameraController({ reducedMotion, mousePosition }: CameraControllerProp
     targetPosition.current.x = mousePosition.current.x * 1.5
     targetPosition.current.y = mousePosition.current.y * 0.8
 
-    camera.position.x = THREE.MathUtils.lerp(
-      camera.position.x,
-      targetPosition.current.x,
-      0.03
-    )
-    camera.position.y = THREE.MathUtils.lerp(
-      camera.position.y,
-      targetPosition.current.y,
-      0.03
+    camera.position.set(
+      THREE.MathUtils.lerp(camera.position.x, targetPosition.current.x, 0.03),
+      THREE.MathUtils.lerp(camera.position.y, targetPosition.current.y, 0.03),
+      camera.position.z
     )
 
     camera.lookAt(0, 0, 0)

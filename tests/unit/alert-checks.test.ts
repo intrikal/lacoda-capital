@@ -153,7 +153,7 @@ describe("checkStalePlaidSync", () => {
 describe("checkPlanLimitAlerts", () => {
   it("returns warning at 81% of AUM limit", () => {
     const alerts = checkPlanLimitAlerts("org-1", "starter", {
-      currentAum: 20_250_000, // 81% of $25M
+      currentAum: 405_000, // 81% of $500K
       teamMemberCount: 1,
       storageUsedBytes: 0,
     })
@@ -165,7 +165,7 @@ describe("checkPlanLimitAlerts", () => {
 
   it("returns no alert at 79%", () => {
     const alerts = checkPlanLimitAlerts("org-1", "starter", {
-      currentAum: 19_750_000, // 79% of $25M
+      currentAum: 395_000, // 79% of $500K
       teamMemberCount: 1,
       storageUsedBytes: 0,
     })
@@ -176,7 +176,7 @@ describe("checkPlanLimitAlerts", () => {
 
   it("returns critical when exceeded (> 100%)", () => {
     const alerts = checkPlanLimitAlerts("org-1", "starter", {
-      currentAum: 30_000_000, // 120% of $25M
+      currentAum: 600_000, // 120% of $500K
       teamMemberCount: 1,
       storageUsedBytes: 0,
     })
@@ -238,7 +238,7 @@ describe("checkStaleValuations", () => {
         name: "Office Building",
         valuedAt: ninetyOneDaysAgo,
         status: "active",
-        entity: { orgId: "org-1" },
+        entity: { client: { orgId: "org-1" } },
       },
     ])
 
@@ -267,7 +267,7 @@ describe("checkStaleValuations", () => {
         name: "Other Org Asset",
         valuedAt: ninetyOneDaysAgo,
         status: "active",
-        entity: { orgId: "org-OTHER" },
+        entity: { client: { orgId: "org-OTHER" } },
       },
     ])
 

@@ -28,7 +28,7 @@ export const updateEntitySchema = createEntitySchema
   .omit({ clientId: true })
   .partial()
   .refine(
-    (data) => {
+    () => {
       // parentId validation is done at the action level (circular check needs DB)
       return true
     },

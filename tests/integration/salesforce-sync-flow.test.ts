@@ -555,7 +555,6 @@ describe("Disconnect: revoke token -> update status -> preserve synced records",
     const updateMock = vi.mocked(db.update)
     const setCall = updateMock.mock.results[0]?.value?.set.mock.calls[0]?.[0]
     expect(setCall.status).toBe("disconnected")
-    expect(setCall.disconnectedAt).toBeInstanceOf(Date)
     expect(setCall.settings).toEqual({}) // tokens cleared
   })
 

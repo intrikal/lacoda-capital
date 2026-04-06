@@ -99,7 +99,6 @@ test.describe("Messages page (/app/messages)", () => {
   test("unread count badge renders on conversations with unread messages", async ({ page }) => {
     // Unread badge has class rounded-full bg-tiffany-500 — only present if unread > 0
     // This test only verifies structure, not a specific unread count
-    const unreadBadge = page.locator("[class*='bg-tiffany-500'][class*='rounded-full']").first()
     // If no unread conversations exist, this is still a valid state — just verify
     // the page loaded correctly
     await expect(page).toHaveURL(/\/app\/messages/)

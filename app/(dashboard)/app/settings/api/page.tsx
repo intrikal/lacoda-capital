@@ -8,8 +8,6 @@ import {
   Copy,
   Trash2,
   Ban,
-  Eye,
-  EyeOff,
   AlertTriangle,
   Check,
   Clock,

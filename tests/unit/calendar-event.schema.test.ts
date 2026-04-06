@@ -206,20 +206,23 @@ describe("createCalendarEventSchema — type enum", () => {
 
 describe("createCalendarEventSchema — missing required fields", () => {
   it("rejects missing title", () => {
-    const { title: _, ...rest } = fullEvent
-    const result = createCalendarEventSchema.safeParse(rest)
+    const result = createCalendarEventSchema.safeParse(
+      Object.fromEntries(Object.entries(fullEvent).filter(([k]) => k !== "title"))
+    )
     expect(result.success).toBe(false)
   })
 
   it("rejects missing type", () => {
-    const { type: _, ...rest } = fullEvent
-    const result = createCalendarEventSchema.safeParse(rest)
+    const result = createCalendarEventSchema.safeParse(
+      Object.fromEntries(Object.entries(fullEvent).filter(([k]) => k !== "type"))
+    )
     expect(result.success).toBe(false)
   })
 
   it("rejects missing date", () => {
-    const { date: _, ...rest } = fullEvent
-    const result = createCalendarEventSchema.safeParse(rest)
+    const result = createCalendarEventSchema.safeParse(
+      Object.fromEntries(Object.entries(fullEvent).filter(([k]) => k !== "date"))
+    )
     expect(result.success).toBe(false)
   })
 

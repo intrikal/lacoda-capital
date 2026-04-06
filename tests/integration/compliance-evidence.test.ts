@@ -27,12 +27,6 @@ const mockInsert = vi.fn().mockReturnValue({
   }),
 })
 
-const mockFindFirst = vi.fn()
-const mockFindMany = vi.fn()
-const mockDelete = vi.fn().mockReturnValue({
-  where: vi.fn().mockResolvedValue(undefined),
-})
-
 describe("compliance evidence data flow", () => {
   beforeEach(() => {
     vi.clearAllMocks()

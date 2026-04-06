@@ -11,11 +11,10 @@ import {
   TrendingUp,
   Lock,
   Mail,
-  ChevronRight,
   AlertTriangle,
   Briefcase,
-  ArrowLeft,
 } from "lucide-react"
+import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { getPortalByToken, logPortalAccess, sendPortalMagicLink } from "@/lib/actions/portal.actions"
@@ -34,8 +33,6 @@ export default function StakeholderPortalPage() {
   const [email, setEmail] = React.useState("")
   const [emailSent, setEmailSent] = React.useState(false)
   const [sendingEmail, setSendingEmail] = React.useState(false)
-  // Pagination for assets
-  const [assetPage, setAssetPage] = React.useState(0)
   const ASSETS_PER_PAGE = 20
 
   const pageSpring = useSpring({
@@ -120,10 +117,13 @@ export default function StakeholderPortalPage() {
             {/* Branding header */}
             <div className="text-center mb-8">
               {branding.logoUrl ? (
-                <img
+                <Image
                   src={branding.logoUrl}
                   alt={branding.displayName}
+                  width={240}
+                  height={48}
                   className="h-12 mx-auto mb-4 object-contain"
+                  unoptimized
                   onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }}
                 />
               ) : (
@@ -199,10 +199,13 @@ export default function StakeholderPortalPage() {
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             {branding.logoUrl ? (
-              <img
+              <Image
                 src={branding.logoUrl}
                 alt={branding.displayName}
+                width={160}
+                height={32}
                 className="h-8 object-contain"
+                unoptimized
                 onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }}
               />
             ) : (

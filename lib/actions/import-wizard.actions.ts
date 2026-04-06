@@ -1,6 +1,6 @@
 "use server"
 
-import { eq, and, sql } from "drizzle-orm"
+import { eq } from "drizzle-orm"
 import { db } from "@/app/db"
 import { assets, entities, clients } from "@/app/db/schema"
 import { requireRole } from "@/lib/auth"

@@ -13,6 +13,7 @@ import {
   PLAN_LIMITS,
   checkPlanUsage,
   type PlanTier,
+  type PaidPlanTier,
   type BillingInterval,
   type UsageSnapshot,
   type UsageStatus,
@@ -132,7 +133,7 @@ export async function getBillingOverview(): Promise<BillingOverview> {
  * Returns the checkout URL to redirect the user to.
  */
 export async function createCheckoutSession(input: {
-  plan: "starter" | "professional"
+  plan: PaidPlanTier
   interval: BillingInterval
 }): Promise<{ url: string }> {
   const session = await requireRole("admin")
@@ -143,7 +144,7 @@ export async function createCheckoutSession(input: {
   if (!priceId) throw new Error(`No Stripe price configured for ${plan} ${interval}`)
 
   // Get or create Stripe customer
-  let sub = await db.query.subscriptions.findFirst({
+  const sub = await db.query.subscriptions.findFirst({
     where: eq(subscriptions.orgId, session.orgId),
   })
 

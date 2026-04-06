@@ -22,7 +22,7 @@ import {
   Link2,
   Trash2,
 } from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
@@ -437,6 +437,7 @@ export default function CompliancePage() {
         <TabsList>
           <TabsTrigger value="controls">Controls</TabsTrigger>
           <TabsTrigger value="audit">Audit Log</TabsTrigger>
+          <TabsTrigger value="kyc">KYC / AML</TabsTrigger>
         </TabsList>
 
         {/* ═══════════ CONTROLS TAB ═══════════════════════════════════════ */}
@@ -957,6 +958,243 @@ export default function CompliancePage() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* ═══════════ KYC / AML TAB ══════════════════════════════════════ */}
+        <TabsContent value="kyc" className="mt-6 space-y-6">
+
+          {/* Summary KPIs */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            {[
+              { label: "Approved", value: 2, color: "text-emerald-400", bg: "bg-emerald-500/10" },
+              { label: "In Progress", value: 1, color: "text-yellow-400", bg: "bg-yellow-500/10" },
+              { label: "Not Started", value: 1, color: "text-red-400", bg: "bg-red-500/10" },
+              { label: "Reviews Due", value: 2, color: "text-tiffany-500", bg: "bg-tiffany-500/10" },
+            ].map((s) => (
+              <Card key={s.label}>
+                <CardContent className="p-4">
+                  <p className="text-xs text-zinc-500">{s.label}</p>
+                  <p className={`text-2xl font-bold mt-1 ${s.color}`}>{s.value}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* KYC Records Table */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Client KYC Records</CardTitle>
+              <CardDescription>
+                Identity verification, AML screening, and PEP status for all clients.
+                Documents are stored in the Vault.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-zinc-800 text-left">
+                      <th className="px-4 py-3 text-xs font-medium text-zinc-500">Client</th>
+                      <th className="px-4 py-3 text-xs font-medium text-zinc-500">KYC Status</th>
+                      <th className="px-4 py-3 text-xs font-medium text-zinc-500">Tier</th>
+                      <th className="px-4 py-3 text-xs font-medium text-zinc-500">Identity</th>
+                      <th className="px-4 py-3 text-xs font-medium text-zinc-500">AML</th>
+                      <th className="px-4 py-3 text-xs font-medium text-zinc-500">PEP</th>
+                      <th className="px-4 py-3 text-xs font-medium text-zinc-500">Sanctions</th>
+                      <th className="px-4 py-3 text-xs font-medium text-zinc-500">Next Review</th>
+                      <th className="px-4 py-3 text-xs font-medium text-zinc-500">Risk Score</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-800">
+                    {[
+                      {
+                        client: "Anderson Family Trust",
+                        status: "approved",
+                        tier: "enhanced",
+                        identityVerified: true,
+                        amlStatus: "clear",
+                        pepStatus: false,
+                        sanctionsMatch: false,
+                        nextReview: "2025-10-15",
+                        amlRiskScore: 12,
+                      },
+                      {
+                        client: "Whitmore Holdings",
+                        status: "approved",
+                        tier: "enhanced",
+                        identityVerified: true,
+                        amlStatus: "clear",
+                        pepStatus: true,
+                        sanctionsMatch: false,
+                        nextReview: "2025-06-01",
+                        amlRiskScore: 38,
+                      },
+                      {
+                        client: "Johnson Trust",
+                        status: "in_progress",
+                        tier: "standard",
+                        identityVerified: true,
+                        amlStatus: "review",
+                        pepStatus: false,
+                        sanctionsMatch: false,
+                        nextReview: "2025-07-10",
+                        amlRiskScore: 54,
+                      },
+                      {
+                        client: "Rivera Family Office",
+                        status: "not_started",
+                        tier: "standard",
+                        identityVerified: false,
+                        amlStatus: "not_screened",
+                        pepStatus: false,
+                        sanctionsMatch: false,
+                        nextReview: null,
+                        amlRiskScore: null,
+                      },
+                    ].map((row) => {
+                      const kycBadge: Record<string, string> = {
+                        approved: "bg-emerald-500/10 text-emerald-400",
+                        in_progress: "bg-yellow-500/10 text-yellow-400",
+                        not_started: "bg-red-500/10 text-red-400",
+                        rejected: "bg-red-500/10 text-red-400",
+                        expired: "bg-orange-500/10 text-orange-400",
+                        suspended: "bg-red-500/10 text-red-400",
+                      }
+                      const amlBadge: Record<string, string> = {
+                        clear: "bg-emerald-500/10 text-emerald-400",
+                        review: "bg-yellow-500/10 text-yellow-400",
+                        flagged: "bg-red-500/10 text-red-400",
+                        not_screened: "bg-zinc-500/10 text-zinc-400",
+                      }
+                      return (
+                        <tr key={row.client} className="hover:bg-zinc-800/40">
+                          <td className="px-4 py-3 font-medium text-zinc-100">{row.client}</td>
+                          <td className="px-4 py-3">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${kycBadge[row.status] ?? "bg-zinc-500/10 text-zinc-400"}`}>
+                              {row.status.replace("_", " ")}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`text-xs ${row.tier === "enhanced" ? "text-tiffany-500" : "text-zinc-400"}`}>
+                              {row.tier === "enhanced" ? "Enhanced (EDD)" : "Standard (CDD)"}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            {row.identityVerified
+                              ? <span className="text-xs text-emerald-400">✓ Verified</span>
+                              : <span className="text-xs text-red-400">✗ Pending</span>}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${amlBadge[row.amlStatus] ?? "bg-zinc-500/10 text-zinc-400"}`}>
+                              {row.amlStatus.replace("_", " ")}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            {row.pepStatus
+                              ? <span className="text-xs text-orange-400 font-semibold">⚠ PEP</span>
+                              : <span className="text-xs text-zinc-500">—</span>}
+                          </td>
+                          <td className="px-4 py-3">
+                            {row.sanctionsMatch
+                              ? <span className="text-xs text-red-400 font-semibold">⚠ Match</span>
+                              : <span className="text-xs text-emerald-400">Clear</span>}
+                          </td>
+                          <td className="px-4 py-3 text-xs text-zinc-400">
+                            {row.nextReview
+                              ? new Date(row.nextReview).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+                              : <span className="text-red-400">Not scheduled</span>}
+                          </td>
+                          <td className="px-4 py-3">
+                            {row.amlRiskScore !== null ? (
+                              <div className="flex items-center gap-2">
+                                <div className="w-16 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                                  <div
+                                    className={`h-full rounded-full ${row.amlRiskScore >= 70 ? "bg-red-500" : row.amlRiskScore >= 40 ? "bg-yellow-500" : "bg-emerald-500"}`}
+                                    style={{ width: `${row.amlRiskScore}%` }}
+                                  />
+                                </div>
+                                <span className={`text-xs font-medium ${row.amlRiskScore >= 70 ? "text-red-400" : row.amlRiskScore >= 40 ? "text-yellow-400" : "text-emerald-400"}`}>
+                                  {row.amlRiskScore}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-zinc-600">—</span>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* AML / Procedures reference */}
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">AML Program Requirements</CardTitle>
+                <CardDescription>BSA/AML compliance checklist — 31 CFR Part 1020</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {[
+                  { item: "Customer Identification Program (CIP)", done: true, desc: "Collect and verify name, DOB, address, ID number" },
+                  { item: "Customer Due Diligence (CDD)", done: true, desc: "Understand nature of relationship, source of funds" },
+                  { item: "Enhanced Due Diligence (EDD) — PEPs", done: true, desc: "Senior foreign officials, their family & associates" },
+                  { item: "Beneficial Ownership Rule", done: false, desc: "Identify natural persons owning ≥25% of entity clients" },
+                  { item: "Ongoing Transaction Monitoring", done: true, desc: "Flag unusual patterns against expected activity" },
+                  { item: "SAR Filing Capability", done: false, desc: "Suspicious Activity Report workflow — in progress" },
+                  { item: "OFAC Sanctions Screening", done: true, desc: "SDN and OFAC consolidated list screening" },
+                  { item: "Annual AML Training", done: true, desc: "Staff certification on AML policies" },
+                ].map((req) => (
+                  <div key={req.item} className="flex items-start gap-3">
+                    <div className={`mt-0.5 w-4 h-4 rounded-full flex items-center justify-center shrink-0 ${req.done ? "bg-emerald-500/20" : "bg-zinc-700/50"}`}>
+                      {req.done
+                        ? <CheckCircle2 className="h-3 w-3 text-emerald-400" />
+                        : <Clock className="h-3 w-3 text-zinc-500" />}
+                    </div>
+                    <div>
+                      <p className={`text-sm font-medium ${req.done ? "text-zinc-200" : "text-zinc-400"}`}>{req.item}</p>
+                      <p className="text-xs text-zinc-500">{req.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Audit Trail Coverage</CardTitle>
+                <CardDescription>Immutable event log for regulatory reporting</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {[
+                  { category: "Client Onboarding", events: ["KYC initiated", "Identity verified", "AML screened"], covered: true },
+                  { category: "Asset Changes", events: ["Asset created", "Valuation updated", "Asset transferred"], covered: true },
+                  { category: "Document Management", events: ["Document uploaded", "Document verified", "Document expired"], covered: true },
+                  { category: "Access & Authentication", events: ["User login", "Permission changed", "API key created"], covered: true },
+                  { category: "Financial Events", events: ["Capital call", "Transfer initiated", "Fee charged"], covered: true },
+                  { category: "Compliance Actions", events: ["Control updated", "Evidence attached", "Review completed"], covered: true },
+                ].map((cat) => (
+                  <div key={cat.category} className="flex items-start gap-3">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-400 mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium text-zinc-200">{cat.category}</p>
+                      <p className="text-xs text-zinc-500">{cat.events.join(" · ")}</p>
+                    </div>
+                  </div>
+                ))}
+                <div className="mt-2 pt-3 border-t border-zinc-800">
+                  <p className="text-xs text-zinc-500">
+                    All events are append-only and cryptographically sequenced.
+                    Full audit export available from the <span className="text-tiffany-500">Ledger</span> page.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
       </Tabs>
     </animated.div>
   )

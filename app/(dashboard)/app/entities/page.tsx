@@ -11,7 +11,6 @@ import {
   Search,
   MoreHorizontal,
   FileText,
-  MapPin,
   Download,
   Loader2,
   AlertCircle,
@@ -21,7 +20,6 @@ import {
   ChevronRight,
   ChevronDown,
 } from "lucide-react"
-import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
@@ -389,6 +387,34 @@ function DeleteEntityDialog({
   )
 }
 
+// ─── Pure helpers (defined outside component to avoid forward-reference issues) ─
+
+function matchesFilterFn(
+  node: EntityTreeNode,
+  searchQuery: string,
+  typeFilter: string
+): boolean {
+  const matchesSearch = node.name.toLowerCase().includes(searchQuery.toLowerCase())
+  const matchesType = typeFilter === "all" || node.entityType === typeFilter
+  const childrenMatch = node.children.some(child => matchesFilterFn(child, searchQuery, typeFilter))
+  return (matchesSearch && matchesType) || childrenMatch
+}
+
+function filterTreeFn(
+  nodes: EntityTreeNode[],
+  searchQuery: string,
+  typeFilter: string,
+  matchesFilter: (node: EntityTreeNode) => boolean
+): EntityTreeNode[] {
+  if (!searchQuery && typeFilter === "all") return nodes
+  return nodes
+    .filter(matchesFilter)
+    .map((node) => ({
+      ...node,
+      children: filterTreeFn(node.children, searchQuery, typeFilter, matchesFilter),
+    }))
+}
+
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function EntitiesPage() {
@@ -408,25 +434,12 @@ export default function EntitiesPage() {
 
   // Filter tree nodes for search/type
   const matchesFilter = React.useCallback(
-    (node: EntityTreeNode): boolean => {
-      const matchesSearch = node.name.toLowerCase().includes(searchQuery.toLowerCase())
-      const matchesType = typeFilter === "all" || node.entityType === typeFilter
-      const childrenMatch = node.children.some(matchesFilter)
-      return (matchesSearch && matchesType) || childrenMatch
-    },
+    (node: EntityTreeNode) => matchesFilterFn(node, searchQuery, typeFilter),
     [searchQuery, typeFilter]
   )
 
   const filterTree = React.useCallback(
-    (nodes: EntityTreeNode[]): EntityTreeNode[] => {
-      if (!searchQuery && typeFilter === "all") return nodes
-      return nodes
-        .filter(matchesFilter)
-        .map((node) => ({
-          ...node,
-          children: filterTree(node.children),
-        }))
-    },
+    (nodes: EntityTreeNode[]) => filterTreeFn(nodes, searchQuery, typeFilter, matchesFilter),
     [matchesFilter, searchQuery, typeFilter]
   )
 
@@ -449,7 +462,7 @@ export default function EntitiesPage() {
     if (formMode === "create") {
       createMutation.mutate(data, { onSuccess: refetch })
     } else if (editingEntity) {
-      const { clientId: _, ...updateData } = data
+      const { ...updateData } = data
       updateMutation.mutate({ id: editingEntity.id, input: updateData }, { onSuccess: refetch })
     }
   }

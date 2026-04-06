@@ -1,9 +1,9 @@
 "use server"
 
 import { captureServerEvent } from "@/lib/analytics/server"
-import { eq, and, isNull, lte, sql } from "drizzle-orm"
+import { eq, and, isNull, lte } from "drizzle-orm"
 import { db } from "@/app/db"
-import { users, orgMembers, deletionRequests, ledgerEvents, orgs } from "@/app/db/schema"
+import { users, orgMembers, deletionRequests, orgs } from "@/app/db/schema"
 import { requireAuth } from "@/lib/auth"
 import { createLedgerEvent } from "@/lib/actions/ledger"
 import type { OrgSettings } from "@/app/db/schema/orgs"

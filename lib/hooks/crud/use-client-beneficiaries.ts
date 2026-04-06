@@ -81,15 +81,6 @@ interface UseClientBeneficiariesReturn {
   getBeneficiaryById: (id: string) => Beneficiary | undefined
 }
 
-const EMPTY_STATS: BeneficiaryStats = {
-  primaryCount: 0,
-  contingentCount: 0,
-  primaryTotal: 0,
-  contingentTotal: 0,
-  unverifiedCount: 0,
-  primaryComplete: false,
-}
-
 function computeStats(beneficiaries: Beneficiary[]): BeneficiaryStats {
   const primary = beneficiaries.filter((b) => b.designation === "primary")
   const contingent = beneficiaries.filter((b) => b.designation === "contingent")

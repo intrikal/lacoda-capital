@@ -6,7 +6,6 @@ import {
   Shield,
   Plus,
   Trash2,
-  Settings,
   Globe,
   CheckCircle,
   XCircle,
@@ -16,7 +15,6 @@ import {
   Link2,
   ChevronDown,
   ChevronUp,
-  Edit,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"

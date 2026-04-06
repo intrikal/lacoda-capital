@@ -4,7 +4,6 @@ import * as React from "react"
 import Link from "next/link"
 import { useSpring, animated, config } from "@react-spring/web"
 import {
-  HelpCircle,
   BookOpen,
   MessageCircle,
   Mail,
@@ -15,9 +14,7 @@ import {
   Search,
   Shield,
   FileText,
-  Video,
   Clock,
-  ArrowRight,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"

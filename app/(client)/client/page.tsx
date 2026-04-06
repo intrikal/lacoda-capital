@@ -5,7 +5,6 @@ import { useSpring, animated, config } from "@react-spring/web"
 import { format } from "date-fns"
 import {
   TrendingUp,
-  TrendingDown,
   ArrowUpRight,
   Calendar,
   Bell,
@@ -16,7 +15,6 @@ import {
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { formatCurrency } from "@/lib/utils"
 import { useReducedMotion } from "@/lib/hooks/use-reduced-motion"
 import {

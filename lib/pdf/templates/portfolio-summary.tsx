@@ -1,5 +1,4 @@
-import { Document, Page, Text, View, StyleSheet, Image } from "@react-pdf/renderer"
-import { formatCurrency } from "@/lib/utils"
+import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer"
 
 export interface PortfolioSummaryData {
   orgName: string

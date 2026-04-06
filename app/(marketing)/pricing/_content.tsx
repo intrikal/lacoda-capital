@@ -27,14 +27,14 @@ const plans = [
   {
     name: "Starter",
     planKey: "starter" as const,
-    description: "For smaller portfolios getting organized",
-    price: "$499",
+    description: "For advisors just getting organized",
+    price: "$299",
     period: "/month",
     highlight: false,
     features: [
-      { name: "Up to $25M AUM", included: true },
-      { name: "3 team members", included: true },
-      { name: "Document Vault (10GB)", included: true },
+      { name: "Up to $500K AUM", included: true },
+      { name: "2 team members", included: true },
+      { name: "Document Vault (10 GB)", included: true },
       { name: "Basic reporting", included: true },
       { name: "Email support", included: true },
       { name: "Audit ledger", included: true },
@@ -47,22 +47,66 @@ const plans = [
     stripeCheckout: true,
   },
   {
+    name: "Growth",
+    planKey: "growth" as const,
+    description: "For practices scaling their client base",
+    price: "$599",
+    period: "/month",
+    highlight: false,
+    features: [
+      { name: "Up to $1.5M AUM", included: true },
+      { name: "3 team members", included: true },
+      { name: "Document Vault (25 GB)", included: true },
+      { name: "Advanced reporting", included: true },
+      { name: "Priority email support", included: true },
+      { name: "Audit ledger", included: true },
+      { name: "API access", included: false },
+      { name: "Custom integrations", included: false },
+      { name: "Dedicated CSM", included: false },
+    ],
+    cta: "Start Free Trial",
+    ctaVariant: "outline" as const,
+    stripeCheckout: true,
+  },
+  {
     name: "Professional",
     planKey: "professional" as const,
-    description: "For growing firms and asset managers",
-    price: "$1,499",
+    description: "For established advisors with a growing book",
+    price: "$999",
     period: "/month",
-    highlight: true,
-    badge: "Most Popular",
+    highlight: false,
     features: [
-      { name: "Up to $100M AUM", included: true },
-      { name: "10 team members", included: true },
-      { name: "Document Vault (100GB)", included: true },
+      { name: "Up to $3M AUM", included: true },
+      { name: "5 team members", included: true },
+      { name: "Document Vault (50 GB)", included: true },
       { name: "Advanced reporting", included: true },
       { name: "Priority support", included: true },
       { name: "Audit ledger", included: true },
       { name: "API access", included: true },
       { name: "Custom integrations", included: false },
+      { name: "Dedicated CSM", included: false },
+    ],
+    cta: "Start Free Trial",
+    ctaVariant: "outline" as const,
+    stripeCheckout: true,
+  },
+  {
+    name: "Elite",
+    planKey: "elite" as const,
+    description: "For boutique firms managing up to $5M",
+    price: "$1,499",
+    period: "/month",
+    highlight: true,
+    badge: "Most Popular",
+    features: [
+      { name: "Up to $5M AUM", included: true },
+      { name: "10 team members", included: true },
+      { name: "Document Vault (100 GB)", included: true },
+      { name: "Advanced reporting", included: true },
+      { name: "Priority support", included: true },
+      { name: "Audit ledger", included: true },
+      { name: "API access", included: true },
+      { name: "Custom integrations", included: true },
       { name: "Dedicated CSM", included: false },
     ],
     cta: "Start Free Trial",
@@ -72,7 +116,7 @@ const plans = [
   {
     name: "Enterprise",
     planKey: "enterprise" as const,
-    description: "For large institutions with complex needs",
+    description: "For institutions with complex needs beyond $5M",
     price: "Custom",
     period: "",
     highlight: false,
@@ -97,35 +141,21 @@ const featureComparison = [
   {
     category: "Portfolio Management",
     features: [
-      { name: "Asset tracking", starter: true, professional: true, enterprise: true },
-      { name: "Performance analytics", starter: "Basic", professional: "Advanced", enterprise: "Custom" },
-      { name: "Multi-currency support", starter: true, professional: true, enterprise: true },
-      { name: "Real-time valuations", starter: false, professional: true, enterprise: true },
-      { name: "10+ asset classes", starter: false, professional: true, enterprise: true },
-      { name: "Capital call tracking", starter: false, professional: true, enterprise: true },
-      { name: "Fund metrics (TVPI/DPI)", starter: false, professional: true, enterprise: true },
-      { name: "Deal pipeline", starter: false, professional: true, enterprise: true },
+      { name: "Asset tracking",        starter: true,    growth: true,       professional: true,       elite: true,       enterprise: true },
+      { name: "Performance analytics", starter: "Basic", growth: "Advanced", professional: "Advanced", elite: "Advanced", enterprise: "Custom" },
+      { name: "Multi-currency",        starter: true,    growth: true,       professional: true,       elite: true,       enterprise: true },
+      { name: "Real-time valuations",  starter: false,   growth: false,      professional: true,       elite: true,       enterprise: true },
+      { name: "Custom asset classes",  starter: false,   growth: false,      professional: true,       elite: true,       enterprise: true },
     ],
   },
   {
     category: "Document Management",
     features: [
-      { name: "Document storage", starter: "10 GB", professional: "100 GB", enterprise: "Unlimited" },
-      { name: "Version control", starter: true, professional: true, enterprise: true },
-      { name: "Expiration alerts", starter: true, professional: true, enterprise: true },
-      { name: "Full-text search", starter: false, professional: true, enterprise: true },
-      { name: "E-signature integration", starter: false, professional: true, enterprise: true },
-      { name: "CSV bulk import", starter: true, professional: true, enterprise: true },
-      { name: "PDF report generation", starter: true, professional: true, enterprise: true },
-    ],
-  },
-  {
-    category: "AI Features",
-    features: [
-      { name: "AI document extraction", starter: false, professional: true, enterprise: true },
-      { name: "AI report narratives", starter: false, professional: true, enterprise: true },
-      { name: "AI email drafting", starter: false, professional: true, enterprise: true },
-      { name: "AI alert digest", starter: false, professional: true, enterprise: true },
+      { name: "Document storage",        starter: "10 GB", growth: "25 GB", professional: "50 GB", elite: "100 GB", enterprise: "Unlimited" },
+      { name: "Version control",         starter: true,    growth: true,    professional: true,    elite: true,    enterprise: true },
+      { name: "Expiration alerts",       starter: true,    growth: true,    professional: true,    elite: true,    enterprise: true },
+      { name: "OCR & search",            starter: false,   growth: false,   professional: true,    elite: true,    enterprise: true },
+      { name: "E-signature integration", starter: false,   growth: false,   professional: true,    elite: true,    enterprise: true },
     ],
   },
   {
@@ -165,7 +195,7 @@ const faqs = [
   {
     question: "What counts toward AUM limits?",
     answer:
-      "AUM limits are based on the total value of assets tracked in your Lacoda portfolio. We measure this at the end of each month and average over the quarter.",
+      "AUM limits are based on the total value of assets tracked in your Lacoda portfolio. Starter covers up to $500K and Professional covers up to $5M. We measure this at the end of each month and average over the quarter.",
   },
   {
     question: "Can I change plans later?",
@@ -195,7 +225,7 @@ const faqs = [
   {
     question: "Can I add more team members?",
     answer:
-      "Additional team members can be added for $49/month each on Starter and Professional plans. Enterprise plans include unlimited team members.",
+      "Additional team members can be added for $49/month each on Starter and Professional plans. Starter supports up to 2 members, Professional up to 5. Enterprise plans include unlimited team members.",
   },
   {
     question: "Do you offer discounts for nonprofits?",
@@ -313,7 +343,7 @@ export function PricingPage() {
         {/* Pricing Cards */}
         <section className="py-16 lg:py-24 bg-zinc-900">
           <div className="mx-auto max-w-7xl px-6 lg:px-8">
-            <div className="grid md:grid-cols-3 gap-6">
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
               {plans.map((plan) => (
                 <Card
                   key={plan.name}
@@ -379,7 +409,7 @@ export function PricingPage() {
                       <Button
                         variant={plan.ctaVariant}
                         className="w-full"
-                        onClick={() => handleCheckout(plan.planKey as "starter" | "professional")}
+                        onClick={() => handleCheckout(plan.planKey as "starter" | "growth" | "professional" | "elite")}
                         disabled={checkoutLoading !== null}
                       >
                         {checkoutLoading === plan.planKey && (
@@ -420,58 +450,45 @@ export function PricingPage() {
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[640px]">
+              <table className="w-full min-w-[800px]">
                 <thead>
                   <tr className="border-b border-zinc-800">
-                    <th className="text-left py-4 px-4 text-zinc-400 font-medium w-1/4">
+                    <th className="text-left py-4 px-4 text-zinc-400 font-medium w-1/5">
                       Features
                     </th>
-                    <th className="text-center py-4 px-4 text-zinc-100 font-semibold">
-                      Starter
-                    </th>
-                    <th className="text-center py-4 px-4 text-zinc-100 font-semibold">
+                    <th className="text-center py-4 px-3 text-zinc-100 font-semibold text-sm">Starter</th>
+                    <th className="text-center py-4 px-3 text-zinc-100 font-semibold text-sm">Growth</th>
+                    <th className="text-center py-4 px-3 text-zinc-100 font-semibold text-sm">Professional</th>
+                    <th className="text-center py-4 px-3 text-zinc-100 font-semibold text-sm">
                       <div className="flex flex-col items-center">
-                        Professional
+                        Elite
                         <Badge variant="primary" className="mt-1 text-xs">Popular</Badge>
                       </div>
                     </th>
-                    <th className="text-center py-4 px-4 text-zinc-100 font-semibold">
-                      Enterprise
-                    </th>
+                    <th className="text-center py-4 px-3 text-zinc-100 font-semibold text-sm">Enterprise</th>
                   </tr>
                 </thead>
                 <tbody>
                   {featureComparison.map((category) => (
                     <React.Fragment key={category.category}>
                       <tr className="border-b border-zinc-800">
-                        <td
-                          colSpan={4}
-                          className="py-4 px-4 bg-zinc-900/50"
-                        >
-                          <span className="text-sm font-semibold text-teal-400">
-                            {category.category}
-                          </span>
+                        <td colSpan={6} className="py-4 px-4 bg-zinc-900/50">
+                          <span className="text-sm font-semibold text-teal-400">{category.category}</span>
                         </td>
                       </tr>
-                      {category.features.map((feature) => (
-                        <tr
-                          key={feature.name}
-                          className="border-b border-zinc-800/50 hover:bg-zinc-900/30"
-                        >
-                          <td className="py-3 px-4 text-sm text-zinc-300">
-                            {feature.name}
-                          </td>
-                          <td className="py-3 px-4 text-center">
-                            {renderFeatureValue(feature.starter)}
-                          </td>
-                          <td className="py-3 px-4 text-center bg-teal-500/5">
-                            {renderFeatureValue(feature.professional)}
-                          </td>
-                          <td className="py-3 px-4 text-center">
-                            {renderFeatureValue(feature.enterprise)}
-                          </td>
-                        </tr>
-                      ))}
+                      {category.features.map((feature) => {
+                        const f = feature as Record<string, boolean | string>
+                        return (
+                          <tr key={feature.name} className="border-b border-zinc-800/50 hover:bg-zinc-900/30">
+                            <td className="py-3 px-4 text-sm text-zinc-300">{feature.name}</td>
+                            <td className="py-3 px-3 text-center">{renderFeatureValue(f.starter as boolean | string)}</td>
+                            <td className="py-3 px-3 text-center">{renderFeatureValue(f.growth as boolean | string)}</td>
+                            <td className="py-3 px-3 text-center">{renderFeatureValue(f.professional as boolean | string)}</td>
+                            <td className="py-3 px-3 text-center bg-teal-500/5">{renderFeatureValue(f.elite as boolean | string)}</td>
+                            <td className="py-3 px-3 text-center">{renderFeatureValue(f.enterprise as boolean | string)}</td>
+                          </tr>
+                        )
+                      })}
                     </React.Fragment>
                   ))}
                 </tbody>

@@ -228,7 +228,7 @@ export function createAIAgent<TOutput extends z.ZodType>(
           parsed = JSON.parse(jsonStr);
         } catch {
           // Log the failed parse attempt
-          const [logRow] = await db
+          await db
             .insert(aiCallLog)
             .values({
               orgId: agentContext.orgId,
@@ -254,8 +254,7 @@ export function createAIAgent<TOutput extends z.ZodType>(
               actorUserId: agentContext.actorUserId,
               targetId: agentContext.targetId,
               targetType: agentContext.targetType,
-            })
-            .returning({ id: aiCallLog.id });
+            });
 
           return {
             success: false,
@@ -269,7 +268,7 @@ export function createAIAgent<TOutput extends z.ZodType>(
         const validation = outputSchema.safeParse(parsed);
 
         if (!validation.success) {
-          const [logRow] = await db
+          await db
             .insert(aiCallLog)
             .values({
               orgId: agentContext.orgId,
@@ -295,8 +294,7 @@ export function createAIAgent<TOutput extends z.ZodType>(
               actorUserId: agentContext.actorUserId,
               targetId: agentContext.targetId,
               targetType: agentContext.targetType,
-            })
-            .returning({ id: aiCallLog.id });
+            });
 
           return {
             success: false,

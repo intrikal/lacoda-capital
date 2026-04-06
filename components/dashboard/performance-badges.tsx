@@ -35,17 +35,17 @@ function getReturnBg(value: number | null): string {
 
 export function PerformanceBadges({ assetId }: PerformanceBadgesProps) {
   const [data, setData] = useState<(PeriodReturns & { hasData: boolean }) | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [loadedForId, setLoadedForId] = useState("")
+  const loading = loadedForId !== assetId
 
   useEffect(() => {
     let cancelled = false
-    setLoading(true)
     getAssetPerformance(assetId)
       .then((result) => {
-        if (!cancelled) setData(result)
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
+        if (!cancelled) {
+          setData(result)
+          setLoadedForId(assetId)
+        }
       })
     return () => { cancelled = true }
   }, [assetId])

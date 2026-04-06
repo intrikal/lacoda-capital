@@ -62,8 +62,6 @@ import {
   Pencil,
   Loader2,
   X,
-  CheckSquare,
-  Square,
   Archive,
   Tag,
   FileJson,
@@ -120,7 +118,6 @@ import {
   type DocumentRecord,
 } from "@/lib/hooks/crud/use-documents"
 import { DocumentFormDialog } from "@/components/forms/document-form-dialog"
-import { SendForSignatureButton } from "@/components/dashboard/send-for-signature-button"
 import { createClient } from "@/utils/supabase/client"
 import { createDocumentSchema } from "@/lib/validations/document.schema"
 
@@ -473,7 +470,6 @@ function DocumentPreviewDialog({
 
 function BulkActionBar({
   selectedCount,
-  selectedIds,
   onMove,
   onAddTag,
   onArchive,
@@ -481,14 +477,12 @@ function BulkActionBar({
   isPending,
 }: {
   selectedCount: number
-  selectedIds: Set<string>
   onMove: (folder: string) => Promise<void>
   onAddTag: (tag: string) => Promise<void>
   onArchive: () => Promise<void>
   onCancel: () => void
   isPending: boolean
 }) {
-  const [folderOpen, setFolderOpen] = React.useState(false)
   const [tagOpen, setTagOpen] = React.useState(false)
   const [newTag, setNewTag] = React.useState("")
 
@@ -1002,7 +996,6 @@ export default function VaultPage() {
       {selectedIds.size > 0 && (
         <BulkActionBar
           selectedCount={selectedIds.size}
-          selectedIds={selectedIds}
           onMove={handleBulkMove}
           onAddTag={handleBulkTag}
           onArchive={handleBulkArchive}

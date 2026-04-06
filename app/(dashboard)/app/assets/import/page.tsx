@@ -12,13 +12,11 @@ import {
   AlertCircle,
   X,
   Loader2,
-  Download,
   Columns,
   Eye,
   Rocket,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import {
@@ -64,7 +62,7 @@ export default function CSVImportPage() {
   const [preview, setPreview] = React.useState<ImportPreview | null>(null)
   const [result, setResult] = React.useState<ImportResult | null>(null)
   const [isValidating, setIsValidating] = React.useState(false)
-  const [isImporting, setIsImporting] = React.useState(false)
+  const [, setIsImporting] = React.useState(false)
   const [importProgress, setImportProgress] = React.useState(0)
   const [error, setError] = React.useState<string | null>(null)
 

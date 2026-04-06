@@ -1,6 +1,52 @@
 import { groq } from "next-sanity"
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Scheduling Queries
+// ─────────────────────────────────────────────────────────────────────────────
+
+// All slots that are currently open for booking
+export const availableSlotsQuery = groq`
+  *[_type == "availabilitySlot" && status == "available" && dateTime > now()]
+  | order(dateTime asc) {
+    _id,
+    dateTime,
+    duration,
+    label,
+    status
+  }
+`
+
+// Single slot by ID (used in webhook handler to get slot details)
+export const slotByIdQuery = groq`
+  *[_type == "availabilitySlot" && _id == $id][0] {
+    _id,
+    dateTime,
+    duration,
+    label,
+    status
+  }
+`
+
+// Single booking request by ID (used in webhook handler)
+export const bookingRequestByIdQuery = groq`
+  *[_type == "bookingRequest" && _id == $id][0] {
+    _id,
+    name,
+    email,
+    company,
+    reason,
+    status,
+    submittedAt,
+    slot-> {
+      _id,
+      dateTime,
+      duration,
+      label
+    }
+  }
+`
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Event Queries
 // ─────────────────────────────────────────────────────────────────────────────
 

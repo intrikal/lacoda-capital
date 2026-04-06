@@ -10,7 +10,6 @@ import {
   ChevronRight,
   Copy,
   Check,
-  ExternalLink,
   Play,
   Code2,
   Lock,
@@ -19,8 +18,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
 // ─── OpenAPI spec data ───────────────────────────────────────────────────────
-
-const API_BASE = "/api/v1"
 
 const ENDPOINTS = [
   {

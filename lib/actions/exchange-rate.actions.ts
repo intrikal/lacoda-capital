@@ -1,7 +1,7 @@
 "use server"
 
 import { captureServerEvent } from "@/lib/analytics/server"
-import { eq, and, desc, isNull } from "drizzle-orm"
+import { eq, and, desc } from "drizzle-orm"
 import { db } from "@/app/db"
 import { exchangeRates } from "@/app/db/schema"
 import { requireRole } from "@/lib/auth"

@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Logo } from "@/components/marketing/logo"
-import { loginAction, getOAuthUrlAction, demoLoginAction } from "@/lib/actions/auth.actions"
+import { loginAction, getOAuthUrlAction } from "@/lib/actions/auth.actions"
 import { checkDomainSso } from "@/lib/actions/sso.actions"
 
 // Social login icons
@@ -67,18 +67,6 @@ function LoginForm() {
     if ("error" in result) {
       setError(result.error)
       setIsLoading(false)
-    }
-  }
-
-  const [demoLoading, setDemoLoading] = React.useState<"admin" | "client" | null>(null)
-
-  const handleDemoLogin = async (view: "admin" | "client") => {
-    setDemoLoading(view)
-    setError("")
-    const result = await demoLoginAction(view)
-    if ("error" in result) {
-      setError(result.error)
-      setDemoLoading(null)
     }
   }
 
@@ -173,7 +161,7 @@ function LoginForm() {
                 Sign in to your account
               </h1>
               <p className="text-zinc-400">
-                Don't have an account?{" "}
+                Don&apos;t have an account?{" "}
                 <Link
                   href="/signup"
                   className="text-tiffany-500 hover:text-tiffany-400 transition-colors"
@@ -302,31 +290,23 @@ function LoginForm() {
                   type="button"
                   variant="outline"
                   className="h-10 bg-zinc-900/50 border-zinc-700 hover:bg-zinc-800 hover:border-zinc-600 text-sm"
-                  onClick={() => handleDemoLogin("admin")}
-                  disabled={demoLoading !== null || isLoading}
+                  onClick={() => window.location.href = "/demo/app"}
+                  disabled={isLoading}
                 >
-                  {demoLoading === "admin" ? (
-                    <div className="w-4 h-4 border-2 border-zinc-500/20 border-t-zinc-400 rounded-full animate-spin" />
-                  ) : (
-                    "Admin Dashboard"
-                  )}
+                  Admin Dashboard
                 </Button>
                 <Button
                   type="button"
                   variant="outline"
                   className="h-10 bg-zinc-900/50 border-zinc-700 hover:bg-zinc-800 hover:border-zinc-600 text-sm"
-                  onClick={() => handleDemoLogin("client")}
-                  disabled={demoLoading !== null || isLoading}
+                  onClick={() => window.location.href = "/demo/client"}
+                  disabled={isLoading}
                 >
-                  {demoLoading === "client" ? (
-                    <div className="w-4 h-4 border-2 border-zinc-500/20 border-t-zinc-400 rounded-full animate-spin" />
-                  ) : (
-                    "Client Portal"
-                  )}
+                  Client Portal
                 </Button>
               </div>
               <p className="text-[10px] text-zinc-600 text-center mt-2">
-                Demo mode — this does not affect the actual database. This is the demo view.
+                Demo mode — no account required. Sign up to use real data.
               </p>
             </div>
 

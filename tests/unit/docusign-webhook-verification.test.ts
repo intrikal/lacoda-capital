@@ -43,7 +43,7 @@
  *   app/api/webhooks/docusign/route.ts — endpoint that uses this verification
  */
 
-import { describe, it, expect, beforeEach } from "vitest"
+import { describe, it, expect } from "vitest"
 import { createHmac, timingSafeEqual } from "crypto"
 
 // ─── Webhook Verification Function ──────────────────────────────────────────

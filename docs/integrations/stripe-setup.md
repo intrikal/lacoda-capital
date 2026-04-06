@@ -60,18 +60,65 @@ The CLI will print a webhook signing secret — use that for local testing.
 
 ---
 
-## 4. Add to Your `.env` File
+## 4. Create Subscription Products & Prices
+
+Lacoda Capital uses 4 paid subscription tiers. You must create these as Products in Stripe before the billing UI will work.
+
+### In Stripe Dashboard → Product catalog:
+
+Create 4 products, each with a **monthly** and **annual** price:
+
+| Product name | Monthly price | Annual price (20% off) |
+|---|---|---|
+| **Starter** | $299/month | $239/month (billed $2,868/year) |
+| **Growth** | $599/month | $479/month (billed $5,748/year) |
+| **Professional** | $999/month | $799/month (billed $9,588/year) |
+| **Elite** | $1,499/month | $1,199/month (billed $14,388/year) |
+
+For each product:
+1. Click **Add product**
+2. Set the product name (e.g. "Lacoda Starter")
+3. Set billing as **Recurring**
+4. Add a **monthly** price and an **annual** price
+5. Copy each price ID (starts with `price_`)
+
+### Add all 8 price IDs to `.env`:
+
+```env
+STRIPE_PRICE_STARTER_MONTHLY=price_xxxx
+STRIPE_PRICE_STARTER_ANNUAL=price_xxxx
+STRIPE_PRICE_GROWTH_MONTHLY=price_xxxx
+STRIPE_PRICE_GROWTH_ANNUAL=price_xxxx
+STRIPE_PRICE_PROFESSIONAL_MONTHLY=price_xxxx
+STRIPE_PRICE_PROFESSIONAL_ANNUAL=price_xxxx
+STRIPE_PRICE_ELITE_MONTHLY=price_xxxx
+STRIPE_PRICE_ELITE_ANNUAL=price_xxxx
+```
+
+---
+
+## 5. Add to Your `.env` File
 
 ```env
 # Stripe
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_xxxxxxxxxxxxxxxxxxxx
 STRIPE_SECRET_KEY=sk_test_xxxxxxxxxxxxxxxxxxxx
 STRIPE_WEBHOOK_SECRET=whsec_xxxxxxxxxxxxxxxxxxxx
+
+# Subscription plan price IDs (see section 4 above)
+STRIPE_PRICE_STARTER_MONTHLY=price_xxxx
+STRIPE_PRICE_STARTER_ANNUAL=price_xxxx
+STRIPE_PRICE_GROWTH_MONTHLY=price_xxxx
+STRIPE_PRICE_GROWTH_ANNUAL=price_xxxx
+STRIPE_PRICE_PROFESSIONAL_MONTHLY=price_xxxx
+STRIPE_PRICE_PROFESSIONAL_ANNUAL=price_xxxx
+STRIPE_PRICE_ELITE_MONTHLY=price_xxxx
+STRIPE_PRICE_ELITE_ANNUAL=price_xxxx
 ```
 
 ---
 
-## 5. How It Works
+## 6. How It Works
 
 ### Architecture
 - **Server Actions** handle user-initiated operations (create invoice, open checkout)
@@ -99,7 +146,7 @@ Advisor creates billing record
 
 ---
 
-## 6. Stripe Customer Portal
+## 7. Stripe Customer Portal
 
 Clients can manage their own payment methods and view invoice history:
 
@@ -115,7 +162,7 @@ To enable the Customer Portal:
 
 ---
 
-## 7. Test with Test Cards
+## 8. Test with Test Cards
 
 Stripe provides test card numbers for development:
 
@@ -130,6 +177,14 @@ Use any future expiry date, any 3-digit CVC, any billing postal code.
 ---
 
 ## Troubleshooting
+
+| Problem | Solution |
+|---|---|
+| "No Stripe price configured for growth monthly" | Add the missing `STRIPE_PRICE_GROWTH_MONTHLY` env var (see section 4) |
+| "No Stripe price configured for elite monthly" | Add `STRIPE_PRICE_ELITE_MONTHLY` — you need all 8 price IDs set |
+| Plan stays "free" after checkout | Stripe webhook not configured — check `STRIPE_WEBHOOK_SECRET` and section 3 |
+
+### Original troubleshooting
 
 | Problem | Solution |
 |---|---|

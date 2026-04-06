@@ -293,15 +293,10 @@ function CameraController({ reducedMotion, mousePosition }: CameraControllerProp
     targetPosition.current.x = mousePosition.current.x * 1.2
     targetPosition.current.y = mousePosition.current.y * 0.5 + 0.5
 
-    camera.position.x = THREE.MathUtils.lerp(
-      camera.position.x,
-      targetPosition.current.x,
-      0.02
-    )
-    camera.position.y = THREE.MathUtils.lerp(
-      camera.position.y,
-      targetPosition.current.y,
-      0.02
+    camera.position.set(
+      THREE.MathUtils.lerp(camera.position.x, targetPosition.current.x, 0.02),
+      THREE.MathUtils.lerp(camera.position.y, targetPosition.current.y, 0.02),
+      camera.position.z
     )
 
     camera.lookAt(0, 0, 0)

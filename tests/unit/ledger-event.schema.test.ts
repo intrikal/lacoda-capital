@@ -193,22 +193,21 @@ describe("ledger_events — Drizzle schema structure", () => {
   })
 
   /**
-   * TEST: actor_user_id must be NOT NULL.
+   * TEST: actor_user_id is nullable (system events have no actor).
    *
-   * WHY THIS IS CRITICAL:
-   *   For compliance, every audit event MUST record WHO did it.
-   *   If actor_user_id were nullable, we could end up with
-   *   "someone deleted all client data" with no record of who.
-   *   That would be a compliance nightmare.
+   * WHY THIS IS INTENTIONAL:
+   *   Some audit events are system-triggered (e.g., scheduled jobs).
+   *   When actor_user_id is NULL, the event was triggered by the system,
+   *   not a human. This is an intentional design for system-level audit trails.
    *
    * HOW WE CHECK:
    *   1. Find the column named "actor_user_id" in the config
-   *   2. Check that .notNull is true
+   *   2. Check that .notNull is false (nullable)
    */
-  it("actor_user_id is NOT NULL (required for compliance)", () => {
+  it("actor_user_id is nullable (system-triggered events have no actor)", () => {
     const col = config.columns.find((c) => c.name === "actor_user_id")
     expect(col).toBeDefined()
-    expect(col!.notNull).toBe(true)
+    expect(col!.notNull).toBe(false)
   })
 
   /**

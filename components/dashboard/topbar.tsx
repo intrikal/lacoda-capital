@@ -11,13 +11,10 @@ import {
   LogOut,
   Settings,
   User,
-  Sun,
-  Moon,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
 import { Avatar } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
 import {
@@ -33,8 +30,39 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import { alertSeverityConfig } from "@/lib/config/alerts"
 import type { Alert } from "@/lib/types/mock"
+
+interface DateRangePreset {
+  label: string
+  from: Date
+  to: Date
+}
+
+function createDateRangePresets(): DateRangePreset[] {
+  const now = Date.now()
+  return [
+    {
+      label: "Last 7 days",
+      from: new Date(now - 7 * 24 * 60 * 60 * 1000),
+      to: new Date(now),
+    },
+    {
+      label: "Last 30 days",
+      from: new Date(now - 30 * 24 * 60 * 60 * 1000),
+      to: new Date(now),
+    },
+    {
+      label: "Last 90 days",
+      from: new Date(now - 90 * 24 * 60 * 60 * 1000),
+      to: new Date(now),
+    },
+    {
+      label: "Year to date",
+      from: new Date(new Date(now).getFullYear(), 0, 1),
+      to: new Date(now),
+    },
+  ]
+}
 
 interface TopbarProps {
   sidebarCollapsed: boolean
@@ -57,28 +85,7 @@ export function Topbar({
 }: TopbarProps) {
   const unreadAlerts = alerts.filter((a) => !a.isRead)
 
-  const dateRangePresets = [
-    {
-      label: "Last 7 days",
-      from: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-      to: new Date(),
-    },
-    {
-      label: "Last 30 days",
-      from: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-      to: new Date(),
-    },
-    {
-      label: "Last 90 days",
-      from: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000),
-      to: new Date(),
-    },
-    {
-      label: "Year to date",
-      from: new Date(new Date().getFullYear(), 0, 1),
-      to: new Date(),
-    },
-  ]
+  const [dateRangePresets] = React.useState(createDateRangePresets)
 
   return (
     <header
@@ -152,7 +159,6 @@ export function Topbar({
             </div>
             <div className="max-h-80 overflow-y-auto">
               {alerts.slice(0, 5).map((alert) => {
-                const config = alertSeverityConfig[alert.severity]
                 return (
                   <Link
                     key={alert.id}

@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
   const authResult = await authenticateApiRequest(request)
   if (authResult instanceof NextResponse) return authResult
 
-  const { orgId, keyName } = authResult
+  const { orgId } = authResult
   const { searchParams } = request.nextUrl
 
   // Build filters

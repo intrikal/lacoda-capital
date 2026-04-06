@@ -116,7 +116,7 @@ export function PrivacyPage() {
                     </h2>
                     <div className="space-y-4 text-zinc-300 leading-relaxed">
                       <p>
-                        Lacoda Capital Holdings, LLC ("Lacoda," "we," "our," or "us") is committed to protecting the privacy and security of your personal information. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our platform, website, applications, and related services (collectively, the "Service").
+                        Lacoda Capital Holdings, LLC (&quot;Lacoda,&quot; &quot;we,&quot; &quot;our,&quot; or &quot;us&quot;) is committed to protecting the privacy and security of your personal information. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our platform, website, applications, and related services (collectively, the &quot;Service&quot;).
                       </p>
                       <p>
                         We understand that as a platform for managing financial data and sensitive documents, privacy is paramount. We employ industry-leading security practices and maintain strict data handling procedures to protect your information.
@@ -299,7 +299,7 @@ export function PrivacyPage() {
                       <div className="mt-4">
                         <h3 className="text-lg font-medium text-zinc-100 mb-3">Your Cookie Choices</h3>
                         <p className="text-zinc-400">
-                          Most browsers allow you to control cookies through settings. You can refuse or delete cookies, but this may affect your ability to use certain features. We honor "Do Not Track" browser signals where required by law.
+                          Most browsers allow you to control cookies through settings. You can refuse or delete cookies, but this may affect your ability to use certain features. We honor &quot;Do Not Track&quot; browser signals where required by law.
                         </p>
                       </div>
 
@@ -453,7 +453,7 @@ export function PrivacyPage() {
                   {/* Section 10 */}
                   <section id="children" className="scroll-mt-24">
                     <h2 className="text-xl font-semibold text-zinc-100 mb-4">
-                      10. Children's Privacy
+                      10. Children&apos;s Privacy
                     </h2>
                     <div className="space-y-4 text-zinc-300 leading-relaxed">
                       <p>
@@ -475,7 +475,7 @@ export function PrivacyPage() {
                         The Service may contain links to third-party websites, applications, or services that are not operated by us. This Privacy Policy does not apply to third-party services, and we are not responsible for their privacy practices.
                       </p>
                       <p>
-                        We encourage you to review the privacy policies of any third-party services you access through our platform. When you connect third-party financial accounts, those connections are governed by both our policy and the third party's policy.
+                        We encourage you to review the privacy policies of any third-party services you access through our platform. When you connect third-party financial accounts, those connections are governed by both our policy and the third party&apos;s policy.
                       </p>
                     </div>
                   </section>
@@ -493,9 +493,9 @@ export function PrivacyPage() {
                         When we make material changes, we will:
                       </p>
                       <ul className="list-disc pl-6 text-zinc-400 space-y-2">
-                        <li>Update the "Last updated" date at the top of this policy</li>
+                        <li>Update the &quot;Last updated&quot; date at the top of this policy</li>
                         <li>Provide notice via email or a prominent notice in the Service</li>
-                        <li>For significant changes, provide at least 30 days' notice before the changes take effect</li>
+                        <li>For significant changes, provide at least 30 days&apos; notice before the changes take effect</li>
                       </ul>
                       <p>
                         We encourage you to review this Privacy Policy periodically. Your continued use of the Service after changes become effective constitutes acceptance of the updated policy.

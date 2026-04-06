@@ -6,7 +6,7 @@ import { reports, reportVersions, assets, valuations, orgs, clients, entities } 
 import { requireAuth, requireRole } from "@/lib/auth"
 import { blockDemoMutation } from "@/lib/demo/guard"
 import { createReportSchema, updateReportSchema } from "@/lib/validations/report.schema"
-import type { ReportRecord, ReportVersionRecord, AssetRecord, PaginatedResult } from "@/lib/types"
+import type { ReportRecord, PaginatedResult } from "@/lib/types"
 import { captureServerEvent } from "@/lib/analytics/posthog-server"
 import { renderPDF, type PDFTemplateType } from "@/lib/pdf/render"
 import { createClient } from "@/utils/supabase/server"

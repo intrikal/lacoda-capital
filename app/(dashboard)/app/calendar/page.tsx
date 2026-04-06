@@ -29,7 +29,6 @@ import * as React from "react"
 import { useSpring, animated, config } from "@react-spring/web"
 import { format, addDays, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday, isSameMonth } from "date-fns"
 import {
-  Calendar as CalendarIcon,
   ChevronLeft,
   ChevronRight,
   Plus,
@@ -40,19 +39,16 @@ import {
   DollarSign,
   FileText,
   AlertCircle,
-  Video,
   Phone,
-  Building2,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { formatCurrency } from "@/lib/utils"
 import { useReducedMotion } from "@/lib/hooks/use-reduced-motion"
 import { useCalendarEvents, useCreateCalendarEvent } from "@/lib/hooks/crud/use-calendar-events"
 import { EventFormDialog } from "@/components/forms/event-form-dialog"
-import type { CalendarEventType, CalendarEventRecord } from "@/lib/hooks/crud/use-calendar-events"
+import type { CalendarEventType } from "@/lib/hooks/crud/use-calendar-events"
 
 // Event types and their configurations
 const eventTypeConfig = {

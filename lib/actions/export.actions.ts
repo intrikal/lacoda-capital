@@ -1,7 +1,7 @@
 "use server"
 
 import { captureServerEvent } from "@/lib/analytics/server"
-import { eq, and, sql, isNull } from "drizzle-orm"
+import { eq, and, isNull } from "drizzle-orm"
 import { db } from "@/app/db"
 import {
   clients, entities, assets, valuations, documents, ledgerEvents,

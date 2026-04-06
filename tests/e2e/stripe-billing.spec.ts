@@ -25,8 +25,6 @@ test.describe("Pricing Page", () => {
     // Page title renders
     await expect(page.locator("h1")).toContainText("pricing")
 
-    // Three plan cards visible
-    const cards = page.locator('[class*="Card"]').filter({ hasText: /\$/ })
     await expect(page.getByText("Starter")).toBeVisible()
     await expect(page.getByText("Professional")).toBeVisible()
     await expect(page.getByText("Enterprise")).toBeVisible()
@@ -144,7 +142,7 @@ test.describe("Stripe Checkout Flow (requires auth)", () => {
       .first()
 
     // Listen for navigation
-    const [response] = await Promise.all([
+    await Promise.all([
       page.waitForNavigation({ timeout: 5000 }).catch(() => null),
       cta.click(),
     ])

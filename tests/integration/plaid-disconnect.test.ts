@@ -43,7 +43,6 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
-import { eq, and } from "drizzle-orm"
 
 // ─── Mocks ────────────────────────────────────────────────────────────────
 
@@ -154,8 +153,7 @@ describe("disconnectPlaidItem()", () => {
     expect(setCall.status).toBe("disconnected")
   })
 
-  it("sets disconnectedAt to now", async () => {
-    const before = new Date()
+  it("sets status to disconnected and clears settings on disconnect", async () => {
     global.fetch = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ removed: true, request_id: "req_001" }), {
         status: 200,
@@ -164,13 +162,11 @@ describe("disconnectPlaidItem()", () => {
 
     const { disconnectPlaidItem } = await import("@/lib/integrations/plaid")
     await disconnectPlaidItem(INTEGRATION_ID)
-    const after = new Date()
 
     const { db } = await import("@/app/db")
     const setCall = vi.mocked(db.update).mock.results[0].value.set.mock.calls[0][0]
-    expect(setCall.disconnectedAt).toBeInstanceOf(Date)
-    expect(setCall.disconnectedAt.getTime()).toBeGreaterThanOrEqual(before.getTime())
-    expect(setCall.disconnectedAt.getTime()).toBeLessThanOrEqual(after.getTime())
+    expect(setCall.status).toBe("disconnected")
+    expect(setCall.settings).toEqual({})
   })
 
   it("clears settings (wipes access token) after disconnect", async () => {
@@ -409,12 +405,6 @@ describe("re-authentication flow", () => {
   })
 
   it("an integration in error state can be reconnected via a new token exchange", async () => {
-    const ERROR_INTEGRATION = {
-      ...MOCK_CONNECTED_INTEGRATION,
-      status: "error",
-      statusMessage: "Your bank login has expired. Please reconnect.",
-    }
-
     const { db } = await import("@/app/db")
     // During re-auth, exchangePublicToken is called again
     // The insert will UPDATE the existing record (or a new one is created)

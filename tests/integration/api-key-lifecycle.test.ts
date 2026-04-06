@@ -14,7 +14,6 @@ import { describe, it, expect } from "vitest"
 import {
   generateApiKey,
   hashApiKey,
-  isValidApiKeyFormat,
   sanitizeKeyName,
 } from "@/lib/api-key"
 import { checkRateLimit, _resetMemoryStore } from "@/lib/rate-limiter"

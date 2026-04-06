@@ -1,5 +1,3 @@
-import type { OrgMember } from "@/app/db/schema/org_members"
-
 /**
  * RBAC Permission Matrix
  *

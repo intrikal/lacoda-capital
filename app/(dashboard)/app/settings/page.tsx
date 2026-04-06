@@ -96,7 +96,7 @@ import {
   exportOrgData,
   exportUserData,
 } from "@/lib/actions/export.actions"
-import { tableToCSV } from "@/lib/export-utils"
+
 import {
   requestAccountDeletion,
   cancelAccountDeletion,
@@ -666,8 +666,6 @@ function BillingTab({ isAdmin }: { isAdmin: boolean }) {
   const status = sub?.status ?? "free"
   const limits = PLAN_LIMITS[plan]
   const usageStatuses = overview?.usageStatuses ?? []
-  const usage = overview?.usage ?? { currentAum: 0, teamMemberCount: 0, storageUsedBytes: 0 }
-
   const handleAction = async (action: string, fn: () => Promise<unknown>) => {
     setActionLoading(action)
     try {
@@ -749,31 +747,33 @@ function BillingTab({ isAdmin }: { isAdmin: boolean }) {
               {plan === "free" || status === "cancelled" ? (
                 <>
                   <Button
-                    onClick={() =>
-                      handleAction("checkout_starter", () =>
-                        checkout("starter", "monthly")
-                      )
-                    }
+                    onClick={() => handleAction("checkout_starter", () => checkout("starter", "monthly"))}
                     disabled={actionLoading !== null}
                   >
-                    {actionLoading === "checkout_starter" && (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    )}
-                    Subscribe to Starter
+                    {actionLoading === "checkout_starter" && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                    Starter — $299/mo
+                  </Button>
+                  <Button
+                    onClick={() => handleAction("checkout_growth", () => checkout("growth", "monthly"))}
+                    disabled={actionLoading !== null}
+                  >
+                    {actionLoading === "checkout_growth" && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                    Growth — $599/mo
+                  </Button>
+                  <Button
+                    onClick={() => handleAction("checkout_pro", () => checkout("professional", "monthly"))}
+                    disabled={actionLoading !== null}
+                  >
+                    {actionLoading === "checkout_pro" && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                    Professional — $999/mo
                   </Button>
                   <Button
                     variant="glow"
-                    onClick={() =>
-                      handleAction("checkout_pro", () =>
-                        checkout("professional", "monthly")
-                      )
-                    }
+                    onClick={() => handleAction("checkout_elite", () => checkout("elite", "monthly"))}
                     disabled={actionLoading !== null}
                   >
-                    {actionLoading === "checkout_pro" && (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    )}
-                    Subscribe to Professional
+                    {actionLoading === "checkout_elite" && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                    Elite — $1,499/mo
                   </Button>
                 </>
               ) : (
@@ -781,17 +781,31 @@ function BillingTab({ isAdmin }: { isAdmin: boolean }) {
                   {plan === "starter" && status !== "cancelling" && (
                     <Button
                       variant="glow"
-                      onClick={() =>
-                        handleAction("upgrade", () =>
-                          checkout("professional", "monthly")
-                        )
-                      }
+                      onClick={() => handleAction("upgrade_growth", () => checkout("growth", "monthly"))}
                       disabled={actionLoading !== null}
                     >
-                      {actionLoading === "upgrade" && (
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      )}
+                      {actionLoading === "upgrade_growth" && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                      Upgrade to Growth
+                    </Button>
+                  )}
+                  {(plan === "starter" || plan === "growth") && status !== "cancelling" && (
+                    <Button
+                      variant="glow"
+                      onClick={() => handleAction("upgrade_pro", () => checkout("professional", "monthly"))}
+                      disabled={actionLoading !== null}
+                    >
+                      {actionLoading === "upgrade_pro" && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                       Upgrade to Professional
+                    </Button>
+                  )}
+                  {(plan === "starter" || plan === "growth" || plan === "professional") && status !== "cancelling" && (
+                    <Button
+                      variant="glow"
+                      onClick={() => handleAction("upgrade_elite", () => checkout("elite", "monthly"))}
+                      disabled={actionLoading !== null}
+                    >
+                      {actionLoading === "upgrade_elite" && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                      Upgrade to Elite
                     </Button>
                   )}
                   {sub?.stripeCustomerId && (

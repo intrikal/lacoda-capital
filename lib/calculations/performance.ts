@@ -316,8 +316,6 @@ export function calculatePeriodReturns(
     now.getMonth(),
     now.getDate()
   )
-  const inception = sorted[0].date
-
   // Since Inception: always calculable
   const sinceInception = calculateTWR(sorted, cashflows).twr
 

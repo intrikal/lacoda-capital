@@ -74,12 +74,11 @@ async function dispatchExpirationAlert(alert: {
   }
 }
 
-Deno.serve(async (req: Request) => {
+Deno.serve(async () => {
   try {
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
     const now = new Date()
-    const in1Day = new Date(now.getTime() + 1 * 24 * 60 * 60 * 1000)
     const in7Days = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
 
     // Find documents expiring within 7 days or already expired (within last 24h)

@@ -2,12 +2,10 @@
 
 import * as Sentry from "@sentry/nextjs"
 import { captureServerEvent } from "@/lib/analytics/server"
-import { eq, and, count } from "drizzle-orm"
+import { eq, and } from "drizzle-orm"
 import { db } from "@/app/db"
 import { integrations } from "@/app/db/schema"
 import { requireRole } from "@/lib/auth"
-import { createIntegrationSchema, updateIntegrationSchema } from "@/lib/validations/integration.schema"
-import type { PaginatedResult } from "@/lib/types"
 
 // Re-export provider availability checks
 import { isPlaidConfigured } from "@/lib/integrations/plaid"

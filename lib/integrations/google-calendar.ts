@@ -350,16 +350,6 @@ async function upsertCalendarEvent(
     source: "google_calendar" as const,
   }
 
-  // Check if event already exists by googleEventId
-  const existing = await db.query.calendarEvents.findFirst({
-    where: and(
-      eq(calendarEvents.orgId, orgId),
-      // Search in metadata JSONB for googleEventId
-    ),
-    // We need a raw SQL check for JSONB, but to keep it simple we'll query
-    // all events and filter. For production, add a googleEventId column or index.
-  })
-
   // For now, search by matching metadata googleEventId via a subquery approach.
   // Use a direct SQL approach for the JSONB lookup.
   const { sql } = await import("drizzle-orm")

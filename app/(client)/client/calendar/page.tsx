@@ -57,7 +57,6 @@ import { Label } from "@/components/ui/label"
 import { cn, formatCurrency } from "@/lib/utils"
 import { useReducedMotion } from "@/lib/hooks/use-reduced-motion"
 import { useCalendarEvents, useCreateCalendarEvent } from "@/lib/hooks/crud/use-calendar-events"
-import type { CalendarEventType } from "@/lib/hooks/crud/use-calendar-events"
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Display config (static, not data)

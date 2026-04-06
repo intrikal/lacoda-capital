@@ -13,38 +13,50 @@ import {
 } from "recharts"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
+interface PerformanceTooltipEntry {
+  color: string
+  name: string
+  value: number
+}
+
+interface PerformanceTooltipProps {
+  active?: boolean
+  payload?: PerformanceTooltipEntry[]
+  label?: string
+}
+
+function PerformanceTooltip({ active, payload, label }: PerformanceTooltipProps) {
+  if (active && payload && payload.length) {
+    return (
+      <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-3 shadow-lg">
+        <p className="font-medium text-zinc-100 mb-2">{label}</p>
+        {payload.map((entry, index) => (
+          <div key={index} className="flex items-center gap-2">
+            <div
+              className="h-2 w-2 rounded-full"
+              style={{ backgroundColor: entry.color }}
+            />
+            <span className="text-sm text-zinc-400">{entry.name}:</span>
+            <span
+              className="text-sm font-medium"
+              style={{ color: entry.color }}
+            >
+              {entry.value >= 0 ? "+" : ""}
+              {entry.value.toFixed(1)}%
+            </span>
+          </div>
+        ))}
+      </div>
+    )
+  }
+  return null
+}
+
 interface PerformanceChartProps {
   data?: { month: string; portfolio: number; benchmark: number }[]
 }
 
 export function PerformanceChart({ data = [] }: PerformanceChartProps) {
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      return (
-        <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-3 shadow-lg">
-          <p className="font-medium text-zinc-100 mb-2">{label}</p>
-          {payload.map((entry: any, index: number) => (
-            <div key={index} className="flex items-center gap-2">
-              <div
-                className="h-2 w-2 rounded-full"
-                style={{ backgroundColor: entry.color }}
-              />
-              <span className="text-sm text-zinc-400">{entry.name}:</span>
-              <span
-                className="text-sm font-medium"
-                style={{ color: entry.color }}
-              >
-                {entry.value >= 0 ? "+" : ""}
-                {entry.value.toFixed(1)}%
-              </span>
-            </div>
-          ))}
-        </div>
-      )
-    }
-    return null
-  }
-
   return (
     <Card>
       <CardHeader className="pb-2">
@@ -80,7 +92,7 @@ export function PerformanceChart({ data = [] }: PerformanceChartProps) {
                 tick={{ fill: "#71717a", fontSize: 12 }}
                 tickFormatter={(value) => `${value}%`}
               />
-              <Tooltip content={<CustomTooltip />} />
+              <Tooltip content={<PerformanceTooltip />} />
               <Legend
                 wrapperStyle={{ paddingTop: 20 }}
                 formatter={(value) => (

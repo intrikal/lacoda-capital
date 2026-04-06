@@ -158,14 +158,6 @@ interface QBAccount {
   CurrentBalance: number
 }
 
-interface QBInvoice {
-  Id: string
-  DocNumber: string
-  TotalAmt: number
-  Balance: number
-  DueDate: string
-}
-
 /**
  * Get an active access token for a QuickBooks integration.
  */

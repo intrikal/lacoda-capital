@@ -1,8 +1,8 @@
 "use server"
 
-import { eq, and, count, sql, gte, lte, like, isNull, desc } from "drizzle-orm"
+import { eq, and, count, sql, gte, lte, like, isNull } from "drizzle-orm"
 import { db } from "@/app/db"
-import { assets, entities, clients, valuations, documents } from "@/app/db/schema"
+import { assets, entities } from "@/app/db/schema"
 import { requireAuth, requireRole } from "@/lib/auth"
 import { blockDemoMutation } from "@/lib/demo/guard"
 import { createAssetSchema, updateAssetSchema } from "@/lib/validations/asset.schema"

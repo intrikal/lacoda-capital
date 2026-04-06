@@ -2,6 +2,34 @@
 // Sanity Types
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Scheduling Types
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type SlotStatus = "available" | "pending" | "booked"
+export type BookingStatus = "pending" | "approved" | "denied"
+
+export interface SanitySlot {
+  _id: string
+  dateTime: string // ISO 8601
+  duration: number // minutes
+  label?: string
+  status: SlotStatus
+}
+
+export interface SanityBookingRequest {
+  _id: string
+  name: string
+  email: string
+  company?: string
+  reason: string
+  status: BookingStatus
+  submittedAt: string
+  slot: SanitySlot
+}
+
+
+
 export interface SanityImage {
   asset: {
     _id: string
