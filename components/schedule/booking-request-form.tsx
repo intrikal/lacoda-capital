@@ -18,7 +18,14 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { bookingRequestSchema } from "@/lib/validations/booking.schema"
-import type { SanitySlot } from "@/lib/sanity/types"
+
+interface SanitySlot {
+  _id: string
+  dateTime: string
+  label?: string
+  duration: number
+  status: string
+}
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
