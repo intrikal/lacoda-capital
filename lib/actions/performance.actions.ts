@@ -1,6 +1,6 @@
 "use server"
 
-import { eq, and, isNull } from "drizzle-orm"
+import { eq, and, isNull, sql } from "drizzle-orm"
 import { db } from "@/app/db"
 import { assets, valuations, entities, clients } from "@/app/db/schema"
 import { requireAuth } from "@/lib/auth"
@@ -22,7 +22,7 @@ import { captureServerEvent } from "@/lib/analytics/server"
 export async function getAssetPerformance(
   assetId: string
 ): Promise<PeriodReturns & { hasData: boolean }> {
-  await requireAuth()
+  const session = await requireAuth()
 
   const vals = await db
     .select({ value: valuations.value, date: valuations.asOfDate })

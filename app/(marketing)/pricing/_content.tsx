@@ -244,7 +244,7 @@ export function PricingPage() {
     safeCapture("marketing.pricing_page_viewed")
   }, [])
 
-  const handleCheckout = async (planKey: "starter" | "professional") => {
+  const handleCheckout = async (planKey: "starter" | "growth" | "professional" | "elite") => {
     setCheckoutLoading(planKey)
     trackSubscriptionUpgradeClicked(planKey)
     safeCapture("marketing.plan_selected", { plan: planKey })

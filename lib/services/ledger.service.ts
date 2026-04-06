@@ -2,6 +2,7 @@
 
 import { db } from "@/app/db"
 import { ledgerEvents, users } from "@/app/db/schema"
+import type { LedgerEvent } from "@/app/db/schema"
 import { eq, desc, and, gte, lte, lt, or, like, sql } from "drizzle-orm"
 
 /**
@@ -80,10 +81,10 @@ export async function getLedgerEntries(
     conditions.push(eq(ledgerEvents.actorUserId, filters.actorId))
   }
   if (filters.action) {
-    conditions.push(eq(ledgerEvents.action, filters.action as LedgerEventRow["action"]))
+    conditions.push(eq(ledgerEvents.action, filters.action as LedgerEvent["action"]))
   }
   if (filters.targetType) {
-    conditions.push(eq(ledgerEvents.targetType, filters.targetType as LedgerEventRow["targetType"]))
+    conditions.push(eq(ledgerEvents.targetType, filters.targetType as LedgerEvent["targetType"]))
   }
   if (filters.after) {
     conditions.push(gte(ledgerEvents.createdAt, filters.after))
@@ -299,7 +300,7 @@ export async function getLedgerEntriesByAction(
   const rows = await db
     .select()
     .from(ledgerEvents)
-    .where(eq(ledgerEvents.action, action as LedgerEventRow["action"]))
+    .where(eq(ledgerEvents.action, action as LedgerEvent["action"]))
   return rows.map(toLedgerEntry)
 }
 
