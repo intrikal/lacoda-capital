@@ -317,3 +317,27 @@ export async function getSessionUserAndOrgId(): Promise<{ userId: string; orgId:
   });
   return { userId: user.id, orgId: member?.orgId ?? "" };
 }
+
+/**
+ * getSessionUserIdentity — Returns userId, orgId, fullName, and email for UI display.
+ */
+export async function getSessionUserIdentity(): Promise<{
+  userId: string;
+  orgId: string;
+  fullName: string | null;
+  email: string;
+} | null> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+  const [member, userRow] = await Promise.all([
+    db.query.orgMembers.findFirst({ where: eq(orgMembers.userId, user.id) }),
+    db.query.users.findFirst({ where: eq(users.id, user.id), columns: { fullName: true, email: true } }),
+  ]);
+  return {
+    userId: user.id,
+    orgId: member?.orgId ?? "",
+    fullName: userRow?.fullName ?? null,
+    email: userRow?.email ?? user.email ?? "",
+  };
+}

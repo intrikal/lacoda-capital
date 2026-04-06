@@ -23,7 +23,7 @@
 import * as React from "react"
 import * as Sentry from "@sentry/nextjs"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { identifyUser, resetIdentity } from "@/lib/analytics/track"
 import { TooltipProvider, Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { Button } from "@/components/ui/button"
@@ -44,7 +44,7 @@ import {
   CreditCard,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { logoutAction, getSessionUserAndOrgId } from "@/lib/actions/auth.actions"
+import { logoutAction, getSessionUserIdentity } from "@/lib/actions/auth.actions"
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Navigation structure — grouped for wealth management client UX
@@ -198,15 +198,28 @@ function NavLink({ item, isActive, collapsed }: NavLinkProps) {
 // Layout
 // ─────────────────────────────────────────────────────────────────────────────
 
+function getInitials(fullName: string | null, email: string): string {
+  if (fullName) {
+    const parts = fullName.trim().split(/\s+/)
+    if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+    return parts[0][0].toUpperCase()
+  }
+  return email[0].toUpperCase()
+}
+
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = React.useState(false)
+  const [displayName, setDisplayName] = React.useState<string | null>(null)
+  const [initials, setInitials] = React.useState<string>("…")
   const pathname = usePathname()
 
   React.useEffect(() => {
-    getSessionUserAndOrgId().then((info) => {
+    getSessionUserIdentity().then((info) => {
       if (info) {
         Sentry.setUser({ id: info.userId })
         identifyUser(info.userId, info.orgId)
+        setDisplayName(info.fullName ?? info.email)
+        setInitials(getInitials(info.fullName, info.email))
       }
     })
     return () => {
@@ -319,10 +332,10 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-3 flex-1 min-w-0 rounded-md p-2">
                   <div className="h-8 w-8 rounded-full bg-gradient-to-br from-tiffany-500/20 to-tiffany-600/20 flex items-center justify-center shrink-0 ring-1 ring-tiffany-500/30">
-                    <span className="text-xs font-semibold text-tiffany-500">JD</span>
+                    <span className="text-xs font-semibold text-tiffany-500">{initials}</span>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-zinc-100 truncate">John Doe</p>
+                    <p className="text-sm font-medium text-zinc-100 truncate">{displayName ?? "…"}</p>
                     <p className="text-xs text-zinc-500 truncate">Client</p>
                   </div>
                 </div>

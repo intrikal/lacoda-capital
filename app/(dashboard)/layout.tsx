@@ -9,6 +9,7 @@ import { NotificationBell } from "@/components/dashboard/notification-bell"
 import { CommandSearch } from "@/components/dashboard/command-search"
 import { FirstLoginWizard } from "@/components/dashboard/first-login-wizard"
 import { UsageLimitBanner } from "@/components/dashboard/usage-limit-banner"
+import { useRouter } from "next/navigation"
 import { getSessionUserAndOrgId } from "@/lib/actions/auth.actions"
 import { identifyUser, resetIdentity } from "@/lib/analytics/track"
 
@@ -18,12 +19,15 @@ export default function DashboardLayout({
   children: React.ReactNode
 }) {
   const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false)
+  const router = useRouter()
 
   React.useEffect(() => {
     getSessionUserAndOrgId().then((info) => {
       if (info) {
         Sentry.setUser({ id: info.userId })
         identifyUser(info.userId, info.orgId)
+      } else {
+        router.replace("/login")
       }
     })
     return () => {
