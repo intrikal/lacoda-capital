@@ -84,7 +84,7 @@ test.describe("Finances page (/app/finances)", () => {
     await page.getByRole("tab", { name: "Linked Accounts" }).click()
     await expect(page.getByRole("tab", { name: "Linked Accounts" })).toHaveAttribute("data-state", "active")
     // Static data includes Chase — verify an account card is visible
-    await expect(page.getByText("Chase")).first().toBeVisible({ timeout: 3_000 })
+    await expect(page.getByText("Chase").first()).toBeVisible({ timeout: 3_000 })
   })
 
   // ── Spending tab ────────────────────────────────────────────────────────────

@@ -46,26 +46,20 @@ import { describe, it, expect, vi, beforeEach } from "vitest"
 // In production, these functions make real HTTP calls to DocuSign.
 // In tests, we replace them with vi.fn() so we control the responses.
 
-const mockSendForSignature = vi.fn<
-  [string, string, string, string, string, string],
-  Promise<{ envelopeId: string }>
->()
+const mockSendForSignature = vi.fn<(a: string, b: string, c: string, d: string, e: string, f: string) => Promise<{ envelopeId: string }>>()
 
-const mockGetEnvelopeStatus = vi.fn<
-  [string, string],
-  Promise<{ status: string; completedDateTime: string | null }>
->()
+const mockGetEnvelopeStatus = vi.fn<(a: string, b: string) => Promise<{ status: string; completedDateTime: string | null }>>()
 
-const mockDownloadSignedDocument = vi.fn<[string, string, string?], Promise<ArrayBuffer>>()
+const mockDownloadSignedDocument = vi.fn<(a: string, b: string, c?: string) => Promise<ArrayBuffer>>()
 
 // ─── Mock Database layer ─────────────────────────────────────────────────────
 
 const mockDb = {
-  updateDocumentStatus: vi.fn<[string, string], Promise<void>>(),
-  createNotification: vi.fn<[object], Promise<{ id: string }>>(),
-  createLedgerEvent: vi.fn<[object], Promise<{ id: string }>>(),
-  createComplianceEvidence: vi.fn<[object], Promise<{ id: string }>>(),
-  updateEnvelopeRecord: vi.fn<[string, object], Promise<void>>(),
+  updateDocumentStatus: vi.fn<(a: string, b: string) => Promise<void>>(),
+  createNotification: vi.fn<(a: object) => Promise<{ id: string }>>(),
+  createLedgerEvent: vi.fn<(a: object) => Promise<{ id: string }>>(),
+  createComplianceEvidence: vi.fn<(a: object) => Promise<{ id: string }>>(),
+  updateEnvelopeRecord: vi.fn<(a: string, b: object) => Promise<void>>(),
 }
 
 // ─── Flow Orchestrator ───────────────────────────────────────────────────────

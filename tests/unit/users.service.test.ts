@@ -62,7 +62,7 @@ function makeUserRow(overrides: Record<string, unknown> = {}) {
   }
 }
 
-function makeOrgMemberRow(user: ReturnType<typeof makeUserRow>, role = "advisor") {
+function makeOrgMemberRow(user: ReturnType<typeof makeUserRow>, role = "analyst") {
   return { user, role }
 }
 
@@ -250,15 +250,15 @@ describe("getUsersByRole", () => {
 
   it("returns users with the given role", async () => {
     const rows = [
-      makeOrgMemberRow(makeUserRow({ id: "u1" }), "advisor"),
-      makeOrgMemberRow(makeUserRow({ id: "u2" }), "advisor"),
+      makeOrgMemberRow(makeUserRow({ id: "u1" }), "analyst"),
+      makeOrgMemberRow(makeUserRow({ id: "u2" }), "analyst"),
     ]
     vi.mocked(db.select).mockReturnValue(makeChain("where", rows) as never)
 
-    const users = await getUsersByRole("advisor")
+    const users = await getUsersByRole("analyst")
     expect(users).toHaveLength(2)
     for (const u of users) {
-      expect(u.role).toBe("advisor")
+      expect(u.role).toBe("analyst")
     }
   })
 
@@ -273,7 +273,7 @@ describe("getUsersByRole", () => {
     const chain = makeChain("where", [])
     vi.mocked(db.select).mockReturnValue(chain as never)
 
-    await getUsersByRole("advisor")
+    await getUsersByRole("analyst")
     expect(chain.innerJoin).toHaveBeenCalled()
   })
 
@@ -282,7 +282,7 @@ describe("getUsersByRole", () => {
     chain.where.mockRejectedValue(new Error("Query failed"))
     vi.mocked(db.select).mockReturnValue(chain as never)
 
-    await expect(getUsersByRole("advisor")).rejects.toThrow("Query failed")
+    await expect(getUsersByRole("analyst")).rejects.toThrow("Query failed")
   })
 })
 

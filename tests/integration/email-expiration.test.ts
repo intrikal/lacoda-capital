@@ -239,7 +239,7 @@ describe("digest email preferences", () => {
   })
 
   it("sends digest to user with digest = weekly", () => {
-    const preferences = { email_preferences: { digest: "weekly" as const } }
+    const preferences: { email_preferences: { digest: string } } = { email_preferences: { digest: "weekly" } }
     const shouldSend = preferences.email_preferences.digest !== "never"
 
     expect(shouldSend).toBe(true)

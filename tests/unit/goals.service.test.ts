@@ -195,7 +195,7 @@ describe("getGoalsByCategory", () => {
   it("returns empty array when category has no goals", async () => {
     vi.mocked(db.select).mockReturnValue(makeChain("where", []) as never)
 
-    const goals = await getGoalsByCategory("philanthropy")
+    const goals = await getGoalsByCategory("custom")
     expect(goals).toEqual([])
   })
 })

@@ -94,8 +94,10 @@ const INTEGRATION_ID = "intg_test_001"
 // ─── Plaid API mock responses ─────────────────────────────────────────────
 
 function makePlaidFetchMock(responses: Record<string, unknown>) {
-  return vi.fn(async (url: string) => {
-    const endpoint = new URL(url as string).pathname
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  return vi.fn(async (input: string | URL | Request, _init?: RequestInit) => {
+    const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url
+    const endpoint = new URL(url).pathname
 
     if (endpoint in responses) {
       return new Response(JSON.stringify(responses[endpoint]), {
@@ -175,7 +177,7 @@ describe("createLinkToken()", () => {
   })
 
   it("throws when Plaid returns an error", async () => {
-    global.fetch = vi.fn().mockResolvedValue(
+    global.fetch = vi.fn(() => Promise.resolve(
       new Response(
         JSON.stringify({
           error_type: "INVALID_REQUEST",
@@ -184,7 +186,7 @@ describe("createLinkToken()", () => {
         }),
         { status: 400 },
       ),
-    )
+    )) as unknown as typeof globalThis.fetch
 
     const { createLinkToken } = await import("@/lib/integrations/plaid")
     await expect(createLinkToken(USER_ID, ORG_ID)).rejects.toThrow()
@@ -378,7 +380,7 @@ describe("exchangePublicToken()", () => {
   })
 
   it("throws when the public token exchange fails", async () => {
-    global.fetch = vi.fn().mockResolvedValue(
+    global.fetch = vi.fn(() => Promise.resolve(
       new Response(
         JSON.stringify({
           error_code: "INVALID_PUBLIC_TOKEN",
@@ -386,7 +388,7 @@ describe("exchangePublicToken()", () => {
         }),
         { status: 400 },
       ),
-    )
+    )) as unknown as typeof globalThis.fetch
 
     const { exchangePublicToken } = await import("@/lib/integrations/plaid")
     await expect(

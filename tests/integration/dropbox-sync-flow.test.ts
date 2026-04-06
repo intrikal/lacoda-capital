@@ -29,56 +29,42 @@ import { describe, it, expect, vi, beforeEach } from "vitest"
 
 // ─── Mock Dropbox API layer ─────────────────────────────────────────────────
 
-const mockExchangeCodeForTokens = vi.fn<
-  [string, string, string],
-  Promise<{ accessToken: string; refreshToken: string; expiresIn: number; accountId: string }>
->()
+type ListFilesEntry = {
+  ".tag": string
+  id: string
+  name: string
+  path_display: string
+  path_lower: string
+  rev?: string
+  size?: number
+  is_downloadable?: boolean
+}
 
-const mockListFiles = vi.fn<
-  [string, string?, string?],
-  Promise<{
-    entries: Array<{
-      ".tag": string
-      id: string
-      name: string
-      path_display: string
-      path_lower: string
-      rev?: string
-      size?: number
-      is_downloadable?: boolean
-    }>
-    cursor: string
-    hasMore: boolean
-  }>
->()
+type ListFilesResult = {
+  entries: ListFilesEntry[]
+  cursor: string
+  hasMore: boolean
+}
 
-const mockDownloadFile = vi.fn<[string, string], Promise<Buffer>>()
-const mockUploadFile = vi.fn<
-  [string, string, Buffer],
-  Promise<{ ".tag": string; id: string; name: string; path_display: string; path_lower: string; rev?: string }>
->()
-const mockRevokeToken = vi.fn<[string], Promise<void>>()
+type UploadResult = { ".tag": string; id: string; name: string; path_display: string; path_lower: string; rev?: string }
+
+const mockExchangeCodeForTokens = vi.fn<(code: string, redirectUri: string, codeVerifier: string) => Promise<{ accessToken: string; refreshToken: string; expiresIn: number; accountId: string }>>()
+
+const mockListFiles = vi.fn<(token: string, folder?: string, cursor?: string) => Promise<ListFilesResult>>()
+
+const mockDownloadFile = vi.fn<(token: string, path: string) => Promise<Buffer>>()
+const mockUploadFile = vi.fn<(token: string, path: string, content: Buffer) => Promise<UploadResult>>()
+const mockRevokeToken = vi.fn<(token: string) => Promise<void>>()
 
 // ─── Mock Database layer ─────────────────────────────────────────────────────
 
 const mockDb = {
-  createIntegration: vi.fn<
-    [object],
-    Promise<{ id: string; provider: string; status: string; settings: Record<string, unknown> }>
-  >(),
-  updateIntegration: vi.fn<[string, object], Promise<void>>(),
-  getIntegration: vi.fn<
-    [string],
-    Promise<{
-      id: string
-      provider: string
-      status: string
-      settings: Record<string, unknown>
-    } | null>
-  >(),
-  createDocument: vi.fn<[object], Promise<{ id: string }>>(),
-  getDocumentByExternalPath: vi.fn<[string, string], Promise<{ id: string; rev: string } | null>>(),
-  uploadToStorage: vi.fn<[string, Buffer], Promise<{ path: string }>>(),
+  createIntegration: vi.fn<(data: object) => Promise<{ id: string; provider: string; status: string; settings: Record<string, unknown> }>>(),
+  updateIntegration: vi.fn<(id: string, data: object) => Promise<void>>(),
+  getIntegration: vi.fn<(id: string) => Promise<{ id: string; provider: string; status: string; settings: Record<string, unknown> } | null>>(),
+  createDocument: vi.fn<(data: object) => Promise<{ id: string }>>(),
+  getDocumentByExternalPath: vi.fn<(integrationId: string, path: string) => Promise<{ id: string; rev: string } | null>>(),
+  uploadToStorage: vi.fn<(name: string, content: Buffer) => Promise<{ path: string }>>(),
 }
 
 // ─── Flow Orchestrators ─────────────────────────────────────────────────────

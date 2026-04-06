@@ -149,7 +149,7 @@ describe("Plaid Edge Cases", () => {
     })
 
     it("marks integration as error when access_token is missing", () => {
-      const vaultSecret = { refresh_token: "rt_123" } // access_token missing
+      const vaultSecret: Record<string, string> = { refresh_token: "rt_123" } // access_token missing
       const accessToken = vaultSecret.access_token
 
       expect(accessToken).toBeUndefined()

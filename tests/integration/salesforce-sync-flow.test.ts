@@ -610,10 +610,11 @@ describe("Token refresh during sync — mid-sync token expiry", () => {
 
   it("refreshes token before querying when access token is old", async () => {
     let callCount = 0
-    global.fetch = vi.fn(async (url: string) => {
+    global.fetch = vi.fn(async (input: string | URL | Request) => {
       callCount++
+      const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url
       // First call: token refresh
-      if ((url as string).includes("/services/oauth2/token")) {
+      if (url.includes("/services/oauth2/token")) {
         return new Response(
           JSON.stringify({
             access_token: "new_access_token_refreshed",

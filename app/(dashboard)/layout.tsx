@@ -66,7 +66,6 @@ export default function DashboardLayout({
               <ul className="space-y-0.5">
                 {mainNavigation.map((item) => {
                   const active = pathname.startsWith(item.href)
-                  const Icon = item.icon
                   return (
                     <li key={item.name}>
                       <Link
@@ -79,7 +78,7 @@ export default function DashboardLayout({
                             : "text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-100"
                         )}
                       >
-                        <Icon className={cn("h-[18px] w-[18px] shrink-0", active ? "text-tiffany-500" : "text-zinc-500")} />
+                        {React.createElement(item.icon, { className: cn("h-[18px] w-[18px] shrink-0", active ? "text-tiffany-500" : "text-zinc-500") })}
                         <span className="truncate">{item.name}</span>
                       </Link>
                     </li>
@@ -91,7 +90,6 @@ export default function DashboardLayout({
               <ul className="space-y-0.5">
                 {secondaryNavigation.map((item) => {
                   const active = pathname.startsWith(item.href)
-                  const Icon = item.icon
                   return (
                     <li key={item.name}>
                       <Link
@@ -104,7 +102,7 @@ export default function DashboardLayout({
                             : "text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-100"
                         )}
                       >
-                        <Icon className={cn("h-[18px] w-[18px] shrink-0", active ? "text-tiffany-500" : "text-zinc-500")} />
+                        {React.createElement(item.icon, { className: cn("h-[18px] w-[18px] shrink-0", active ? "text-tiffany-500" : "text-zinc-500") })}
                         <span>{item.name}</span>
                       </Link>
                     </li>

@@ -107,6 +107,9 @@ const googleDriveSettingsSchema = z.object({
 
   // Optional: sync direction setting
   syncDirection: z.enum(["drive_to_vault", "vault_to_drive", "bidirectional"]).optional(),
+
+  // Optional: Shared Drive ID (undefined = My Drive)
+  sharedDriveId: z.string().optional(),
 })
 
 

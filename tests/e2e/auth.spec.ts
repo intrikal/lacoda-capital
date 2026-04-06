@@ -50,9 +50,7 @@ import { test, expect } from "@playwright/test"
  * need a logged-in state without going through a full UI flow each time.
  */
 async function loginViaForm(
-  page: Parameters<typeof test>[1] extends (args: { page: infer P }) => unknown
-    ? P
-    : never,
+  page: import("@playwright/test").Page,
   email: string,
   password: string
 ) {
