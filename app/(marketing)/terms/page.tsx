@@ -5,6 +5,12 @@ export const metadata: Metadata = {
   title: "Terms of Service | Lacoda Capital Holdings",
   description:
     "Read the terms and conditions governing use of the Lacoda Capital platform and services.",
+  keywords: [
+    "Lacoda terms of service",
+  ],
+  alternates: {
+    canonical: "https://lacodacapital.com/terms",
+  },
   openGraph: {
     title: "Terms of Service | Lacoda Capital Holdings",
     description:

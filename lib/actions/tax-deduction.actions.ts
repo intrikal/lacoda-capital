@@ -5,6 +5,7 @@ import { eq, and, count } from "drizzle-orm"
 import { db } from "@/app/db"
 import { taxDeductions } from "@/app/db/schema"
 import { requireAuth, requireRole } from "@/lib/auth"
+import { blockDemoMutation } from "@/lib/demo/guard"
 import { createTaxDeductionSchema, updateTaxDeductionSchema } from "@/lib/validations/tax-deduction.schema"
 import type { TaxDeductionItem, PaginatedResult } from "@/lib/types"
 
@@ -48,6 +49,7 @@ export async function getTaxDeduction(id: string): Promise<TaxDeductionItem | nu
 
 export async function createTaxDeduction(input: unknown): Promise<TaxDeductionItem> {
   const session = await requireRole("assistant")
+  blockDemoMutation(session.orgId)
   const parsed = createTaxDeductionSchema.parse(input)
 
   const [created] = await db
@@ -66,6 +68,7 @@ export async function createTaxDeduction(input: unknown): Promise<TaxDeductionIt
 
 export async function updateTaxDeduction(id: string, input: unknown): Promise<TaxDeductionItem> {
   const session = await requireRole("assistant")
+  blockDemoMutation(session.orgId)
   const existing = await db.query.taxDeductions.findFirst({
     where: and(eq(taxDeductions.id, id), eq(taxDeductions.orgId, session.orgId!)),
   })
@@ -89,6 +92,7 @@ export async function updateTaxDeduction(id: string, input: unknown): Promise<Ta
 
 export async function deleteTaxDeduction(id: string): Promise<boolean> {
   const session = await requireRole("admin")
+  blockDemoMutation(session.orgId)
   const existing = await db.query.taxDeductions.findFirst({
     where: and(eq(taxDeductions.id, id), eq(taxDeductions.orgId, session.orgId!)),
   })

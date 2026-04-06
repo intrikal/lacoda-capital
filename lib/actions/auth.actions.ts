@@ -205,9 +205,16 @@ export async function demoLoginAction(
 ): Promise<ActionResult> {
   const supabase = await createClient();
 
+  const demoEmail = process.env.DEMO_EMAIL;
+  const demoPassword = process.env.DEMO_PASSWORD;
+
+  if (!demoEmail || !demoPassword) {
+    return { error: "Demo not configured" };
+  }
+
   const { data, error } = await supabase.auth.signInWithPassword({
-    email: "kevinsdemo1111@demogmail.com",
-    password: "TimeOfNeed!",
+    email: demoEmail,
+    password: demoPassword,
   });
 
   if (error || !data.user) {

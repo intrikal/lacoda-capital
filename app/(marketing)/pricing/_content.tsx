@@ -16,6 +16,12 @@ import {
 import { cn } from "@/lib/utils"
 import { useReducedMotion } from "@/lib/hooks/use-reduced-motion"
 import { createCheckoutSession } from "@/lib/actions/subscription.actions"
+import { trackSubscriptionUpgradeClicked } from "@/lib/analytics/track"
+import posthog from "posthog-js"
+
+const safeCapture = (event: string, properties?: Record<string, unknown>) => {
+  if (typeof window !== "undefined" && posthog.__loaded) posthog.capture(event, properties)
+}
 
 const plans = [
   {
@@ -155,31 +161,32 @@ const featureComparison = [
   {
     category: "Security & Compliance",
     features: [
-      { name: "SOC 2 Type II",           starter: true,  growth: true,  professional: true,  elite: true,  enterprise: true },
-      { name: "Role-based access",       starter: true,  growth: true,  professional: true,  elite: true,  enterprise: true },
-      { name: "Audit logging",           starter: true,  growth: true,  professional: true,  elite: true,  enterprise: true },
-      { name: "SSO/SAML",                starter: false, growth: false, professional: true,  elite: true,  enterprise: true },
-      { name: "Custom security policies",starter: false, growth: false, professional: false, elite: false, enterprise: true },
+      { name: "SOC 2 Type II (in progress)", starter: true, professional: true, enterprise: true },
+      { name: "Role-based access", starter: true, professional: true, enterprise: true },
+      { name: "Audit logging", starter: true, professional: true, enterprise: true },
+      { name: "SSO/SAML", starter: false, professional: true, enterprise: true },
+      { name: "Custom security policies", starter: false, professional: false, enterprise: true },
+      { name: "Custom portal branding", starter: false, professional: false, enterprise: true },
     ],
   },
   {
     category: "Integrations & API",
     features: [
-      { name: "API access",           starter: false, growth: false, professional: true,  elite: true,  enterprise: true },
-      { name: "Webhooks",             starter: false, growth: false, professional: true,  elite: true,  enterprise: true },
-      { name: "Bank feeds",           starter: false, growth: false, professional: true,  elite: true,  enterprise: true },
-      { name: "Custom integrations",  starter: false, growth: false, professional: false, elite: true,  enterprise: true },
-      { name: "Data warehouse sync",  starter: false, growth: false, professional: false, elite: false, enterprise: true },
+      { name: "API access", starter: false, professional: true, enterprise: true },
+      { name: "Webhooks", starter: false, professional: true, enterprise: true },
+      { name: "Bank feeds", starter: false, professional: true, enterprise: true },
+      { name: "Custom integrations", starter: false, professional: false, enterprise: true },
+      { name: "Data warehouse sync (coming soon)", starter: false, professional: false, enterprise: false },
     ],
   },
   {
     category: "Support",
     features: [
-      { name: "Email support",      starter: true,  growth: true,  professional: true,  elite: true,  enterprise: true },
-      { name: "Priority support",   starter: false, growth: true,  professional: true,  elite: true,  enterprise: true },
-      { name: "Phone support",      starter: false, growth: false, professional: false, elite: false, enterprise: true },
-      { name: "Dedicated CSM",      starter: false, growth: false, professional: false, elite: false, enterprise: true },
-      { name: "Custom onboarding",  starter: false, growth: false, professional: false, elite: false, enterprise: true },
+      { name: "Email support", starter: true, professional: true, enterprise: true },
+      { name: "Priority support", starter: false, professional: true, enterprise: true },
+      { name: "Phone support", starter: false, professional: false, enterprise: true },
+      { name: "Dedicated CSM", starter: false, professional: false, enterprise: true },
+      { name: "Guided onboarding", starter: false, professional: false, enterprise: true },
     ],
   },
 ]
@@ -233,8 +240,14 @@ export function PricingPage() {
   const [expandedFaq, setExpandedFaq] = React.useState<number | null>(null)
   const [checkoutLoading, setCheckoutLoading] = React.useState<string | null>(null)
 
-  const handleCheckout = async (planKey: "starter" | "growth" | "professional" | "elite") => {
+  React.useEffect(() => {
+    safeCapture("marketing.pricing_page_viewed")
+  }, [])
+
+  const handleCheckout = async (planKey: "starter" | "professional") => {
     setCheckoutLoading(planKey)
+    trackSubscriptionUpgradeClicked(planKey)
+    safeCapture("marketing.plan_selected", { plan: planKey })
     try {
       const interval = annual ? "annual" : "monthly"
       const { url } = await createCheckoutSession({ plan: planKey, interval })
@@ -408,6 +421,7 @@ export function PricingPage() {
                       <Button
                         variant={plan.ctaVariant}
                         className="w-full"
+                        onClick={() => safeCapture("marketing.plan_selected", { plan: plan.planKey })}
                         asChild
                       >
                         <Link href="/demo">{plan.cta}</Link>
@@ -497,8 +511,8 @@ export function PricingPage() {
 
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
               {[
-                { name: "SOC 2 Type II security", tooltip: "Enterprise-grade security certification" },
-                { name: "Bank-grade encryption", tooltip: "AES-256 encryption at rest and in transit" },
+                { name: "Enterprise-grade encryption", tooltip: "AES-256 encryption at rest and in transit" },
+                { name: "Bank-grade encryption", tooltip: "TLS 1.3 in transit, AES-256 at rest" },
                 { name: "Role-based access control", tooltip: "Granular permissions for team members" },
                 { name: "Immutable audit ledger", tooltip: "Complete history of all actions" },
                 { name: "Document versioning", tooltip: "Track changes across document versions" },

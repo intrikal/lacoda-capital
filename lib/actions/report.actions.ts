@@ -4,6 +4,7 @@ import { eq, and, count, desc, inArray, isNull } from "drizzle-orm"
 import { db } from "@/app/db"
 import { reports, reportVersions, assets, valuations, orgs, clients, entities } from "@/app/db/schema"
 import { requireAuth, requireRole } from "@/lib/auth"
+import { blockDemoMutation } from "@/lib/demo/guard"
 import { createReportSchema, updateReportSchema } from "@/lib/validations/report.schema"
 import type { ReportRecord, PaginatedResult } from "@/lib/types"
 import { captureServerEvent } from "@/lib/analytics/posthog-server"
@@ -45,6 +46,7 @@ export async function getReport(id: string): Promise<ReportRecord | null> {
 
 export async function createReport(input: unknown): Promise<ReportRecord> {
   const session = await requireRole("assistant")
+  blockDemoMutation(session.orgId)
   const parsed = createReportSchema.parse(input)
 
   const [created] = await db
@@ -67,6 +69,7 @@ export async function createReport(input: unknown): Promise<ReportRecord> {
 
 export async function updateReport(id: string, input: unknown): Promise<ReportRecord> {
   const session = await requireRole("assistant")
+  blockDemoMutation(session.orgId)
   const existing = await db.query.reports.findFirst({
     where: and(eq(reports.id, id), eq(reports.orgId, session.orgId!)),
   })
@@ -85,6 +88,7 @@ export async function updateReport(id: string, input: unknown): Promise<ReportRe
 
 export async function deleteReport(id: string): Promise<boolean> {
   const session = await requireRole("admin")
+  blockDemoMutation(session.orgId)
   const existing = await db.query.reports.findFirst({
     where: and(eq(reports.id, id), eq(reports.orgId, session.orgId!)),
   })
@@ -107,6 +111,7 @@ export async function deleteReport(id: string): Promise<boolean> {
  */
 export async function generateReport(reportId: string): Promise<{ downloadUrl: string }> {
   const session = await requireRole("assistant")
+  blockDemoMutation(session.orgId)
 
   // 1. Fetch report and verify ownership
   const report = await db.query.reports.findFirst({

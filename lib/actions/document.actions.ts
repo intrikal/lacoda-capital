@@ -5,7 +5,8 @@ import type { SQL } from "drizzle-orm"
 import { db } from "@/app/db"
 import { documents } from "@/app/db/schema"
 import { requireAuth, requireRole } from "@/lib/auth"
-import { createDocumentSchema, updateDocumentSchema } from "@/lib/validations/document.schema"
+import { blockDemoMutation } from "@/lib/demo/guard"
+import { createDocumentSchema, updateDocumentSchema, uploadDocumentSchema } from "@/lib/validations/document.schema"
 import type { DocumentRecord, PaginatedResult } from "@/lib/types"
 import { captureServerEvent } from "@/lib/analytics/posthog-server"
 import { createClient } from "@/utils/supabase/server"
@@ -46,6 +47,7 @@ export async function getDocument(id: string): Promise<DocumentRecord | null> {
 
 export async function createDocument(input: unknown): Promise<DocumentRecord> {
   const session = await requireRole("assistant")
+  blockDemoMutation(session.orgId)
   const parsed = createDocumentSchema.parse(input)
 
   const [created] = await db
@@ -69,6 +71,7 @@ export async function createDocument(input: unknown): Promise<DocumentRecord> {
 
 export async function updateDocument(id: string, input: unknown): Promise<DocumentRecord> {
   const session = await requireRole("assistant")
+  blockDemoMutation(session.orgId)
   const existing = await db.query.documents.findFirst({
     where: and(eq(documents.id, id), eq(documents.orgId, session.orgId!)),
   })
@@ -90,6 +93,7 @@ export async function updateDocument(id: string, input: unknown): Promise<Docume
 
 export async function deleteDocument(id: string): Promise<boolean> {
   const session = await requireRole("admin")
+  blockDemoMutation(session.orgId)
   const existing = await db.query.documents.findFirst({
     where: and(eq(documents.id, id), eq(documents.orgId, session.orgId!), isNull(documents.deletedAt)),
   })
@@ -126,6 +130,7 @@ interface UploadDocumentInput {
 
 export async function uploadDocument(input: UploadDocumentInput): Promise<DocumentRecord> {
   const session = await requireRole("assistant")
+  blockDemoMutation(session.orgId)
 
   // Validate file size
   if (input.sizeBytes > 50 * 1024 * 1024) {
@@ -186,6 +191,7 @@ interface BulkUpdateInput {
 
 export async function bulkUpdateDocuments(ids: string[], update: BulkUpdateInput): Promise<number> {
   const session = await requireRole("assistant")
+  blockDemoMutation(session.orgId)
 
   // Verify all docs belong to this org
   const count_result = await db

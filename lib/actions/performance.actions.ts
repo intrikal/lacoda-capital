@@ -10,6 +10,7 @@ import {
   calculateTWR,
 } from "@/lib/calculations/performance"
 import type { Valuation, PeriodReturns, TWRDataPoint } from "@/lib/calculations/performance"
+import { captureServerEvent } from "@/lib/analytics/server"
 
 // ============================================================================
 // Performance Server Actions
@@ -39,6 +40,7 @@ export async function getAssetPerformance(
   }))
 
   const returns = calculatePeriodReturns(mapped)
+  captureServerEvent(session.userId, "performance.calculated", { metric_type: "asset_period_returns" })
   return { ...returns, hasData: true }
 }
 
@@ -115,6 +117,7 @@ export async function getPortfolioPerformance(): Promise<
   }))
 
   const returns = calculatePeriodReturns(mapped)
+  captureServerEvent(session.userId, "performance.calculated", { metric_type: "portfolio_period_returns" })
   return { ...returns, hasData: true }
 }
 

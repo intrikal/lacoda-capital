@@ -2,10 +2,7 @@
 
 import { db } from "@/app/db"
 import { ledgerEvents, users } from "@/app/db/schema"
-import { eq, desc, and, gte, lte } from "drizzle-orm"
-import type { InferSelectModel } from "drizzle-orm"
-
-type LedgerEventRow = InferSelectModel<typeof ledgerEvents>
+import { eq, desc, and, gte, lte, lt, or, like, sql } from "drizzle-orm"
 
 /**
  * LedgerRow — Database result with actor name resolved.
@@ -106,11 +103,19 @@ export async function getLedgerEntries(
       .limit(1)
 
     if (cursorEvent[0]) {
-      // Get events AFTER the cursor timestamp (or same timestamp but different ID for tie-breaking)
+      // Cursor pagination on an ordered-by-createdAt-desc result set.
+      // We want rows that come *after* the cursor when sorted newest-first, i.e.:
+      //   createdAt < cursor.createdAt
+      //   OR (createdAt = cursor.createdAt AND id < cursor.id)  ← tie-break by id
+      // UUIDs (v4) are random, so the tie-break is just for determinism, not ordering.
       conditions.push(
-        // Events after cursor timestamp, OR
-        // events at same timestamp but with IDs after cursor (lexicographic sort)
-        lte(ledgerEvents.createdAt, cursorEvent[0].createdAt) // TODO: implement proper cursor logic
+        or(
+          lt(ledgerEvents.createdAt, cursorEvent[0].createdAt),
+          and(
+            sql`${ledgerEvents.createdAt} = ${cursorEvent[0].createdAt}`,
+            lt(ledgerEvents.id, filters.cursor!)
+          )
+        )!
       )
     }
   }

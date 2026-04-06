@@ -53,6 +53,7 @@ import {
   useOAuthConnect,
 } from "@/lib/hooks/crud/use-integrations"
 import type { IntegrationRecord, ProviderStatus } from "@/lib/hooks/crud/use-integrations"
+import { trackIntegrationConnected } from "@/lib/analytics/track"
 
 import type { LucideIcon } from "lucide-react"
 
@@ -322,6 +323,7 @@ export default function IntegrationsPage() {
       case "stripe_key":
         stripeConnect({
           onSuccess: () => {
+            trackIntegrationConnected("stripe")
             setConnectDialogOpen(false)
             refetch()
           },
@@ -331,11 +333,12 @@ export default function IntegrationsPage() {
       case "plaid_link":
         plaidConnect({
           onLinkToken: (token) => {
-            // In production, this would open Plaid Link with the token
-            // For now, close the dialog and show the token
+            // Plaid Link is initialized via createPlaidLinkToken action (lib/actions/plaid.actions.ts).
+            // Pass this token to the @plaid/react usePlaidLink hook to open the Plaid Link modal,
+            // then exchange the public_token in lib/integrations/plaid.ts exchangePlaidToken().
             console.log("Plaid Link Token:", token)
+            trackIntegrationConnected("plaid")
             setConnectDialogOpen(false)
-            // TODO: Open Plaid Link component with this token
           },
         })
         break
@@ -347,6 +350,7 @@ export default function IntegrationsPage() {
             onError: (e) => console.error("OAuth connect failed:", e),
           },
         )
+        trackIntegrationConnected(selectedProvider.id)
         break
     }
   }

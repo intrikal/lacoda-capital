@@ -237,8 +237,27 @@ export async function inviteTeamMember(input: {
     })
   }
 
-  // TODO: Send invite email via Edge Function for new users
-  // For now, log the invite event
+  // Send invite email via the send-email Supabase Edge Function.
+  // Only attempted for new users (existing users are already on the platform).
+  // Failures are non-fatal — the member row was already written.
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  if (supabaseUrl && supabaseAnonKey) {
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? supabaseUrl
+    fetch(`${supabaseUrl}/functions/v1/send-email`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${supabaseAnonKey}`,
+      },
+      body: JSON.stringify({
+        to: input.email,
+        subject: "You've been invited to Lacoda",
+        html: `<p>You've been invited to join Lacoda as <strong>${input.role}</strong>.</p><p><a href="${appUrl}/login">Sign in to get started</a></p>`,
+      }),
+    }).catch((err) => console.error("[onboarding] invite email failed:", err))
+  }
+
   await createLedgerEvent({
     orgId: session.orgId,
     actorId: session.userId,

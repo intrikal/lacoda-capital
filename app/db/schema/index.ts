@@ -352,19 +352,7 @@ export type {
 } from "./transfers";
 
 // ============================================================================
-// Expenses (Portfolio Spending)
+// Contact Submissions (Marketing Forms)
 // ============================================================================
-export { expenses, expensesRelations } from "./expenses";
-export type { Expense, NewExpense } from "./expenses";
-
-// ============================================================================
-// Risk Profiles
-// ============================================================================
-export { riskProfiles, riskProfilesRelations } from "./risk_profiles";
-export type { RiskProfile, NewRiskProfile } from "./risk_profiles";
-
-// ============================================================================
-// KYC / AML Records
-// ============================================================================
-export { kycRecords, kycRecordsRelations } from "./kyc_records";
-export type { KycRecord, NewKycRecord } from "./kyc_records";
+export { contactSubmissions, contactSubmissionTypeEnum } from "./contact_submissions";
+export type { ContactSubmission, NewContactSubmission } from "./contact_submissions";

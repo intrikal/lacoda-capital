@@ -5,6 +5,7 @@ import { eq, and, ilike, sql, count } from "drizzle-orm"
 import { db } from "@/app/db"
 import { clients, entities, assets } from "@/app/db/schema"
 import { requireAuth, requireRole } from "@/lib/auth"
+import { blockDemoMutation } from "@/lib/demo/guard"
 import { createClientSchema, updateClientSchema } from "@/lib/validations/client.schema"
 import type { ClientRecord, PaginatedResult } from "@/lib/types"
 
@@ -80,6 +81,7 @@ export async function getClient(id: string): Promise<ClientRecord | null> {
 
 export async function createClient(input: unknown): Promise<ClientRecord> {
   const session = await requireRole("assistant")
+  blockDemoMutation(session.orgId)
   const parsed = createClientSchema.parse(input)
   const { clientType, clientStatus, ...rest } = parsed
 
@@ -107,6 +109,7 @@ export async function createClient(input: unknown): Promise<ClientRecord> {
 
 export async function updateClient(id: string, input: unknown): Promise<ClientRecord> {
   const session = await requireRole("assistant")
+  blockDemoMutation(session.orgId)
   const existing = await db.query.clients.findFirst({
     where: and(eq(clients.id, id), eq(clients.orgId, session.orgId!)),
   })
@@ -148,6 +151,7 @@ export async function updateClient(id: string, input: unknown): Promise<ClientRe
 
 export async function archiveClient(id: string): Promise<ClientRecord> {
   const session = await requireRole("assistant")
+  blockDemoMutation(session.orgId)
   const existing = await db.query.clients.findFirst({
     where: and(eq(clients.id, id), eq(clients.orgId, session.orgId!)),
   })
@@ -208,6 +212,7 @@ export async function getClientWithEntities(id: string) {
 
 export async function deleteClient(id: string): Promise<boolean> {
   const session = await requireRole("admin")
+  blockDemoMutation(session.orgId)
   const existing = await db.query.clients.findFirst({
     where: and(eq(clients.id, id), eq(clients.orgId, session.orgId!)),
   })

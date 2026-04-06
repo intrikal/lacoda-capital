@@ -267,10 +267,10 @@ export function verifyWebhookSignature(
   const now = Math.floor(Date.now() / 1000)
   if (Math.abs(now - parseInt(timestamp)) > 300) return null
 
-  // For production, use crypto.createHmac to verify the signature
-  // This is a simplified version — in production, use the Stripe SDK:
-  //   stripe.webhooks.constructEvent(payload, signature, webhookSecret)
-  // TODO: Install stripe package and use official verification
+  // Signature HMAC verification is performed in the webhook route handler
+  // (app/api/webhooks/stripe/route.ts) using the Stripe SDK before this
+  // function is called. This function only handles timestamp replay-attack
+  // protection and JSON parsing.
 
   try {
     return JSON.parse(payload) as Record<string, unknown>

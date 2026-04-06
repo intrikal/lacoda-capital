@@ -6,6 +6,7 @@ import {
   getIntegrationByProvider,
   disconnectIntegration,
 } from "@/lib/services/integrations.service"
+import { captureServerEvent } from "@/lib/analytics/server"
 
 /**
  * getPlaidLinkToken — Creates a Plaid Link token via the Edge Function.
@@ -76,7 +77,11 @@ export async function exchangePlaidToken(input: {
     throw new Error(err.error ?? "Failed to exchange Plaid token")
   }
 
-  return res.json()
+  const result = await res.json()
+  captureServerEvent(session.userId, "plaid.account_linked", {
+    assets_created: result.assetsCreated,
+  })
+  return result
 }
 
 /**
@@ -119,6 +124,11 @@ export async function triggerPlaidSync(integrationId?: string): Promise<{
     metadata: { action: "manual_sync", ...result },
   })
 
+  captureServerEvent(session.userId, "plaid.sync_completed", {
+    synced: result.synced,
+    failed: result.failed,
+  })
+
   return result
 }
 
@@ -148,4 +158,6 @@ export async function disconnectPlaid(): Promise<void> {
     targetId: "plaid",
     metadata: { action: "disconnected" },
   })
+
+  captureServerEvent(session.userId, "plaid.disconnected")
 }

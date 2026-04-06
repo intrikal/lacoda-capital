@@ -5,6 +5,14 @@ export const metadata: Metadata = {
   title: "Request a Demo | Lacoda Capital Holdings",
   description:
     "See Lacoda in action. Schedule a personalized demo of our asset management operating system for your firm.",
+  keywords: [
+    "asset management demo",
+    "portfolio software trial",
+    "wealth management walkthrough",
+  ],
+  alternates: {
+    canonical: "https://lacodacapital.com/demo",
+  },
   openGraph: {
     title: "Request a Demo | Lacoda Capital Holdings",
     description:
