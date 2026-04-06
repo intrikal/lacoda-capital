@@ -13,11 +13,9 @@
  *   │   ├── useCalendarEvents()          → fetches all events           │
  *   │   ├── useCreateCalendarEvent()     → creates a new event          │
  *   │         ↓                                                          │
- *   │ Apollo Client (useQuery / useMutation)                             │
+ *   │ Server Actions (lib/actions/calendar-event.actions.ts)             │
  *   │         ↓                                                          │
- *   │ POST /api/graphql                                                  │
- *   │         ↓                                                          │
- *   │ calendarEventResolvers → Drizzle ORM → PostgreSQL                 │
+ *   │ Drizzle ORM → PostgreSQL                                           │
  *   └────────────────────────────────────────────────────────────────────┘
  *
  * CONSUMERS:

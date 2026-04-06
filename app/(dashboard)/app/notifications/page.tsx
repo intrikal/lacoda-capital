@@ -14,11 +14,9 @@
  *   │   ├── useMarkNotificationRead()       → marks one as read        │
  *   │   ├── useMarkAllNotificationsRead()   → marks all as read        │
  *   │         ↓                                                          │
- *   │ Apollo Client (useQuery / useMutation)                             │
+ *   │ Server Actions (lib/actions/notification.actions.ts)               │
  *   │         ↓                                                          │
- *   │ POST /api/graphql                                                  │
- *   │         ↓                                                          │
- *   │ notificationResolvers → Drizzle ORM → PostgreSQL                  │
+ *   │ Drizzle ORM → PostgreSQL                                           │
  *   └────────────────────────────────────────────────────────────────────┘
  *
  * NOTIFICATION TYPES (DB enum):

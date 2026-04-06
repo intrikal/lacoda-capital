@@ -117,6 +117,7 @@ export function DemoPage() {
   // Controlled values for Select fields (uncontrolled Selects don't submit with FormData)
   const [aum, setAum] = React.useState("")
   const [role, setRole] = React.useState("")
+  const [honeypot, setHoneypot] = React.useState("")
   const demoFormStartedRef = React.useRef(false)
 
   const heroSpring = useSpring({
@@ -128,6 +129,10 @@ export function DemoPage() {
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
+    if (honeypot) {
+      setSubmitted(true)
+      return
+    }
     setError(null)
     const fd = new FormData(e.currentTarget)
     const payload = {
@@ -154,6 +159,10 @@ export function DemoPage() {
   // Calendar-mode confirm also collects name/email from its own inputs
   const handleCalendarSubmit = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault()
+    if (honeypot) {
+      setSubmitted(true)
+      return
+    }
     setError(null)
     const section = (e.currentTarget as HTMLElement).closest("div[data-cal-fields]") as HTMLElement | null
     const getVal = (id: string) =>
@@ -267,6 +276,20 @@ export function DemoPage() {
                 <>
                   {bookingMode === "form" ? (
                     <form onSubmit={handleSubmit} className="mt-8 space-y-6">
+                      {/* Honeypot — hidden from users, filled by bots */}
+                      <div aria-hidden="true" style={{ display: "none" }}>
+                        <label htmlFor="website">Website</label>
+                        <input
+                          id="website"
+                          type="text"
+                          name="website"
+                          value={honeypot}
+                          onChange={(e) => setHoneypot(e.target.value)}
+                          tabIndex={-1}
+                          autoComplete="off"
+                        />
+                      </div>
+
                       <div className="grid sm:grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label htmlFor="firstName">First name</Label>

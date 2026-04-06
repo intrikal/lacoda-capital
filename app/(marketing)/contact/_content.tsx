@@ -116,6 +116,7 @@ export function ContactPage() {
     subject: "",
     reason: "",
     message: "",
+    honeypot: "",
   })
 
   const heroSpring = useSpring({
@@ -127,6 +128,10 @@ export function ContactPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    if (formData.honeypot) {
+      setSubmitted(true)
+      return
+    }
     setError(null)
     startTransition(async () => {
       const result = await submitContactForm(formData)
@@ -177,6 +182,20 @@ export function ContactPage() {
 
               {!submitted ? (
                 <form onSubmit={handleSubmit} className="space-y-6">
+                  {/* Honeypot — hidden from users, filled by bots */}
+                  <div aria-hidden="true" style={{ display: "none" }}>
+                    <label htmlFor="website">Website</label>
+                    <input
+                      id="website"
+                      type="text"
+                      name="website"
+                      value={formData.honeypot}
+                      onChange={(e) => handleInputChange("honeypot", e.target.value)}
+                      tabIndex={-1}
+                      autoComplete="off"
+                    />
+                  </div>
+
                   <div className="grid sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="firstName">First name</Label>
@@ -317,6 +336,7 @@ export function ContactPage() {
                         subject: "",
                         reason: "",
                         message: "",
+                        honeypot: "",
                       })
                     }}
                   >

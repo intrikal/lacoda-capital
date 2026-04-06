@@ -10,16 +10,14 @@
  * ARCHITECTURE:
  *   ┌────────────────────────────────────────────────────────────────────┐
  *   │ PipelinePage                                                      │
- *   │   ├── useDeals()            → fetches deal list from GraphQL      │
+ *   │   ├── useDeals()            → fetches deal list via server actions  │
  *   │   ├── useCreateDeal()       → creates a new deal                  │
  *   │   ├── useUpdateDeal()       → updates deal / moves stage          │
  *   │   ├── useDeleteDeal()       → archives a deal                     │
  *   │         ↓                                                          │
- *   │ Apollo Client (useQuery / useMutation)                             │
+ *   │ Server Actions (lib/actions/deal.actions.ts)                       │
  *   │         ↓                                                          │
- *   │ POST /api/graphql                                                  │
- *   │         ↓                                                          │
- *   │ dealResolvers → Drizzle ORM → PostgreSQL                          │
+ *   │ Drizzle ORM → PostgreSQL                                           │
  *   └────────────────────────────────────────────────────────────────────┘
  *
  * CONSUMERS:

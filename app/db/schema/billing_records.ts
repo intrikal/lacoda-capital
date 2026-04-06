@@ -26,8 +26,8 @@
  *   billing_records → clients (many-to-one: each invoice belongs to one client)
  *
  * CONSUMERS:
- *   - lib/graphql/resolvers/billing-record.ts   (CRUD resolvers)
- *   - lib/hooks/crud/use-billing-records.ts     (React hook via Apollo Client)
+ *   - lib/actions/billing-record.actions.ts     (CRUD server actions)
+ *   - lib/hooks/crud/use-billing-records.ts     (React hook via server actions)
  *   - app/(dashboard)/app/billing/              (advisor billing management page)
  *   - app/(client)/client/billing/              (client read-only billing view)
  */

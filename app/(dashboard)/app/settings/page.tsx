@@ -16,11 +16,9 @@
  *   │   ├── useUpdateOrgMemberRole()    → changes a member's role       │
  *   │   ├── useRemoveOrgMember()        → removes a member              │
  *   │         ↓                                                          │
- *   │ Apollo Client (useQuery / useMutation)                             │
+ *   │ Server Actions (lib/actions/org.actions.ts)                        │
  *   │         ↓                                                          │
- *   │ POST /api/graphql                                                  │
- *   │         ↓                                                          │
- *   │ orgResolvers → Drizzle ORM → PostgreSQL                           │
+ *   │ Drizzle ORM → PostgreSQL                                           │
  *   └────────────────────────────────────────────────────────────────────┘
  *
  * CONSUMERS:

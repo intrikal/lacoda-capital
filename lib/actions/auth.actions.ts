@@ -197,7 +197,7 @@ export async function logoutAction() {
  * Quick demo access — signs in with hardcoded credentials and redirects to
  * the chosen portal view (admin dashboard or client portal).
  *
- * The Supabase session is real (so GraphQL/API calls work), but the
+ * The Supabase session is real (so server action/API calls work), but the
  * `user-role` cookie is overridden to control which portal renders.
  */
 export async function demoLoginAction(

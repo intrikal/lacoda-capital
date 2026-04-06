@@ -1,9 +1,11 @@
 "use server"
 
+import { headers } from "next/headers"
 import { db } from "@/app/db"
 import { contactSubmissions } from "@/app/db/schema"
 import { contactFormSchema, demoFormSchema } from "@/lib/validations/contact.schema"
 import type { ContactFormInput, DemoFormInput } from "@/lib/validations/contact.schema"
+import { checkRateLimit } from "@/lib/rate-limiter"
 
 // ─── Result type ─────────────────────────────────────────────────────────────
 
@@ -84,6 +86,12 @@ function buildDemoEmailHtml(input: DemoFormInput): string {
 // ─── Server Actions ───────────────────────────────────────────────────────────
 
 export async function submitContactForm(raw: unknown): Promise<ActionResult> {
+  const ip = (await headers()).get("x-forwarded-for")?.split(",")[0].trim() ?? "unknown"
+  const rl = await checkRateLimit(`contact:${ip}`, { windowMs: 60 * 60_000, maxRequests: 5 })
+  if (!rl.allowed) {
+    return { success: false, error: "Too many requests. Please try again later." }
+  }
+
   const parsed = contactFormSchema.safeParse(raw)
   if (!parsed.success) {
     const message = parsed.error.issues[0]?.message ?? "Invalid form data"
@@ -121,6 +129,12 @@ export async function submitContactForm(raw: unknown): Promise<ActionResult> {
 }
 
 export async function submitDemoForm(raw: unknown): Promise<ActionResult> {
+  const ip = (await headers()).get("x-forwarded-for")?.split(",")[0].trim() ?? "unknown"
+  const rl = await checkRateLimit(`demo:${ip}`, { windowMs: 60 * 60_000, maxRequests: 5 })
+  if (!rl.allowed) {
+    return { success: false, error: "Too many requests. Please try again later." }
+  }
+
   const parsed = demoFormSchema.safeParse(raw)
   if (!parsed.success) {
     const message = parsed.error.issues[0]?.message ?? "Invalid form data"

@@ -4,10 +4,10 @@
  * ============================================================================
  *
  * Zod validation schemas for tax deduction inputs.
- * Used by the GraphQL resolver (server-side) and form dialog (client-side).
+ * Used by the server action (server-side) and form dialog (client-side).
  *
  * CONSUMERS:
- *   - lib/graphql/resolvers/tax-deduction.ts
+ *   - lib/actions/tax-deduction.actions.ts
  *   - components/forms/tax-deduction-form-dialog.tsx
  */
 

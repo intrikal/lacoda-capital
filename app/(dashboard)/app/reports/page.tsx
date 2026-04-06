@@ -5,7 +5,7 @@
  *
  * WHAT THIS FILE IS:
  *   The advisor-facing Reports dashboard. Displays a list of generated reports
- *   with CRUD operations (create, edit, delete) backed by the GraphQL API,
+ *   with CRUD operations (create, edit, delete) backed by server actions,
  *   plus a static Benchmarks tab for portfolio comparison analytics.
  *
  * ARCHITECTURE:
@@ -20,7 +20,7 @@
  *   │   ├── ReportFormDialog   → create/edit modal form               │
  *   │   └── AlertDialog        → delete confirmation                  │
  *   │         ↓                                                       │
- *   │ Apollo Client → POST /api/graphql → resolvers → PostgreSQL      │
+ *   │ Server Actions (lib/actions/report.actions.ts) → Drizzle → PostgreSQL │
  *   └─────────────────────────────────────────────────────────────────┘
  *
  * TWO TABS:
@@ -36,9 +36,8 @@
  *
  * RELATED FILES:
  *   - lib/hooks/crud/use-reports.ts              — data hooks
+ *   - lib/actions/report.actions.ts              — server actions
  *   - components/forms/report-form-dialog.tsx     — form dialog
- *   - lib/graphql/operations/report.ts            — GraphQL operations
- *   - lib/graphql/resolvers/report.ts             — server-side resolvers
  *   - app/(dashboard)/app/vault/page.tsx          — same pattern for documents
  */
 

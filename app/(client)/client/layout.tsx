@@ -16,6 +16,10 @@
  * Active state:
  *   Overview uses exact match (`pathname === "/client"`).
  *   All other items use `pathname.startsWith(item.href)`.
+ *
+ * Mobile:
+ *   Below md: fixed sidebar hidden, hamburger opens Sheet drawer.
+ *   md and above: fixed sidebar shown.
  */
 
 "use client"
@@ -27,6 +31,7 @@ import { usePathname, useRouter } from "next/navigation"
 import { identifyUser, resetIdentity } from "@/lib/analytics/track"
 import { TooltipProvider, Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { Button } from "@/components/ui/button"
+import { Sheet, SheetContent } from "@/components/ui/sheet"
 import { Logo } from "@/components/marketing/logo"
 import {
   LayoutDashboard,
@@ -42,6 +47,7 @@ import {
   Bell,
   LogOut,
   CreditCard,
+  Menu,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { logoutAction, getSessionUserIdentity } from "@/lib/actions/auth.actions"
@@ -149,12 +155,14 @@ interface NavLinkProps {
   item: NavItem
   isActive: boolean
   collapsed: boolean
+  onClick?: () => void
 }
 
-function NavLink({ item, isActive, collapsed }: NavLinkProps) {
+function NavLink({ item, isActive, collapsed, onClick }: NavLinkProps) {
   const link = (
     <Link
       href={item.href}
+      onClick={onClick}
       className={cn(
         "group flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
         collapsed && "justify-center px-2",
@@ -209,6 +217,7 @@ function getInitials(fullName: string | null, email: string): string {
 
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = React.useState(false)
+  const [mobileOpen, setMobileOpen] = React.useState(false)
   const [displayName, setDisplayName] = React.useState<string | null>(null)
   const [initials, setInitials] = React.useState<string>("…")
   const pathname = usePathname()
@@ -232,7 +241,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   }, [])
 
   const sidebarWidth = collapsed ? "w-[68px]" : "w-[240px]"
-  const mainMargin = collapsed ? "ml-[68px]" : "ml-[240px]"
+  const mainMargin = collapsed ? "ml-0 md:ml-[68px]" : "ml-0 md:ml-[240px]"
 
   /**
    * Determines whether a nav item is currently active.
@@ -246,10 +255,10 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   return (
     <TooltipProvider delayDuration={0}>
       <div className="min-h-screen bg-zinc-950">
-        {/* ── Sidebar ──────────────────────────────────────────────────────── */}
+        {/* ── Desktop fixed sidebar ─────────────────────────────────────────── */}
         <aside
           className={cn(
-            "fixed left-0 top-0 bottom-0 z-40 flex flex-col border-r border-zinc-800/60 bg-zinc-950 transition-all duration-200 overflow-y-auto",
+            "fixed left-0 top-0 bottom-0 z-40 hidden md:flex flex-col border-r border-zinc-800/60 bg-zinc-950 transition-all duration-200 overflow-y-auto",
             sidebarWidth
           )}
         >
@@ -361,12 +370,82 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
           </div>
         </aside>
 
+        {/* ── Mobile sheet sidebar ──────────────────────────────────────────── */}
+        <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+          <SheetContent side="left" className="w-[240px] p-0 flex flex-col bg-zinc-950">
+            <div className="flex h-14 items-center border-b border-zinc-800/60 shrink-0 px-4">
+              <Link href="/" className="flex items-center" onClick={() => setMobileOpen(false)}>
+                <Logo showText size="sm" />
+              </Link>
+            </div>
+            <nav className="flex-1 px-3 py-4 space-y-5 overflow-y-auto">
+              {navGroups.map((group) => (
+                <div key={group.label}>
+                  <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-widest text-zinc-600">
+                    {group.label}
+                  </p>
+                  <div className="space-y-0.5">
+                    {group.items.map((item) => (
+                      <NavLink
+                        key={item.href}
+                        item={item}
+                        isActive={isActive(item.href)}
+                        collapsed={false}
+                        onClick={() => setMobileOpen(false)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </nav>
+            <div className="border-t border-zinc-800/60 px-3 py-3 space-y-0.5">
+              {bottomNav.map((item) => (
+                <NavLink
+                  key={item.href}
+                  item={item}
+                  isActive={isActive(item.href)}
+                  collapsed={false}
+                  onClick={() => setMobileOpen(false)}
+                />
+              ))}
+            </div>
+            <div className="border-t border-zinc-800/60 p-3">
+              <div className="flex items-center gap-2 rounded-md p-2">
+                <div className="h-8 w-8 rounded-full bg-gradient-to-br from-tiffany-500/20 to-tiffany-600/20 flex items-center justify-center shrink-0 ring-1 ring-tiffany-500/30">
+                  <span className="text-xs font-semibold text-tiffany-500">{initials}</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-zinc-100 truncate">{displayName ?? "…"}</p>
+                  <p className="text-xs text-zinc-500 truncate">Client</p>
+                </div>
+                <button
+                  onClick={() => { resetIdentity(); logoutAction() }}
+                  className="h-8 w-8 flex items-center justify-center rounded-md text-zinc-500 hover:text-red-400 hover:bg-zinc-800/60 transition-colors shrink-0"
+                  aria-label="Sign out"
+                >
+                  <LogOut className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          </SheetContent>
+        </Sheet>
+
         {/* ── Main content area ─────────────────────────────────────────────── */}
         <main
           className={cn("min-h-screen transition-all duration-200", mainMargin)}
         >
           {/* Sticky top bar */}
-          <div className="sticky top-0 z-30 flex h-14 items-center justify-end gap-2 border-b border-zinc-800/60 bg-zinc-950/80 backdrop-blur-sm px-6">
+          <div className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-zinc-800/60 bg-zinc-950/80 backdrop-blur-sm px-4">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-zinc-400 hover:text-zinc-100 md:hidden"
+              onClick={() => setMobileOpen(true)}
+              aria-label="Open navigation"
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
+            <div className="flex-1" />
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button

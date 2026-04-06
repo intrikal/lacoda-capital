@@ -35,8 +35,8 @@
  *   goals → clients (many-to-one: each goal optionally belongs to one client)
  *
  * CONSUMERS:
- *   - lib/graphql/resolvers/goal.ts   (CRUD resolvers)
- *   - lib/hooks/crud/use-goals.ts     (React hook via Apollo Client)
+ *   - lib/actions/goal.actions.ts     (CRUD server actions)
+ *   - lib/hooks/crud/use-goals.ts     (React hook via server actions)
  *   - app/(dashboard)/app/goals/      (advisor dashboard goals page)
  *   - app/(client)/client/goals/      (client portal goals page)
  */

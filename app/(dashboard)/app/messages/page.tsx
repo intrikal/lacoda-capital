@@ -15,11 +15,9 @@
  *   │   ├── useSendMessage()            → sends a new message           │
  *   │   └── useMarkConversationRead()   → resets unread on selection    │
  *   │         ↓                                                          │
- *   │ Apollo Client (useQuery / useMutation)                             │
+ *   │ Server Actions (lib/actions/message.actions.ts)                    │
  *   │         ↓                                                          │
- *   │ POST /api/graphql                                                  │
- *   │         ↓                                                          │
- *   │ messageResolvers → Drizzle ORM → PostgreSQL                       │
+ *   │ Drizzle ORM → PostgreSQL                                           │
  *   └────────────────────────────────────────────────────────────────────┘
  *
  * DISPLAY PROPERTY DERIVATION:
@@ -29,8 +27,8 @@
  *     avatarColor — deterministic Tailwind class from name hash
  *
  * DATA FLOW:
- *   useConversationMessages(selectedId) is a reactive Apollo query —
- *   it re-fetches automatically when selectedId changes. No imperative
+ *   useConversationMessages(selectedId) re-fetches automatically when
+ *   selectedId changes via a useEffect in the hook. No imperative
  *   `loadMessages()` call is needed.
  *
  * CONSUMERS:

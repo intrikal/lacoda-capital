@@ -18,7 +18,7 @@
  *   │   ├── TaskFormDialog   → create/edit modal form                 │
  *   │   └── AlertDialog      → delete confirmation                    │
  *   │         ↓                                                       │
- *   │ Apollo Client → POST /api/graphql → resolvers → PostgreSQL      │
+ *   │ Server Actions (lib/actions/task.actions.ts) → Drizzle → PostgreSQL │
  *   └─────────────────────────────────────────────────────────────────┘
  *
  * FILTER TABS:
@@ -36,9 +36,8 @@
  *
  * RELATED FILES:
  *   - lib/hooks/crud/use-tasks.ts              — data hooks
+ *   - lib/actions/task.actions.ts              — server actions
  *   - components/forms/task-form-dialog.tsx     — form dialog
- *   - lib/graphql/operations/task.ts            — GraphQL operations
- *   - lib/graphql/resolvers/task.ts             — server-side resolvers
  *   - app/(dashboard)/app/reports/page.tsx      — same pattern for reports
  */
 
