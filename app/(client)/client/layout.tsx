@@ -212,6 +212,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   const [displayName, setDisplayName] = React.useState<string | null>(null)
   const [initials, setInitials] = React.useState<string>("…")
   const pathname = usePathname()
+  const router = useRouter()
 
   React.useEffect(() => {
     getSessionUserIdentity().then((info) => {
@@ -220,6 +221,8 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
         identifyUser(info.userId, info.orgId)
         setDisplayName(info.fullName ?? info.email)
         setInitials(getInitials(info.fullName, info.email))
+      } else {
+        router.replace("/login")
       }
     })
     return () => {
