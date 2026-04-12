@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * send-email — Supabase Edge Function
  *

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * ai-extract — Supabase Edge Function
  *

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * weekly-digest — Supabase Edge Function (pg_cron: Monday 8am per org timezone)
  *

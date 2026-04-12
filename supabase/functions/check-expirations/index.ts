@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * check-expirations — Supabase Edge Function (pg_cron: daily)
  *

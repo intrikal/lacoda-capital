@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * check-overdue-calls — Supabase Edge Function (pg_cron: daily 8am)
  *

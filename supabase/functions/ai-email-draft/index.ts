@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * ai-email-draft — Supabase Edge Function
  *

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * ai-narrative — Supabase Edge Function
  *

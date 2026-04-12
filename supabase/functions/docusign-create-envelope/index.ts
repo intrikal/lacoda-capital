@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * docusign-create-envelope — Supabase Edge Function
  *

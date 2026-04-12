@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * smart-alert-digest — Supabase Edge Function (pg_cron: weekly)
  *
