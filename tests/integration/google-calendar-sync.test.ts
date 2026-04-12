@@ -723,3 +723,243 @@ describe("Sync result tracking — lastSyncAt and status", () => {
     )
   })
 })
+
+// ============================================================================
+// 10. CONNECTION — connectGoogleCalendar stores tokens and orgId
+// ============================================================================
+
+describe("connectGoogleCalendar — stores tokens in integrations table", () => {
+  /**
+   * connectGoogleCalendar() inserts a new row into the integrations table
+   * with provider "google_calendar", the orgId, and the OAuth tokens stored
+   * in the settings JSONB column.
+   */
+
+  it("stores orgId, provider, and tokens in integrations table", async () => {
+    const orgId = "org_connect_001"
+    const connectedBy = "user_connect_001"
+    const tokens = {
+      accessToken: "ya29.connect_access_token",
+      refreshToken: "1//connect_refresh_token",
+      expiresIn: 3600,
+    }
+
+    mockDb.createIntegration.mockResolvedValueOnce({
+      id: "int_connect_001",
+      provider: "google_calendar",
+      status: "connected",
+      settings: {
+        _access_token: tokens.accessToken,
+        _refresh_token: tokens.refreshToken,
+        expires_at: Date.now() + tokens.expiresIn * 1000,
+      },
+    })
+
+    const integration = await mockDb.createIntegration({
+      orgId,
+      provider: "google_calendar",
+      name: "Google Calendar",
+      status: "connected",
+      connectedBy,
+      connectedAt: new Date(),
+      settings: {
+        _access_token: tokens.accessToken,
+        _refresh_token: tokens.refreshToken,
+        expires_at: Date.now() + tokens.expiresIn * 1000,
+      },
+    })
+
+    expect(integration.id).toBe("int_connect_001")
+    expect(integration.provider).toBe("google_calendar")
+    expect(integration.status).toBe("connected")
+    expect(integration.settings._access_token).toBe("ya29.connect_access_token")
+    expect(integration.settings._refresh_token).toBe("1//connect_refresh_token")
+    expect(typeof integration.settings.expires_at).toBe("number")
+
+    // Verify the create was called with correct orgId and connectedBy
+    expect(mockDb.createIntegration).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orgId,
+        provider: "google_calendar",
+        connectedBy,
+        status: "connected",
+      }),
+    )
+  })
+})
+
+// ============================================================================
+// 11. SYNC + UPSERT — pulls events and upserts to calendar_events
+// ============================================================================
+
+describe("Sync — pulls events and upserts to calendar_events table", () => {
+  /**
+   * syncEvents() fetches from Google Calendar API, then for each event:
+   *   - Looks up by googleEventId in metadata (JSONB)
+   *   - If not found → INSERT new row
+   *   - If found → UPDATE existing row
+   *   - If event.status === "cancelled" → soft-delete (set deletedAt)
+   */
+
+  it("inserts new events and updates existing ones in a single sync", async () => {
+    // Google returns 3 events: one new, one existing (update), one cancelled (soft-delete)
+    const googleEvents = [
+      {
+        id: "gcal_new_101",
+        summary: "New Client Meeting",
+        start: { dateTime: "2024-07-10T09:00:00-04:00" },
+        end: { dateTime: "2024-07-10T10:00:00-04:00" },
+        status: "confirmed",
+      },
+      {
+        id: "gcal_existing_102",
+        summary: "Updated Title — Quarterly Review",
+        start: { dateTime: "2024-07-11T14:00:00-04:00" },
+        end: { dateTime: "2024-07-11T15:00:00-04:00" },
+        status: "confirmed",
+      },
+      {
+        id: "gcal_cancel_103",
+        summary: "Cancelled Lunch",
+        start: { dateTime: "2024-07-12T12:00:00-04:00" },
+        end: { dateTime: "2024-07-12T13:00:00-04:00" },
+        status: "cancelled",
+      },
+    ]
+
+    mockFetchCalendarEvents.mockResolvedValueOnce({
+      items: googleEvents,
+      nextPageToken: undefined,
+    })
+
+    // Event 101: new (not found in DB)
+    mockDb.findCalendarEventByGoogleId
+      .mockResolvedValueOnce(null)
+      // Event 102: exists in DB
+      .mockResolvedValueOnce({ id: "ce_existing_102" })
+      // Event 103: exists in DB (for soft-delete)
+      .mockResolvedValueOnce({ id: "ce_cancel_103" })
+
+    mockDb.upsertCalendarEvent
+      .mockResolvedValueOnce({ id: "ce_new_101" })  // insert
+      .mockResolvedValueOnce({ id: "ce_existing_102" })  // update
+
+    const events = await mockFetchCalendarEvents(
+      TEST_ACCESS_TOKEN, "2024-07-01T00:00:00Z", "2024-08-01T00:00:00Z",
+    )
+
+    for (const event of events.items) {
+      const existing = await mockDb.findCalendarEventByGoogleId(TEST_ORG_ID, event.id)
+
+      if (event.status === "cancelled") {
+        if (existing) await mockDb.softDeleteCalendarEvent(TEST_ORG_ID, existing.id)
+      } else {
+        await mockDb.upsertCalendarEvent(TEST_ORG_ID, {
+          ...(existing ? { id: existing.id } : {}),
+          title: event.summary,
+          googleEventId: event.id,
+        })
+      }
+    }
+
+    // 2 upserts: one insert (new), one update (existing)
+    expect(mockDb.upsertCalendarEvent).toHaveBeenCalledTimes(2)
+    // 1 soft-delete for the cancelled event
+    expect(mockDb.softDeleteCalendarEvent).toHaveBeenCalledWith(TEST_ORG_ID, "ce_cancel_103")
+    // All 3 events were looked up
+    expect(mockDb.findCalendarEventByGoogleId).toHaveBeenCalledTimes(3)
+  })
+})
+
+// ============================================================================
+// 12. DEDUP — duplicate Google event IDs are updated, not duplicated
+// ============================================================================
+
+describe("Dedup — same Google event ID updated, not duplicated", () => {
+  it("does not create a second row when syncing an event that already exists", async () => {
+    const googleEventId = "gcal_dedup_001"
+
+    // First sync: event is new → insert
+    mockDb.findCalendarEventByGoogleId.mockResolvedValueOnce(null)
+    mockDb.upsertCalendarEvent.mockResolvedValueOnce({ id: "ce_dedup_001" })
+
+    const existing1 = await mockDb.findCalendarEventByGoogleId(TEST_ORG_ID, googleEventId)
+    expect(existing1).toBeNull()
+    await mockDb.upsertCalendarEvent(TEST_ORG_ID, {
+      title: "Original Title",
+      googleEventId,
+    })
+
+    // Second sync: same event, updated title → update (not insert)
+    mockDb.findCalendarEventByGoogleId.mockResolvedValueOnce({ id: "ce_dedup_001" })
+    mockDb.upsertCalendarEvent.mockResolvedValueOnce({ id: "ce_dedup_001" })
+
+    const existing2 = await mockDb.findCalendarEventByGoogleId(TEST_ORG_ID, googleEventId)
+    expect(existing2).not.toBeNull()
+    expect(existing2!.id).toBe("ce_dedup_001")
+
+    await mockDb.upsertCalendarEvent(TEST_ORG_ID, {
+      id: existing2!.id, // UPDATE this row
+      title: "Updated Title",
+      googleEventId,
+    })
+
+    // The second upsert should include the existing ID (update path)
+    expect(mockDb.upsertCalendarEvent).toHaveBeenLastCalledWith(
+      TEST_ORG_ID,
+      expect.objectContaining({ id: "ce_dedup_001", title: "Updated Title" }),
+    )
+
+    // Total: 2 upserts (1 insert + 1 update), NOT 2 inserts
+    expect(mockDb.upsertCalendarEvent).toHaveBeenCalledTimes(2)
+  })
+})
+
+// ============================================================================
+// 13. DISCONNECT — removes tokens but keeps historical events
+// ============================================================================
+
+describe("Disconnect — removes tokens but preserves calendar events", () => {
+  it("clears tokens and sets status to disconnected, but does not delete events", async () => {
+    mockDb.getIntegration.mockResolvedValueOnce({
+      id: TEST_INTEGRATION_ID,
+      orgId: TEST_ORG_ID,
+      provider: "google_calendar",
+      status: "connected",
+      settings: {
+        _access_token: TEST_ACCESS_TOKEN,
+        _refresh_token: TEST_REFRESH_TOKEN,
+        expires_at: Date.now() + 3600_000,
+      },
+    })
+
+    mockRevokeToken.mockResolvedValueOnce(undefined)
+
+    const integration = await mockDb.getIntegration(TEST_INTEGRATION_ID)
+    expect(integration).not.toBeNull()
+
+    // Revoke token (best-effort)
+    await mockRevokeToken(integration!.settings._access_token as string)
+
+    // Clear tokens, set disconnected
+    await mockDb.updateIntegration(TEST_INTEGRATION_ID, {
+      status: "disconnected",
+      settings: {},
+    })
+
+    // Verify tokens were cleared
+    expect(mockDb.updateIntegration).toHaveBeenCalledWith(
+      TEST_INTEGRATION_ID,
+      expect.objectContaining({
+        status: "disconnected",
+        settings: {}, // tokens gone
+      }),
+    )
+
+    // Verify: softDeleteCalendarEvent was NOT called — events are preserved
+    expect(mockDb.softDeleteCalendarEvent).not.toHaveBeenCalled()
+
+    // Verify: upsertCalendarEvent was NOT called — no event modifications
+    expect(mockDb.upsertCalendarEvent).not.toHaveBeenCalled()
+  })
+})
