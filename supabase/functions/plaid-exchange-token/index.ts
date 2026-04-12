@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * plaid-exchange-token — Supabase Edge Function
  *

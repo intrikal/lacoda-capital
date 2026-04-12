@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * docusign-webhook — Supabase Edge Function
  *

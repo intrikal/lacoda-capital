@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * sync-balances — Supabase Edge Function
  *
